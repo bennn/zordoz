@@ -82,6 +82,18 @@
   )
   #:mutable)
 
+;; Syntax to increment a [zsc] field.
+;; "(zsc++ s f)" desugars to "(set-zsc-f! s (add1 (zsc-f s)))"
+(require (for-syntax racket/base racket/syntax))
+(define-syntax (zsc++ stx)
+  (syntax-case stx ()
+    [(_)       (raise-syntax-error #f "[zsc++] Expected (struct field-name)")]
+    [(_ _)     (raise-syntax-error #f "[zsc++] Expected (struct field-name)")]
+    [(_ st fd) (with-syntax* ([setter (format-id stx "set-zsc-~a!" #'fd)]
+                              [getter (format-id stx "zsc-~a"      #'fd)])
+                             #'(setter st (add1 (getter st))))]))
+
+
 ;; Analyze input from zo-parse. Count the number of structs appearing in the bytecode.
 (define (count-structs ct)
   ;; (-> compilation-top? zsc?)
