@@ -30,9 +30,9 @@
   ;; (-> compilation-top? string?)
   (string-join (list "compilation-top:"
                      (format "  max-let-depth : ~a" (compilation-top-max-let-depth z))
-                     (format "  prefix        : <struct: prefix>")
+                     (format "  prefix        : <struct:prefix>")
                      (format "  code          : <~a>" (if (form? (compilation-top-code z))
-                                                                "struct: form"
+                                                                "struct:form"
                                                                 "any")))
                "\n"))
 
