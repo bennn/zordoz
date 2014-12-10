@@ -133,40 +133,76 @@
 
 (define (def-values-> z field-name)
   ;; (-> def-values? zo? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  (cond [(string=? field-name "ids") (begin (displayln "Cannot dive into list YET") #f)]
+        [(string=? field-name "rhs") (let ([rhs (def-values-rhs z)])
+                                       (cond [(or (expr? rhs)
+                                                  (seq? rhs)
+                                                  (inline-variant? rhs)) rhs]
+                                             [else #f]))]
+        [else #f]))
+
 (define (def-syntaxes-> z field-name)
   ;; (-> def-syntaxes? zo? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  (cond [(string=? field-name "rhs")    (let ([rhs (def-syntaxes-rhs z)])
+                                          (cond [(or (expr? rhs)
+                                                     (seq?  rhs)) (def-syntaxes-rhs z)]
+                                                [else #f]))]
+        [(string=? field-name "prefix") (def-syntaxes-prefix z)]
+        [(string=? field-name "dummy")  (let ([dm (def-syntaxes-dummy z)])
+                                          (cond [(toplevel? dm) dm]
+                                                [else #f]))]
+        [else #f]))
+
 (define (seq-for-syntax-> z field-name)
   ;; (-> seq-for-syntax? zo? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  (cond [(string=? field-name "forms")  (begin (displayln "Cannot dive into list YET") #f)]
+        [(string=? field-name "prefix") (seq-for-syntax-prefix z)]
+        [(string=? field-name "dummy")  (let ([dm (seq-for-syntax-dummy z)])
+                                          (cond [(toplevel? dm) dm]
+                                                [else #f]))]
+        [else #f]))
+
 (define (req-> z field-name)
   ;; (-> req? zo? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  (cond [(string=? field-name "reqs")  (req-reqs z)]
+        [(string=? field-name "dummy") (req-dummy z)]
+        [else #f]))
+
 (define (seq-> z field-name)
   ;; (-> seq? zo? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  (cond [(string=? field-name "forms") (begin (displayln "Cannot dive into list YET") #f)]
+        [else #f]))
+
 (define (splice-> z field-name)
   ;; (-> splice? zo? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  (cond [(string=? field-name "forms") (begin (displayln "Cannot dive into list YET") #f)]
+        [else #f]))
+
 (define (inline-variant-> z field-name)
   ;; (-> inline-variant? zo? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  (cond [(string=? field-name "direct") (inline-variant-direct z)]
+        [(string=? field-name "inline") (inline-variant-inline z)]
+        [else #f]))
+
 (define (mod-> z field-name)
   ;; (-> mod? zo? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  (cond [(string=? field-name "prefix")           (mod-prefix z)]
+        [(string=? field-name "provides")         (begin (displayln "Cannot dive into list YET") #f)]
+        [(string=? field-name "requires")         (begin (displayln "Cannot dive into list YET") #f)]
+        [(string=? field-name "body")             (begin (displayln "Cannot dive into list YET") #f)]
+        [(string=? field-name "syntax-bodies")    (begin (displayln "Cannot dive into list YET") #f)]
+        [(string=? field-name "dummy")            (mod-dummy z)]
+        [(string=? field-name "internal-context") (let ([ic (mod-internal-context z)])
+                                                    (cond [(stx?    ic) ic]
+                                                          [(vector? ic) (begin (displayln "Cannot dive into list YET") #f)]
+                                                          [else #f]))]
+        [(string=? field-name "pre-submodules")   (begin (displayln "Cannot dive into list YET") #f)]
+        [(string=? field-name "post-submodules")  (begin (displayln "Cannot dive into list YET") #f)]
+        [else #f]))
+
 (define (provided-> z field-name)
   ;; (-> provided? zo? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  #f)
 
 ;; -- expr
         
