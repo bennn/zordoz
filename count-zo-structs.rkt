@@ -1,7 +1,6 @@
 #lang racket/base
 
 ;; Count the AST nodes that appear in a bytecode file
-;;
 (provide count-structs
          zsc->string)
 
