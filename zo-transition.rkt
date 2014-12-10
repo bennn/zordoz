@@ -364,59 +364,61 @@
 
 (define (top-level-rename-> z field-name)
   ;; (-> top-level-rename? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  #f)
+
 (define (mark-barrier-> z field-name)
   ;; (-> mark-barrier? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  #f)
+
 (define (lexical-rename-> z field-name)
   ;; (-> lexical-rename? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  (cond [(string=? field-name "alist") (begin (displayln "Cannot dive into list YET") #f)]
+        [else #f]))
+
 (define (phase-shift-> z field-name)
   ;; (-> phase-shift? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  #f)
+
+;; 2014-12-10: Possibly dive into 'unmarshals'
 (define (module-rename-> z field-name)
   ;; (-> module-rename? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  #f)
 
 ;; -- module-binding
 
 (define (simple-module-binding-> z field-name)
   ;; (-> simple-module-binding? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  #f)
+
 (define (phased-module-binding-> z field-name)
   ;; (-> phased-module-binding? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  (cond [(string=? field-name "nominal-path") (phased-module-binding-nominal-path z)]
+        [else #f]))
+
 (define (exported-nominal-module-binding-> z field-name)
   ;; (-> exported-nominal-module-binding? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  (cond [(string=? field-name "nominal-path") (exported-nominal-module-binding-nominal-path z)]
+        [else #f]))
+
 (define (nominal-module-binding-> z field-name)
   ;; (-> nominal-module-binding? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  (cond [(string=? field-name "nominal-path") (nominal-module-binding-nominal-path z)]
+        [else #f]))
+
 (define (exported-module-binding-> z field-name)
   ;; (-> exported-module-binding? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  #f)
 
 ;; -- nominal-path
 
 (define (simple-nominal-path-> z field-name)
   ;; (-> simple-nominal-path? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  #f)
+
 (define (imported-nominal-path-> z field-name)
   ;; (-> imported-nominal-path? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  #f)
+
 (define (phased-nominal-path-> z field-name)
   ;; (-> phased-nominal-path? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  #f)
