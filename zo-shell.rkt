@@ -5,7 +5,8 @@
 
 (require compiler/zo-parse
          (only-in racket/string string-split string-join)
-         "zo-string.rkt")
+         "zo-string.rkt"
+         "zo-transition.rkt")
 
 ;; --- constants
 
@@ -80,15 +81,20 @@
       (string=? raw "../")))
 
 (define (dive ctx raw)
-  (define field
+  (define field ;; parse [raw] for field name i.e. second argument in [raw]
     (let ([splt (string-split raw)])
-      (cond [(empty? splt)       ""]
-            [(empty? (cdr splt)) ""]
-            [else                (car (cdr splt))])))
-  ;; TODO check valid field
-  ;; TODO lookup (struct-name-field ctx))
-  (print-error "dive not implemented. Sorry.")
-  ctx)
+      (cond [(empty? splt)             #f]
+            [(empty? (cdr splt))       #f]
+            [(empty? (cdr (cdr splt))) (car (cdr splt))]
+            [else                      (begin (print-warn (format "Ignoring extra arguments to dive: '~a'" (cdr (cdr splt))))
+                                              (car (cdr splt)))])))
+  (if (not field) ;; Check for parse error
+      (begin (print-unknown (format "dive ~a" raw))
+             ctx)
+      (begin (let-values ([(nxt success?) (transition ctx field)])
+               (when (not success?) ;; Check if transition failed
+                 (print-unknown (format "dive ~a" field)))
+               nxt))))
 
 ;; --- history
 
@@ -135,7 +141,7 @@
 
 (define (print-unknown raw)
   ;; (-> string? void?)
-  (printf "'~a' not permitted. Type 'help' for help.\n" raw))
+  (printf "'~a' not permitted.\n" raw))
 
 (define (print-goodbye)
   ;; (-> void?)
