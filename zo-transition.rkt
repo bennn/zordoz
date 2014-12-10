@@ -36,26 +36,26 @@
         [else #f]))
 
 (define (prefix-> z field-name)
-  ;; (-> prefix? zo? string? (or/c zo? #f))
+  ;; (-> prefix? string? (or/c zo? #f))
   (cond [(string=? field-name "stxs")      (begin (displayln "Cannot dive into list YET") #f)]
         [(string=? field-name "toplevels") (begin (displayln "Cannot dive into list YET") #f)]
         [else #f]))
 
 (define (global-bucket-> z field-name)
-  ;; (-> global-bucket? zo? string? (or/c zo? #f))
+  ;; (-> global-bucket? string? (or/c zo? #f))
   #f)
 
 (define (module-variable-> z field-name)
-  ;; (-> module-variable? zo? string? (or/c zo? #f))
+  ;; (-> module-variable? string? (or/c zo? #f))
   #f)
 
 (define (stx-> z field-name)
-  ;; (-> stx? zo? string? (or/c zo? #f))
+  ;; (-> stx? string? (or/c zo? #f))
   (cond [(string=? field-name "encoded") (stx-encoded z)]
         [else #f]))
 
 (define (form-> z field-name)
-  ;; (-> form? zo? string? (or/c zo? #f))
+  ;; (-> form? string? (or/c zo? #f))
   (cond [(def-values?     z) (def-values->     z field-name)]
         [(def-syntaxes?   z) (def-syntaxes->   z field-name)]
         [(seq-for-syntax? z) (seq-for-syntax-> z field-name)]
@@ -69,7 +69,7 @@
         [else #f]))
 
 (define (expr-> z field-name)
-  ;; (-> expr? zo? string? (or/c zo? #f))
+  ;; (-> expr? string? (or/c zo? #f))
   (cond [(lam?            z) (lam->            z field-name)]
         [(closure?        z) (closure->        z field-name)]
         [(case-lam?       z) (case-lam->       z field-name)]
@@ -92,12 +92,12 @@
         [else #f]))
 
 (define (wrapped-> z field-name)
-  ;; (-> wrapped? zo? string? (or/c zo? #f))
+  ;; (-> wrapped? string? (or/c zo? #f))
   (cond [(string=? field-name "wraps") (begin (displayln "Cannot dive into list YET") #f)]
         [else #f]))
 
 (define (wrap-> z field-name)
-  ;; (-> wrap? zo? string? (or/c zo? #f))
+  ;; (-> wrap? string? (or/c zo? #f))
   (cond [(top-level-rename? z) (top-level-rename-> z field-name)]
         [(mark-barrier?     z) (mark-barrier->     z field-name)]
         [(lexical-rename?   z) (lexical-rename->   z field-name)]
@@ -106,15 +106,15 @@
         [else #f]))
 
 (define (free-id-info-> z field-name)
-  ;; (-> free-id-info? zo? string? (or/c zo? #f))
+  ;; (-> free-id-info? string? (or/c zo? #f))
   #f)
 
 (define (all-from-module-> z field-name)
-  ;; (-> all-from-module? zo? string? (or/c zo? #f))
+  ;; (-> all-from-module? string? (or/c zo? #f))
   #f)
 
 (define (module-binding-> z field-name)
-  ;; (-> module-binding? zo? string? (or/c zo? #f))
+  ;; (-> module-binding? string? (or/c zo? #f))
   (cond [(simple-module-binding?           z) (simple-module-binding->           z field-name)]
         [(phased-module-binding?           z) (phased-module-binding->           z field-name)]
         [(exported-nominal-module-binding? z) (exported-nominal-module-binding-> z field-name)]
@@ -123,7 +123,7 @@
         [else #f]))
 
 (define (nominal-path-> z field-name)
-  ;; (-> nominal-path? zo? string? (or/c zo? #f))
+  ;; (-> nominal-path? string? (or/c zo? #f))
   (cond [(simple-nominal-path?   z) (simple-nominal-path->   z field-name)]
         [(imported-nominal-path? z) (imported-nominal-path-> z field-name)]
         [(phased-nominal-path?   z) (phased-nominal-path->   z field-name)]
@@ -132,7 +132,7 @@
 ;; -- form
 
 (define (def-values-> z field-name)
-  ;; (-> def-values? zo? string? (or/c zo? #f))
+  ;; (-> def-values? string? (or/c zo? #f))
   (cond [(string=? field-name "ids") (begin (displayln "Cannot dive into list YET") #f)]
         [(string=? field-name "rhs") (let ([rhs (def-values-rhs z)])
                                        (cond [(or (expr? rhs)
@@ -142,7 +142,7 @@
         [else #f]))
 
 (define (def-syntaxes-> z field-name)
-  ;; (-> def-syntaxes? zo? string? (or/c zo? #f))
+  ;; (-> def-syntaxes? string? (or/c zo? #f))
   (cond [(string=? field-name "rhs")    (let ([rhs (def-syntaxes-rhs z)])
                                           (cond [(or (expr? rhs)
                                                      (seq?  rhs)) (def-syntaxes-rhs z)]
@@ -154,7 +154,7 @@
         [else #f]))
 
 (define (seq-for-syntax-> z field-name)
-  ;; (-> seq-for-syntax? zo? string? (or/c zo? #f))
+  ;; (-> seq-for-syntax? string? (or/c zo? #f))
   (cond [(string=? field-name "forms")  (begin (displayln "Cannot dive into list YET") #f)]
         [(string=? field-name "prefix") (seq-for-syntax-prefix z)]
         [(string=? field-name "dummy")  (let ([dm (seq-for-syntax-dummy z)])
@@ -163,29 +163,29 @@
         [else #f]))
 
 (define (req-> z field-name)
-  ;; (-> req? zo? string? (or/c zo? #f))
+  ;; (-> req? string? (or/c zo? #f))
   (cond [(string=? field-name "reqs")  (req-reqs z)]
         [(string=? field-name "dummy") (req-dummy z)]
         [else #f]))
 
 (define (seq-> z field-name)
-  ;; (-> seq? zo? string? (or/c zo? #f))
+  ;; (-> seq? string? (or/c zo? #f))
   (cond [(string=? field-name "forms") (begin (displayln "Cannot dive into list YET") #f)]
         [else #f]))
 
 (define (splice-> z field-name)
-  ;; (-> splice? zo? string? (or/c zo? #f))
+  ;; (-> splice? string? (or/c zo? #f))
   (cond [(string=? field-name "forms") (begin (displayln "Cannot dive into list YET") #f)]
         [else #f]))
 
 (define (inline-variant-> z field-name)
-  ;; (-> inline-variant? zo? string? (or/c zo? #f))
+  ;; (-> inline-variant? string? (or/c zo? #f))
   (cond [(string=? field-name "direct") (inline-variant-direct z)]
         [(string=? field-name "inline") (inline-variant-inline z)]
         [else #f]))
 
 (define (mod-> z field-name)
-  ;; (-> mod? zo? string? (or/c zo? #f))
+  ;; (-> mod? string? (or/c zo? #f))
   (cond [(string=? field-name "prefix")           (mod-prefix z)]
         [(string=? field-name "provides")         (begin (displayln "Cannot dive into list YET") #f)]
         [(string=? field-name "requires")         (begin (displayln "Cannot dive into list YET") #f)]
@@ -201,146 +201,222 @@
         [else #f]))
 
 (define (provided-> z field-name)
-  ;; (-> provided? zo? string? (or/c zo? #f))
+  ;; (-> provided? string? (or/c zo? #f))
   #f)
 
 ;; -- expr
         
 (define (lam-> z field-name)
-  ;; (-> lam? zo? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  ;; (-> lam? string? (or/c zo? #f))
+  (cond [(string=? field-name "body") (let ([bd (lam-body z)])
+                                        (cond [(expr? bd) bd]
+                                              [(seq?  bd) bd]
+                                              [else #f]))]
+        [else #f]))
+
 (define (closure-> z field-name)
-  ;; (-> closure? zo? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  ;; (-> closure? string? (or/c zo? #f))
+  (cond [(string=? field-name "code") (closure-code z)]
+        [else #f]))
+
 (define (case-lam-> z field-name)
-  ;; (-> case-lam? zo? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  ;; (-> case-lam? string? (or/c zo? #f))
+  (cond [(string=? field-name "clauses") (begin (displayln "Cannot dive into list YET") #f)]
+        [else #f]))
+
 (define (let-one-> z field-name)
-  ;; (-> let-one? zo? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  ;; (-> let-one? string? (or/c zo? #f))
+  (cond [(string=? field-name "rhs")  (let ([rhs  (let-one-rhs z)])
+                                        (cond [(expr? rhs)  rhs]
+                                              [(seq?  rhs)  rhs]
+                                              [else #f]))]
+        [(string=? field-name "body") (let ([body (let-one-body z)])
+                                        (cond [(expr? body) body]
+                                              [(seq?  body) body]
+                                              [else #f]))]
+        [else #f]))
+
 (define (let-void-> z field-name)
-  ;; (-> let-void? zo? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  ;; (-> let-void? string? (or/c zo? #f))
+  (cond [(string=? field-name "body") (let ([body (let-one-body z)])
+                                        (cond [(expr? body) body]
+                                              [(seq?  body) body]
+                                              [else #f]))]
+        [else #f]))
+
 (define (install-value-> z field-name)
-  ;; (-> install-value? zo? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  ;; (-> install-value? string? (or/c zo? #f))
+  (cond [(string=? field-name "rhs")  (let ([rhs  (install-value-rhs z)])
+                                        (cond [(expr? rhs)  rhs]
+                                              [(seq?  rhs)  rhs]
+                                              [else #f]))]
+        [(string=? field-name "body") (let ([body (install-value-body z)])
+                                        (cond [(expr? body) body]
+                                              [(seq?  body) body]
+                                              [else #f]))]
+        [else #f]))
+
 (define (let-rec-> z field-name)
-  ;; (-> (define (let-rec? zo? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  ;; (-> let-rec? string? (or/c zo? #f))
+  (cond [(string=? field-name "procs") (begin (displayln  "Cannot dive into list YET") #f)]
+        [(string=? field-name "body")  (let ([body (let-rec-body z)])
+                                         (cond [(expr? body) body]
+                                               [(seq?  body) body]
+                                               [else #f]))]
+        [else #f]))
+
 (define (boxenv-> z field-name)
-  ;; (-> boxenv? zo? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  ;; (-> boxenv? string? (or/c zo? #f))
+  (cond [(string=? field-name "body") (let ([body (boxenv-body z)])
+                                        (cond [(expr? body) body]
+                                              [(seq? body)  body]
+                                              [else #f]))]
+        [else #f]))
+
 (define (localref-> z field-name)
-  ;; (-> localref? zo? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  ;; (-> localref? string? (or/c zo? #f))
+  #f)
+
 (define (toplevel-> z field-name)
-  ;; (-> toplevel? zo? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  ;; (-> toplevel? string? (or/c zo? #f))
+  #f)
+
 (define (topsyntax-> z field-name)
-  ;; (-> topsyntax? zo? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  ;; (-> topsyntax? string? (or/c zo? #f))
+  #f)
+
 (define (application-> z field-name)
-  ;; (-> application? zo? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  ;; (-> application? string? (or/c zo? #f))
+  (cond [(string=? field-name "rator") (let ([rator (application-rator z)])
+                                         (cond [(expr? rator) rator]
+                                               [(seq?  rator) rator]
+                                               [else #f]))]
+        [(string=? field-name "rands") (begin (displayln  "Cannot dive into list YET") #f)]
+        [else #f]))
+
 (define (branch-> z field-name)
-  ;; (-> branch? zo? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  ;; (-> branch? string? (or/c zo? #f))
+  (cond [(string=? field-name "test") (let ([test (branch-test z)])
+                                         (cond [(expr? test) test]
+                                               [(seq?  test) test]))]
+        [(string=? field-name "then") (let ([then (branch-then z)])
+                                        (cond [(expr? then) then]
+                                              [(seq?  then) then]))]
+        [(string=? field-name "else") (let ([else (branch-else z)])
+                                        (cond [(expr? else) else]
+                                              [(seq?  else) else]))]
+        [else #f]))
+
 (define (with-cont-mark-> z field-name)
-  ;; (-> with-cont-mark? zo? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  ;; (-> with-cont-mark? string? (or/c zo? #f))
+  (cond [(string=? field-name "key")  (let ([key  (with-cont-mark-key z)])
+                                        (cond [(expr? key)  key]
+                                              [(seq?  key)  key]))]
+        [(string=? field-name "val")  (let ([val  (with-cont-mark-val z)])
+                                        (cond [(expr? val)  val]
+                                              [(seq?  val)  val]))]
+        [(string=? field-name "body") (let ([body (with-cont-mark-body z)])
+                                        (cond [(expr? body) body]
+                                              [(seq?  body) body]))]
+        [else #f]))
+
 (define (beg0-> z field-name)
-  ;; (-> beg0? zo? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  ;; (-> beg0? string? (or/c zo? #f))
+  (cond [(string=? field-name "seq") (begin (displayln  "Cannot dive into list YET") #f)]
+        [else #f]))
+
 (define (varref-> z field-name)
-  ;; (-> varref? zo? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  ;; (-> varref? string? (or/c zo? #f))
+  (cond [(string=? field-name "toplevel") (let ([tl (varref-toplevel z)])
+                                            (cond [(toplevel? tl) tl]
+                                                  [else #f]))]
+        [(string=? field-name "dummy")    (let ([dm (varref-dummy z)])
+                                            (cond [(toplevel? dm) dm]
+                                                  [else #f]))]
+        [else #f]))
+
 (define (assign-> z field-name)
-  ;; (-> assign? zo? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  ;; (-> assign? string? (or/c zo? #f))
+  (cond [(string=? field-name "id")  (assign-id z)]
+        [(string=? field-name "rhs") (let ([rhs (assign-rhs z)])
+                                       (cond [(expr? rhs) rhs]
+                                             [(seq?  rhs) rhs]
+                                             [else #f]))]
+        [else #f]))
+
 (define (apply-values-> z field-name)
-  ;; (-> apply-values? zo? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  ;; (-> apply-values? string? (or/c zo? #f))
+  (cond [(string=? field-name "proc")      (let ([proc      (apply-values-proc z)])
+                                             (cond [(expr? proc)      proc]
+                                                   [(seq?  proc)      proc]
+                                                   [else #f]))]
+        [(string=? field-name "args-expr") (let ([args-expr (apply-values-args-expr z)])
+                                             (cond [(expr? args-expr) args-expr]
+                                                   [(seq?  args-expr) args-expr]
+                                                   [else #f]))]
+        [else #f]))
+
 (define (primval-> z field-name)
-  ;; (-> primval? zo? string? (or/c zo? #f))
-  (error "Not implemented")
-  )
+  ;; (-> primval? string? (or/c zo? #f))
+  #f)
 
 ;; -- wrap
 
 (define (top-level-rename-> z field-name)
-  ;; (-> top-level-rename? zo? string? (or/c zo? #f))
+  ;; (-> top-level-rename? string? (or/c zo? #f))
   (error "Not implemented")
   )
 (define (mark-barrier-> z field-name)
-  ;; (-> mark-barrier? zo? string? (or/c zo? #f))
+  ;; (-> mark-barrier? string? (or/c zo? #f))
   (error "Not implemented")
   )
 (define (lexical-rename-> z field-name)
-  ;; (-> lexical-rename? zo? string? (or/c zo? #f))
+  ;; (-> lexical-rename? string? (or/c zo? #f))
   (error "Not implemented")
   )
 (define (phase-shift-> z field-name)
-  ;; (-> phase-shift? zo? string? (or/c zo? #f))
+  ;; (-> phase-shift? string? (or/c zo? #f))
   (error "Not implemented")
   )
 (define (module-rename-> z field-name)
-  ;; (-> module-rename? zo? string? (or/c zo? #f))
+  ;; (-> module-rename? string? (or/c zo? #f))
   (error "Not implemented")
   )
 
 ;; -- module-binding
 
 (define (simple-module-binding-> z field-name)
-  ;; (-> simple-module-binding? zo? string? (or/c zo? #f))
+  ;; (-> simple-module-binding? string? (or/c zo? #f))
   (error "Not implemented")
   )
 (define (phased-module-binding-> z field-name)
-  ;; (-> phased-module-binding? zo? string? (or/c zo? #f))
+  ;; (-> phased-module-binding? string? (or/c zo? #f))
   (error "Not implemented")
   )
 (define (exported-nominal-module-binding-> z field-name)
-  ;; (-> exported-nominal-module-binding? zo? string? (or/c zo? #f))
+  ;; (-> exported-nominal-module-binding? string? (or/c zo? #f))
   (error "Not implemented")
   )
 (define (nominal-module-binding-> z field-name)
-  ;; (-> nominal-module-binding? zo? string? (or/c zo? #f))
+  ;; (-> nominal-module-binding? string? (or/c zo? #f))
   (error "Not implemented")
   )
 (define (exported-module-binding-> z field-name)
-  ;; (-> exported-module-binding? zo? string? (or/c zo? #f))
+  ;; (-> exported-module-binding? string? (or/c zo? #f))
   (error "Not implemented")
   )
 
 ;; -- nominal-path
 
 (define (simple-nominal-path-> z field-name)
-  ;; (-> simple-nominal-path? zo? string? (or/c zo? #f))
+  ;; (-> simple-nominal-path? string? (or/c zo? #f))
   (error "Not implemented")
   )
 (define (imported-nominal-path-> z field-name)
-  ;; (-> imported-nominal-path? zo? string? (or/c zo? #f))
+  ;; (-> imported-nominal-path? string? (or/c zo? #f))
   (error "Not implemented")
   )
 (define (phased-nominal-path-> z field-name)
-  ;; (-> phased-nominal-path? zo? string? (or/c zo? #f))
+  ;; (-> phased-nominal-path? string? (or/c zo? #f))
   (error "Not implemented")
   )
-
