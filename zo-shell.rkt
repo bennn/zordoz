@@ -121,11 +121,11 @@
 (define (print-help)
   ;; (-> void?)
   (displayln (string-join (list "At your service. Available commands:"
-                                "-- quit        Exit the interpreter"
-                                "-- help        Print this message"
-                                "-- info        Show information about current context"
-                                "-- dive ARG    Step into struct field ARG"
-                                "-- back        Move up to the previous context"
+                                "  quit        Exit the interpreter"
+                                "  help        Print this message"
+                                "  info        Show information about current context"
+                                "  dive ARG    Step into struct field ARG"
+                                "  back        Move up to the previous context"
                                 )
                           "\n")))
 

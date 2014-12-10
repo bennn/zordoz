@@ -2,7 +2,8 @@
 
 (provide zo->string)
 
-(require compiler/zo-structs)
+(require compiler/zo-structs
+         (only-in racket/string string-join))
 
 ;; -- API functions
 
@@ -27,7 +28,13 @@
 
 (define (compilation-top->string z)
   ;; (-> compilation-top? string?)
-  (error "[compilation-top->string] not implemented"))
+  (string-join (list "compilation-top:"
+                     (format "  max-let-depth : ~a" (compilation-top-max-let-depth z))
+                     (format "  prefix        : <struct: prefix>")
+                     (format "  code          : <~a>" (if (form? (compilation-top-code z))
+                                                                "struct: form"
+                                                                "any")))
+               "\n"))
 
 (define (prefix->string z)
   ;; (-> prefix? string?)
