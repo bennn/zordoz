@@ -440,23 +440,55 @@
 
 (define (top-level-rename->string z)
   ;; (-> top-level-rename? string?)
-  (error "not implemented"))
+  (format-list (list "top-level-rename"
+                     (format "  flag : ~a" (top-level-rename z)))))
 
 (define (mark-barrier->string z)
   ;; (-> mark-barrier? string?)
-  (error "not implemented"))
+  (format-list (list "mark-barrier"
+                     (format "  value : ~a" (mark-barrier-value z)))))
 
 (define (lexical-rename->string z)
   ;; (-> lexical-rename? string?)
-  (error "not implemented"))
+  (format-list (list "lexical-rename"
+                     (format "  has-free-id-renames? : ~a" (lexical-rename-has-free-id-renames? z))
+                     (format "  bool2                : ~a" (lexical-rename-bool2 z))
+                     (format "  alist                : ~a" (lexical-rename-alist->string (lexical-rename-alist z))))))
 
+;; 2014-12-10: Ugly
+(define (lexical-rename-alist->string alst)
+  ;; (-> (listof (cons/c symbol? (or/c symbol? (cons/c symbol? (or/c (cons/c symbol? (or/c symbol? #f)) free-id-info?))))) string?)
+  (string-join (map (lambda (a)
+                      (format "(~a . ~a)"
+                              (car a)
+                              (cond [(symbol? (cdr a)) (cdr a)]
+                                    [else (let ([a* (cdr a)])
+                                            (format "(~a . ~a)"
+                                                    (car a*)
+                                                    (cond [(free-id-info? (cdr a*)) "<struct:free-id-info>"]
+                                                          [else (cdr a*)])))])))
+                    alst)
+               " "))
+  
 (define (phase-shift->string z)
   ;; (-> phase-shift? string?)
-  (error "not implemented"))
+  (format-list (list "phase-shift"
+                     (format "  amt       : ~a" (phase-shift-amt z))
+                     (format "  src       : ~a" (phase-shift-src z))
+                     (format "  dest      : ~a" (phase-shift-dest z))
+                     (format "  cancel-id : ~a" (phase-shift-cancel-id z)))))
 
+;; 2014-12-10: Curious about 'unmarshals'
 (define (module-rename->string z)
   ;; (-> module-rename? string?)
-  (error "not implemented"))
+  (format-list (list "module-rename"
+                     (format "  phase        : ~a" (module-rename-phase z))
+                     (format "  kind         : ~a" (module-rename-kind z))
+                     (format "  set-id       : ~a" (module-rename-set-id z))
+                     (format "  unmarshals   : [list of ~a <struct:make-all-from-module>]" (length (module-rename-unmarshals z)))
+                     (format "  renames      : [list of ~a <struct:module-binding>]" (length (module-rename-renames z)))
+                     (format "  mark-renames : ~a" (module-rename-mark-renames z))
+                     (format "  plus-kern?   : ~a" (module-rename-plus-kern? z)))))
 
 ;; -- module-binding
 
