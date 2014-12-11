@@ -494,37 +494,57 @@
 
 (define (simple-module-binding->string z)
   ;; (-> simple-module-binding? string?)
-  (error "not implemented"))
+  (format-list (list "simple-module-binding"
+                     (format "  path : ~a" (simple-module-binding-path z)))))
 
 (define (phased-module-binding->string z)
   ;; (-> phased-module-binding? string?)
-  (error "not implemented"))
+  (format-list (list "phased-module-binding"
+                     (format "  path                : ~a" (phased-module-binding-path z))
+                     (format "  phase               : ~a" (phased-module-binding-phase z))
+                     (format "  export-name         : ~a" (phased-module-binding-export-name z))
+                     (format "  nominal-path        : <struct:nominal-path>")
+                     (format "  nominal-export-name : ~a" (phased-module-binding-nominal-export-name z)))))
 
 (define (exported-nominal-module-binding->string z)
   ;; (-> exported-nominal-module-binding? string?)
-  (error "not implemented"))
+  (format-list (list "exported-nominal-module-binding"
+                     (format "  path                : ~a" (exported-nominal-module-binding-path z))
+                     (format "  export-name         : ~a" (exported-nominal-module-binding-export-name z))
+                     (format "  nominal-path        : <struct:nominal-path>")
+                     (format "  nominal-export-name : ~a" (exported-nominal-module-binding-nominal-export-name z)))))
 
 (define (nominal-module-binding->string z)
   ;; (-> nominal-module-binding? string?)
-  (error "not implemented"))
+  (format-list (list "nominal-module-binding"
+                     (format "  path         : ~a" (nominal-module-binding-path z))
+                     (format "  nominal-path : <struct:nominal-path>"))))
 
 (define (exported-module-binding->string z)
   ;; (-> exported-module-binding? string?)
-  (error "not implemented"))
+  (format-list (list "exported-module-binding"
+                     (format "  path        : ~a" (exported-module-binding-path z))
+                     (format "  export-name : ~a" (exported-module-binding-export-name z)))))
 
 ;; -- nominal-path
 
 (define (simple-nominal-path->string z)
   ;; (-> simple-nominal-path? string?)
-  (error "not implemented"))
+  (format-list (list "simple-nominal-path"
+                     (format "  value : ~a" (simple-nominal-path-value z)))))
 
 (define (imported-nominal-path->string z)
   ;; (-> imported-nominal-path? string?)
-  (error "not implemented"))
+  (format-list (list "imported-nominal-path"
+                     (format "  value        : ~a" (imported-nominal-path-value z))
+                     (format "  import-phase : ~a" (imported-nominal-path-import-phase z)))))
 
 (define (phased-nominal-path->string z)
   ;; (-> phased-nominal-path? string?)
-  (error "not implemented"))
+  (format-list (list "phased-nominal-path"
+                     (format "  value        : ~a" (phased-nominal-path-value z))
+                     (format "  import-phase : ~a" (phased-nominal-path-import-phase z))
+                     (format "  phase        : ~a" (phased-nominal-path-phase z)))))
 
 ;; -- helpers
 
