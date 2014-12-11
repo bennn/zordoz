@@ -237,11 +237,12 @@
                      (format "  requires         : ~a" (mod-requires->string (mod-requires z)))
                      (format "  body             : ~a" (map (lambda (fm)
                                                               (cond [(form? fm) "<struct:form>"]
-                                                                    [else       "any"]))))
+                                                                    [else       "any"]))
+                                                            (mod-body z)))
                      (format "  syntax-bodies    : ~a" (mod-syntax-bodies->string (mod-syntax-bodies z)))
                      (format "  unexported       : ~a" (mod-unexported z))
                      (format "  max-let-depth    : ~a" (mod-max-let-depth z))
-                     (format "  dummy            : <struct:toplevel>"
+                     (format "  dummy            : <struct:toplevel>")
                      (format "  lang-info        : ~a" (mod-lang-info z))
                      (format "  internal-context : ~a" (let ([ic (mod-internal-context z)])
                                                          (cond [(stx? ic)    "<struct:stx>"]
@@ -249,7 +250,7 @@
                                                                [else         ic])))
                      (format "  flags            : ~a" (mod-flags z))
                      (format "  pre-submodules   : [list of ~a <struct:mod>]" (length (mod-pre-submodules z)))
-                     (format "  post-submodules  : [list of ~a <struct:mod>]" (length (mod-post-submodules z)))))))
+                     (format "  post-submodules  : [list of ~a <struct:mod>]" (length (mod-post-submodules z))))))
 
 ;; 2014-12-10: Ugly
 (define (mod-provides->string pds)
