@@ -35,7 +35,9 @@
           [(help? raw) (begin (print-help) (repl ctx hist))]
           [(info? raw) (begin (print-context ctx) (repl ctx hist))]
           [(dive? raw) (repl (dive ctx raw) (push hist ctx))]
-          [(back? raw) (if (empty? hist) (repl ctx hist) (apply repl (pop hist)))]
+          [(back? raw) (if (empty? hist)
+                           (repl ctx hist)
+                           (let-values ([(a b) (pop hist)]) (repl a b)))]
           [else        (begin (print-unknown raw) (repl ctx hist))])
   ))
 

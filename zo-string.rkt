@@ -26,6 +26,7 @@
 
 ;; -- private functions
 
+;; 2014-12-10: Should replace all 'map' with a more specific formatting function.
 (define (format-list xs)
   (string-join xs "\n"))
 
@@ -46,7 +47,7 @@
                                                        (cond [(module-variable? tl) "<struct:module-variable>"]
                                                              [(global-bucket?   tl) "<struct:global-bucket>"]
                                                              [else (format "~a" tl)]))
-                                                     (prefix-toplevels)))
+                                                     (prefix-toplevels z)))
                      (format "  stxs      : [list of ~a <struct:stx>]" (length (prefix-stxs z))))))
 
 (define (global-bucket->string z)
@@ -165,39 +166,137 @@
 
 (define (def-values->string z)
   ;; (-> def-values? string?)
-  (error "not implemented"))
+  (format-list (list "def-values"
+                     (format "  ids : [list of ~a <struct:toplevel>]" (length (def-values-ids z)))
+                     (format "  rhs : ~a" (let ([rhs (def-values-rhs z)])
+                                            (cond [(expr? rhs) "<struct:expr>"]
+                                                  [(seq?  rhs) "<struct:seq>"]
+                                                  [(inline-variant? rhs) "<struct:inline-variant>"]
+                                                  [else "any"]))))))
 
 (define (def-syntaxes->string z)
   ;; (-> def-syntaxes? string?)
-  (error "not implemented"))
+  (format-list (list "def-syntaxes"
+                     (format "  ids           : ~a" (def-syntaxes-ids z))
+                     (format "  rhs           : ~a" (let ([rhs (def-syntaxes-rhs z)])
+                                                      (cond [(expr? rhs) "<struct:expr>"]
+                                                            [(seq?  rhs) "<struct:seq>"]
+                                                            [else        "any"])))
+                     (format "  prefix        : <struct:prefix")
+                     (format "  max-let-depth : ~a" (def-syntaxes-max-let-depth z))
+                     (format "  dummy         : ~a" (let ([tl (def-syntaxes-dummy z)])
+                                                      (cond [(toplevel? tl) "<struct:toplevel>"]
+                                                            [else           "any"]))))))
 
 (define (seq-for-syntax->string z)
   ;; (-> seq-for-syntax? string?)
-  (error "not implemented"))
+  (format-list (list "seq-for-syntax"
+                     (format "  forms         : ~a" (map (lambda (fm)
+                                                           (cond [(form? fm) "<struct:form>"]
+                                                                 [else       "any"]))
+                                                         (seq-for-syntax-forms z)))
+                     (format "  prefix        : ~a" (seq-for-syntax-prefix z))
+                     (format "  max-let-depth : ~a" (seq-for-syntax-max-let-depth z))
+                     (format "  dummy         : ~a" (let ([dm (seq-for-syntax-dummy z)])
+                                                      (cond [(toplevel? dm) "<struct:toplevel>"]
+                                                            [else           "any"]))))))
 
 (define (req->string z)
   ;; (-> req? string?)
-  (error "not implemented"))
+  (format-list (list "req"
+                     (format "  reqs  : <struct:stx>")
+                     (format "  dummy : <struct:toplevel>"))))
 
 (define (seq->string z)
   ;; (-> seq? string?)
-  (error "not implemented"))
+  (format-list (list "seq"
+                     (format "  forms : ~a" (map (lambda (fm)
+                                                   (cond [(form? fm) "<struct:form>"]
+                                                         [else       "any"]))
+                                                 (seq-forms z))))))
 
 (define (splice->string z)
   ;; (-> splice? string?)
-  (error "not implemented"))
+  (format-list (list "splice"
+                     (format "  forms : ~a" (map (lambda (fm)
+                                                   (cond [(form? fm) "<struct:form>"]
+                                                         [else       "any"]))
+                                                 (splice-forms z))))))
 
 (define (inline-variant->string z)
   ;; (-> inline-variant? string?)
-  (error "not implemented"))
+  (format-list (list "inline-variant"
+                     (format "  direct : <struct:expr>")
+                     (format "  inline : <struct:expr>"))))
 
 (define (mod->string z)
   ;; (-> mod? string?)
-  (error "not implemented"))
+  (format-list (list "mod"
+                     (format "  name             : ~a" (mod-name z))
+                     (format "  srcname          : ~a" (mod-srcname z))
+                     (format "  self-modidx      : ~a" (mod-self-modidx z))
+                     (format "  prefix           : <struct:prefix>")
+                     (format "  provides         : ~a" (mod-provides->string (mod-provides z)))
+                     (format "  requires         : ~a" (mod-requires->string (mod-requires z)))
+                     (format "  body             : ~a" (map (lambda (fm)
+                                                              (cond [(form? fm) "<struct:form>"]
+                                                                    [else       "any"]))))
+                     (format "  syntax-bodies    : ~a" (mod-syntax-bodies->string (mod-syntax-bodies z)))
+                     (format "  unexported       : ~a" (mod-unexported z))
+                     (format "  max-let-depth    : ~a" (mod-max-let-depth z))
+                     (format "  dummy            : <struct:toplevel>"
+                     (format "  lang-info        : ~a" (mod-lang-info z))
+                     (format "  internal-context : ~a" (let ([ic (mod-internal-context z)])
+                                                         (cond [(stx? ic)    "<struct:stx>"]
+                                                               [(vector? ic) (format "[vector of ~a <struct:stx>]" (vector-length ic))]
+                                                               [else         ic])))
+                     (format "  flags            : ~a" (mod-flags z))
+                     (format "  pre-submodules   : [list of ~a <struct:mod>]" (length (mod-pre-submodules z)))
+                     (format "  post-submodules  : [list of ~a <struct:mod>]" (length (mod-post-submodules z)))))))
 
+;; 2014-12-10: Ugly
+(define (mod-provides->string pds)
+  ;; (-> (listof (list/c (or/c exact-integer? #f) (listof provided?) (listof provided?))) string?)
+  (string-join (map (lambda (pd)
+                      (format "(~a ~a ~a)"
+                              (car pd) ; (or/c exact-integer? #f)
+                              (format "[list of ~a <struct:provided> (exported vars)]" (length (car (cdr pd))))
+                              (format "[list of ~a <struct:provided> (exported syntax)]" (length (car (cdr (cdr pd)))))))
+                    pds)
+               " "))
+
+;; 2014-12-10: Ugly
+(define (mod-requires->string rqs)
+  ;; (-> (listof (cons/c (or/c exact-integer #f) (listof module-path-index?))) string?)
+  (string-join (map (lambda (rq)
+                      (format "(~a ~a)"
+                              (car rq)
+                              (cdr rq)))
+                    rqs)
+               " "))
+
+;; 2014-12-10: Ugly
+(define (mod-syntax-bodies->string sbs)
+  ;; (-> (listof (cons/c exact-positive-integer (listof (or/c def-syntaxes? seq-for-syntax?)))) string?)
+  (string-join (map (lambda (sb)
+                      (format "(~a . ~a)"
+                              (car sb)
+                              (map (lambda (d)
+                                     (cond [(def-syntaxes?   d) "<struct:def-syntaxes>"]
+                                           [(seq-for-syntax? d) "<struct:seq-for-syntax>"]))
+                                   (cdr sb))))
+                    sbs)
+               " "))
+                
 (define (provided->string z)
   ;; (-> provided? string?)
-  (error "not implemented"))
+  (format-list (list "provided"
+                     (format "  name       : ~a" (provided-name z))
+                     (format "  src        : ~a" (provided-src  z))
+                     (format "  src-name   : ~a" (provided-src-name z))
+                     (format "  nom-src    : ~a" (provided-nom-src z))
+                     (format "  src-phase  : ~a" (provided-src-phase z))
+                     (format "  protected? : ~a" (provided-protected? z)))))
 
 ;; -- expr
 
