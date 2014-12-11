@@ -178,10 +178,7 @@
   ;; (-> def-syntaxes? string?)
   (format-list (list "def-syntaxes"
                      (format "  ids           : ~a" (def-syntaxes-ids z))
-                     (format "  rhs           : ~a" (let ([rhs (def-syntaxes-rhs z)])
-                                                      (cond [(expr? rhs) "<struct:expr>"]
-                                                            [(seq?  rhs) "<struct:seq>"]
-                                                            [else        "any"])))
+                     (format "  rhs           : ~a" (expr-seq-any->string (def-syntaxes-rhs z)))
                      (format "  prefix        : <struct:prefix")
                      (format "  max-let-depth : ~a" (def-syntaxes-max-let-depth z))
                      (format "  dummy         : ~a" (let ([tl (def-syntaxes-dummy z)])
@@ -302,79 +299,142 @@
 
 (define (lam->string z)
   ;; (-> lam? string?)
-  (error "not implemented"))
+  (format-list (list "lam"
+                     (format "  name          : ~a" (lam-name z))
+                     (format "  flags         : ~a" (lam-flags z))
+                     (format "  num-params    : ~a" (lam-num-params z))
+                     (format "  param-types   : ~a" (lam-param-types z))
+                     (format "  rest?         : ~a" (lam-rest? z))
+                     (format "  closure-map   : ~a" (lam-closure-map z))
+                     (format "  closure-types : ~a" (lam-closure-types z))
+                     (format "  toplevel-map  : ~a" (lam-toplevel-map z))
+                     (format "  max-let-depth : ~a" (lam-max-let-depth z))
+                     (format "  body          : ~a" (expr-seq-any->string (lam-body z))))))
 
 (define (closure->string z)
   ;; (-> closure? string?)
-  (error "not implemented"))
+  (format-list (list "closure"
+                     (format "  code   : <struct:lam")
+                     (format "  gen-id : ~a" (closure-gen-id z)))))
 
 (define (case-lam->string z)
   ;; (-> case-lam? string?)
-  (error "not implemented"))
+  (format-list (list "case-lam"
+                     (format "  name    : ~a" (case-lam-name z))
+                     (format "  clauses : [list of ~a <struct:lam>]" (length (case-lam-clauses z))))))
 
 (define (let-one->string z)
   ;; (-> let-one? string?)
-  (error "not implemented"))
+  (format-list (list "let-one"
+                     (format "  rhs     : ~a" (expr-seq-any->string (let-one-rhs  z)))
+                     (format "  body    : ~a" (expr-seq-any->string (let-one-body z)))
+                     (format "  type    : ~a" (let-one-type z))
+                     (format "  unused? : ~a" (let-one-unused? z)))))
 
 (define (let-void->string z)
   ;; (-> let-void? string?)
-  (error "not implemented"))
+  (format-list (list "let-void"
+                     (format "  count  : ~a" (let-void-count z))
+                     (format "  boxes? : ~a" (let-void-boxes? z))
+                     (format "  body   : ~a" (expr-seq-any->string (let-void-body z))))))
 
 (define (install-value->string z)
   ;; (-> install-value? string?)
-  (error "not implemented"))
+  (format-list (list "install-value"
+                     (format "  count  : ~a" (install-value-count z))
+                     (format "  pos    : ~a" (install-value-pos z))
+                     (format "  boxes? : ~a" (install-value-boxes? z))
+                     (format "  rhs    : ~a" (expr-seq-any->string (install-value-rhs z)))
+                     (format "  body   : ~a" (expr-seq-any->string (install-value-body z))))))
 
 (define (let-rec->string z)
   ;; (-> let-rec? string?)
-  (error "not implemented"))
+  (format-list (list "let-rec"
+                     (format "  procs : [list of ~a <struct:lam>]" (length (let-rec-procs z)))
+                     (format "  body  : ~a" (expr-seq-any->string (let-rec-body z))))))
 
 (define (boxenv->string z)
   ;; (-> boxenv? string?)
-  (error "not implemented"))
+  (format-list (list "boxenv"
+                     (format "  pos  : ~a" (boxenv-pos z))
+                     (format "  body : ~a" (expr-seq-any->string (boxenv-body z))))))
 
 (define (localref->string z)
   ;; (-> localref? string?)
-  (error "not implemented"))
+  (format-list (list "localref"
+                     (format "  unbox?        : ~a" (localref-unbox? z))
+                     (format "  pos           : ~a" (localref-pos z))
+                     (format "  clear?        : ~a" (localref-clear? z))
+                     (format "  other-clears? : ~a" (localref-other-clears? z))
+                     (format "  type          : ~a" (localref-type z)))))
 
 (define (toplevel->string z)
   ;; (-> toplevel? string?)
-  (error "not implemented"))
+  (format-list (list "toplevel"
+                     (format "  depth  : ~a" (toplevel-depth z))
+                     (format "  pos    : ~a" (toplevel-pos z))
+                     (format "  const? : ~a" (toplevel-const? z))
+                     (format "  ready? : ~a" (toplevel-ready? z)))))
 
 (define (topsyntax->string z)
   ;; (-> topsyntax? string?)
-  (error "not implemented"))
+  (format-list (list "topsyntax"
+                     (format "  depth : ~a" (topsyntax-depth z))
+                     (format "  pos   : ~a" (topsyntax-pos z))
+                     (format "  midpt : ~a" (topsyntax-midpt z)))))
 
 (define (application->string z)
   ;; (-> application? string?)
-  (error "not implemented"))
+  (format-list (list "application"
+                     (format "  rator : ~a" (expr-seq-any->string (application-rator z)))
+                     (format "  rands : ~a" (map expr-seq-any->string (application-rands z))))))
 
 (define (branch->string z)
   ;; (->  (branch? string?)
-  (error "not implemented"))
+  (format-list (list "branch"
+                     (format "  test : ~a" (expr-seq-any->string (branch-test z)))
+                     (format "  then : ~a" (expr-seq-any->string (branch-then z)))
+                     (format "  else : ~a" (expr-seq-any->string (branch-else z))))))
 
 (define (with-cont-mark->string z)
   ;; (-> with-cont-mark? string?)
-  (error "not implemented"))
+  (format-list (list "with-cont-mark"
+                     (format "  key  : ~a" (expr-seq-any->string (with-cont-mark-key  z)))
+                     (format "  val  : ~a" (expr-seq-any->string (with-cont-mark-val  z)))
+                     (format "  body : ~a" (expr-seq-any->string (with-cont-mark-body z))))))
 
 (define (beg0->string z)
   ;; (-> beg0? string?)
-  (error "not implemented"))
+  (format-list (list "beg0"
+                     (format "  seq : ~a" (map expr-seq-any->string (beg0-seq))))))
 
 (define (varref->string z)
   ;; (-> varref? string?)
-  (error "not implemented"))
+  (format-list (list "varref"
+                     (format "  toplevel : ~a" (let ([tl (varref-toplevel z)])
+                                                 (cond [(toplevel? tl) "<struct:toplevel>"]
+                                                       [else           tl])))
+                     (format "  dummy    : ~a" (let ([dm (varref-dummy z)])
+                                                 (cond [(toplevel? dm) "<struct:toplevel>"]
+                                                       [else           dm]))))))
 
 (define (assign->string z)
   ;; (-> assign? string?)
-  (error "not implemented"))
+  (format-list (list "assign"
+                     (format "  id        : <struct:toplevel>")
+                     (format "  rhs       : ~a" (expr-seq-any->string (assign-rhs z)))
+                     (format "  undef-ok? : ~a" (assign-undef-ok? z)))))
 
 (define (apply-values->string z)
   ;; (-> apply-values? string?)
-  (error "not implemented"))
+  (format-list (list "apply-values"
+                     (format "  proc      : ~a" (expr-seq-any->string (apply-values-proc z)))
+                     (format "  args-expr : ~a" (expr-seq-any->string (apply-values-args-expr z))))))
 
 (define (primval->string z)
   ;; (-> primval? string?)
-  (error "not implemented"))
+  (format-list (list "primval"
+                     (format "  id : ~a" (primval-id z)))))
 
 ;; -- wrap
 
@@ -434,4 +494,10 @@
   ;; (-> phased-nominal-path? string?)
   (error "not implemented"))
 
+;; -- helpers
 
+(define (expr-seq-any->string z)
+  ;; (-> (or/c expr? seq? any/c) string?)
+  (cond [(expr? z) "<struct:expr>"]
+        [(seq?  z) "<struct:seq>"]
+        [else      "any"]))
