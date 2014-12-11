@@ -84,6 +84,7 @@
       (string=? raw "../")))
 
 (define (dive ctx raw)
+  ;; (-> context? string? context?)
   (define field ;; parse [raw] for field name i.e. second argument in [raw]
     (let ([splt (string-split raw)])
       (cond [(empty? splt)             #f]
@@ -192,13 +193,17 @@
         [else             (string-slice-aux str start-i end* '())]))
 
 (define (string-slice-aux str curr-i end-i acc)
+  ;; (-> string? nat? nat? (listof character?) string?)
   (define c    (string-ref str curr-i))
   (define acc* (cons c acc))
   (cond [(= curr-i end-i) (list->string (reverse acc*))]
         [else             (string-slice-aux str (add1 curr-i) end-i acc*)]))
 
 (define (empty? xs)
+  ;; (-> list? boolean?)
   (eq? '() xs))
+
+;; (define nat? natural-number/c)
 
 ;; --- main
 

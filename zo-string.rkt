@@ -28,6 +28,7 @@
 
 ;; 2014-12-10: Should replace all 'map' with a more specific formatting function.
 (define (format-list xs)
+  ;; (-> (listof string?) string?)
   (string-join xs "\n"))
 
 (define (compilation-top->string z)

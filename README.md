@@ -27,5 +27,6 @@ REPL for investigating `.zo` files.
 - `info` prints data about the current context
 - `dive ARG` changes context. For any `<struct:val>` printed by `info`, you can `dive val`.
 - `back` goes back to the previous context
+- `help` and `quit` "do the obvious thing".
 
 Beware, you cannot yet `dive` into lists and there are probably lots of hidden bugs (type errors).
