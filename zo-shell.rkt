@@ -16,8 +16,7 @@
 
 ;; --- REPL
 
-;; REPL context is a [zo] struct
-(define context? zo?)
+;; (define context? (or/c zo? (listof zo?)))
 
 (define (init-repl ctx)
   ;; (-> context? void?)
@@ -34,9 +33,10 @@
     (cond [(quit? raw) (print-goodbye)]
           [(help? raw) (begin (print-help) (repl ctx hist))]
           [(info? raw) (begin (print-context ctx) (repl ctx hist))]
-          [(dive? raw) (repl (dive ctx raw) (push hist ctx))]
+          [(dive? raw) (let-values ([(ctx* hist*) (dive ctx hist raw)])
+                         (repl ctx* hist*))]
           [(back? raw) (if (empty? hist)
-                           (repl ctx hist)
+                           (begin (print-unknown raw) (repl ctx hist))
                            (let-values ([(a b) (pop hist)]) (repl a b)))]
           [else        (begin (print-unknown raw) (repl ctx hist))])
   ))
@@ -62,7 +62,6 @@
       (string=? raw "print")
       (string=? raw "p")
       (string=? raw "show")
-      (string=? raw "s")
       (string=? raw "ls")))
 
 (define (dive? raw)
@@ -72,6 +71,8 @@
            [splt (if (empty? strs) (cons "" '()) strs)])
       (string-slice (car splt) 0 3)))
   (or (string=? hd "dive")
+      (string=? hd "next")
+      (string=? hd "step")
       (string=? hd "d")))
 
 (define (back? raw)
@@ -83,22 +84,37 @@
       (string=? raw "..")
       (string=? raw "../")))
 
-(define (dive ctx raw)
-  ;; (-> context? string? context?)
-  (define field ;; parse [raw] for field name i.e. second argument in [raw]
+(define (dive ctx hist raw)
+  ;; (-> context? history? string? (values context? history?))
+  (define arg ;; parse [raw] for field name i.e. second argument in [raw]
     (let ([splt (string-split raw)])
       (cond [(empty? splt)             #f]
             [(empty? (cdr splt))       #f]
             [(empty? (cdr (cdr splt))) (car (cdr splt))]
             [else                      (begin (print-warn (format "Ignoring extra arguments to dive: '~a'" (cdr (cdr splt))))
                                               (car (cdr splt)))])))
-  (if (not field) ;; Check for parse error
-      (begin (print-unknown (format "dive ~a" raw))
-             ctx)
-      (begin (let-values ([(nxt success?) (transition ctx field)])
-               (when (not success?) ;; Check if transition failed
-                 (print-unknown (format "dive ~a" field)))
-               nxt))))
+  (cond [(not arg) (begin (print-unknown (format "dive ~a" raw))
+                            (values ctx hist))]
+        [(list? ctx) (dive-list ctx hist arg)]
+        [(zo?   ctx) (dive-zo   ctx hist arg)]
+        [else (error (format "Invalid context '~a'" ctx))]))
+
+(define (dive-list ctx hist arg)
+  ;; (-> context? history? string? (values context? history?))
+  (let ([index (string->number arg)])
+    (cond [(or (not index)
+               (< index 0)
+               (>= index (length ctx))) (begin (print-unknown (format "dive ~a" arg))
+                                               (values ctx hist))]
+          [else (values (list-ref ctx index) (push ctx hist))])))
+  
+(define (dive-zo ctx hist field)
+  ;; (-> context? history? string? (values context? history?))
+  (let-values ([(ctx* success?) (transition ctx field)])
+    (if success?
+        (values ctx* (push ctx hist))
+        (begin (print-unknown (format "dive ~a" field))
+               (values ctx hist)))))
 
 ;; --- history
 
@@ -141,6 +157,7 @@
 
 (define (print-context ctx)
   ;; (-> context? void?)
+  ;; TODO ctx is list, sometimes
   (displayln (zo->string ctx)))
 
 (define (print-unknown raw)
