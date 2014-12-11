@@ -10,7 +10,7 @@
 
 ;; --- constants
 
-(define DEBUG   #t)
+(define DEBUG   #f)
 (define VERSION 0.1)
 (define VNAME   "outlands")
 
@@ -28,6 +28,7 @@
 (define (repl ctx hist)
   ;; (-> context? history? void?)
   (begin
+    (when DEBUG (print-history hist))
     (print-prompt)
     (define raw (read-line))
     (cond [(quit? raw) (print-goodbye)]
@@ -93,7 +94,7 @@
             [(empty? (cdr (cdr splt))) (car (cdr splt))]
             [else                      (begin (print-warn (format "Ignoring extra arguments to dive: '~a'" (cdr (cdr splt))))
                                               (car (cdr splt)))])))
-  (cond [(not arg) (begin (print-unknown (format "dive ~a" raw))
+  (cond [(not arg) (begin (print-unknown raw)
                             (values ctx hist))]
         [(list? ctx) (dive-list ctx hist arg)]
         [(zo?   ctx) (dive-zo   ctx hist arg)]
@@ -106,13 +107,13 @@
                (< index 0)
                (>= index (length ctx))) (begin (print-unknown (format "dive ~a" arg))
                                                (values ctx hist))]
-          [else (values (list-ref ctx index) (push ctx hist))])))
+          [else (values (list-ref ctx index) (push hist ctx))])))
   
 (define (dive-zo ctx hist field)
   ;; (-> context? history? string? (values context? history?))
   (let-values ([(ctx* success?) (transition ctx field)])
     (if success?
-        (values ctx* (push ctx hist))
+        (values ctx* (push hist ctx))
         (begin (print-unknown (format "dive ~a" field))
                (values ctx hist)))))
 
@@ -144,6 +145,10 @@
 
 ;; --- print
 
+(define (print-history hist)
+  ;; (-> history? void?)
+  (printf "History is: ~a\n" hist))
+
 (define (print-help)
   ;; (-> void?)
   (displayln (string-join (list "At your service. Available commands:"
@@ -157,8 +162,9 @@
 
 (define (print-context ctx)
   ;; (-> context? void?)
-  ;; TODO ctx is list, sometimes
-  (displayln (zo->string ctx)))
+  (cond [(zo?   ctx) (displayln (zo->string ctx))]
+        [(list? ctx) (displayln (map (lambda (z) (zo->string z #:deep? #f)) ctx))]
+        [else        (error (format "Unknown context '~a'"  ctx))]))
 
 (define (print-unknown raw)
   ;; (-> string? void?)
