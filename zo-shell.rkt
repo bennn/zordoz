@@ -62,7 +62,8 @@
       (string=? raw "print")
       (string=? raw "p")
       (string=? raw "show")
-      (string=? raw "s")))
+      (string=? raw "s")
+      (string=? raw "ls")))
 
 (define (dive? raw)
   ;; (-> string? boolean?)
