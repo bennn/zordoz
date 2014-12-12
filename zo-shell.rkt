@@ -14,33 +14,57 @@
 (define VERSION 0.1)
 (define VNAME   "outlands")
 
-;; --- REPL
+;; --- misc
 
+;; (define nat? natural-number/c)
 ;; (define context? (or/c zo? (listof zo?)))
+
+;; Create a new string from characters in [str].
+;; Begins at [start-i], ends no further than [end-i].
+;; If [str] has too few characters then the result will be shorter than [end-i - start-i]
+(define (string-slice str start-i end-i)
+  ;; (-> string? nat? nat? string?)
+  (define end* (min end-i (sub1 (string-length str))))
+  (cond [(string=? "" str) ""]
+        [(< start-i 0)    (error (format "[string-slice] invalid start index '~a'." start-i))]
+        [(< end* start-i) (error (format "[string-slice] invalid end index '~a' for start index '~a'." end* start-i))]
+        [else             (string-slice-aux str start-i end* '())]))
+
+(define (string-slice-aux str curr-i end-i acc)
+  ;; (-> string? nat? nat? (listof character?) string?)
+  (define c    (string-ref str curr-i))
+  (define acc* (cons c acc))
+  (cond [(= curr-i end-i) (list->string (reverse acc*))]
+        [else             (string-slice-aux str (add1 curr-i) end-i acc*)]))
+
+(define (empty? xs)
+  ;; (-> list? boolean?)
+  (eq? '() xs))
+
+;; --- REPL
 
 (define (init-repl ctx)
   ;; (-> context? void?)
-  (begin
-    (print-welcome)
-    (repl ctx '())
-  ))
+  (print-welcome)
+  (repl ctx '()))
 
 (define (repl ctx hist)
   ;; (-> context? history? void?)
-  (begin
-    (when DEBUG (print-history hist))
-    (print-prompt)
-    (define raw (read-line))
-    (cond [(quit? raw) (print-goodbye)]
-          [(help? raw) (begin (print-help) (repl ctx hist))]
-          [(info? raw) (begin (print-context ctx) (repl ctx hist))]
-          [(dive? raw) (let-values ([(ctx* hist*) (dive ctx hist raw)])
-                         (repl ctx* hist*))]
-          [(back? raw) (if (empty? hist)
-                           (begin (print-unknown raw) (repl ctx hist))
-                           (let-values ([(a b) (pop hist)]) (repl a b)))]
-          [else        (begin (print-unknown raw) (repl ctx hist))])
-  ))
+  (when DEBUG (print-history hist))
+  (print-prompt)
+  (define raw (read-line))
+  (cond [(quit? raw) (print-goodbye)]
+        [(help? raw) (print-help)
+                     (repl ctx hist)]
+        [(info? raw) (print-context ctx)
+                     (repl ctx hist)]
+        [(dive? raw) (let-values ([(ctx* hist*) (dive ctx hist raw)])
+                       (repl ctx* hist*))]
+        [(back? raw) (cond [(empty? hist) (print-unknown raw)
+                                          (repl ctx hist)]
+                           [else          (let-values ([(a b) (pop hist)]) (repl a b))])]
+        [else        (print-unknown raw)
+                     (repl ctx hist)]))
 
 ;; --- commands
 
@@ -92,31 +116,30 @@
       (cond [(empty? splt)             #f]
             [(empty? (cdr splt))       #f]
             [(empty? (cdr (cdr splt))) (car (cdr splt))]
-            [else                      (begin (print-warn (format "Ignoring extra arguments to dive: '~a'" (cdr (cdr splt))))
-                                              (car (cdr splt)))])))
-  (cond [(not arg) (begin (print-unknown raw)
-                            (values ctx hist))]
+            [else                      (print-warn (format "Ignoring extra arguments to dive: '~a'" (cdr (cdr splt))))
+                                       (car (cdr splt))])))
+  (cond [(not arg)   (print-unknown raw)
+                     (values ctx hist)]
         [(list? ctx) (dive-list ctx hist arg)]
         [(zo?   ctx) (dive-zo   ctx hist arg)]
-        [else (error (format "Invalid context '~a'" ctx))]))
+        [else        (error (format "Invalid context '~a'" ctx))]))
 
 (define (dive-list ctx hist arg)
   ;; (-> context? history? string? (values context? history?))
   (let ([index (string->number arg)])
     (cond [(or (not index)
                (< index 0)
-               (>= index (length ctx))) (begin (print-unknown (format "dive ~a" arg))
-                                               (values ctx hist))]
+               (>= index (length ctx))) (print-unknown (format "dive ~a" arg))
+                                        (values ctx hist)]
           [else (values (list-ref ctx index) (push hist ctx))])))
   
 (define (dive-zo ctx hist field)
   ;; (-> context? history? string? (values context? history?))
   (let-values ([(ctx* success?) (transition ctx field)])
-    (if success?
-        (values ctx* (push hist ctx))
-        (begin (print-unknown (format "dive ~a" field))
-               (values ctx hist)))))
-
+    (cond [success? (values ctx* (push hist ctx))]
+          [else     (print-unknown (format "dive ~a" field))
+                    (values ctx hist)])))
+               
 ;; --- history
 
 ;; (define history? (listof context?))
@@ -134,14 +157,12 @@
 ;; Start REPL from a filename
 (define (init-from-filename name)
   ;; (-> string? void?)
-  (begin
-    (print-info (format "Loading bytecode file '~a'..." name))
-    (define port (open-input-file name))
-    (print-info "Parsing bytecode...")
-    (define ctx  (zo-parse port))
-    (print-info "Parsing complete!")
-    (init-repl ctx)
-  ))
+  (print-info (format "Loading bytecode file '~a'..." name))
+  (define port (open-input-file name))
+  (print-info "Parsing bytecode...")
+  (define ctx  (zo-parse port))
+  (print-info "Parsing complete!")
+  (init-repl ctx))
 
 ;; --- print
 
@@ -201,32 +222,6 @@
 ;; Print usage information
 (define (print-usage)
   (displayln "Usage: zo-shell <file.zo>"))
-
-;; --- misc
-
-;; Create a new string from characters in [str].
-;; Begins at [start-i], ends no further than [end-i].
-;; If [str] has too few characters then the result will be shorter than [end-i - start-i]
-(define (string-slice str start-i end-i)
-  ;; (-> string? nat? nat? string?)
-  (define end* (min end-i (sub1 (string-length str))))
-  (cond [(string=? "" str) ""]
-        [(< start-i 0)    (error (format "[string-slice] invalid start index '~a'." start-i))]
-        [(< end* start-i) (error (format "[string-slice] invalid end index '~a' for start index '~a'." end* start-i))]
-        [else             (string-slice-aux str start-i end* '())]))
-
-(define (string-slice-aux str curr-i end-i acc)
-  ;; (-> string? nat? nat? (listof character?) string?)
-  (define c    (string-ref str curr-i))
-  (define acc* (cons c acc))
-  (cond [(= curr-i end-i) (list->string (reverse acc*))]
-        [else             (string-slice-aux str (add1 curr-i) end-i acc*)]))
-
-(define (empty? xs)
-  ;; (-> list? boolean?)
-  (eq? '() xs))
-
-;; (define nat? natural-number/c)
 
 ;; --- main
 
