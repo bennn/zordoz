@@ -584,7 +584,7 @@
 
 (define (any->string z)
   ;; (-> any/c string?)
-  (display z))
+  (format "~a" z))
 
 (define (expr-seq-any->string z)
   ;; (-> (or/c expr? seq? any/c) string?)
