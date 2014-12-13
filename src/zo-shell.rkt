@@ -207,7 +207,7 @@
 
 (define (print-debug str)
   ;; (-> string? void?)
-  (printf "DEBUG: ~a\n" str))
+  (displayln (cyan (format "DEBUG: ~a" str))))
 
 (define (print-welcome)
   ;; (-> void?)
@@ -215,19 +215,19 @@
 
 (define (print-prompt)
   ;; (-> void?)
-  (display "\033[1;32mzo> \033[0;0m"))
+  (display (green "zo> ")))
 
 (define (print-info str)
   ;; (-> string? void?)
-  (printf "INFO: ~a\n" str))
+  (displayln (blue (format "INFO: ~a" str))))
 
 (define (print-warn str)
   ;; (-> string? void?)
-  (printf "WARN: ~a\n" str))
+  (displayln (purple (format "WARN: ~a" str))))
 
 (define (print-error str)
   ;; (-> string? void?)
-  (printf "ERROR: ~a\n" str))
+  (displayln (red (format "ERROR: ~a" str))))
 
 ;; Print usage information
 (define (print-usage)
