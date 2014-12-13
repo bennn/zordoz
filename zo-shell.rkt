@@ -74,7 +74,9 @@
 
 (define (dive? raw)
   ;; (-> string? boolean?)
-  (define hd (car (string-split raw)))
+  (define hd (if (memq #\space (string->list raw))
+                 (car (string-split raw))
+                 ""))
   (or (string=? hd "dive")
       (string=? hd "next")
       (string=? hd "step")
@@ -82,7 +84,9 @@
 
 (define (find? raw)
   ;; (-> string? boolean?)
-  (define hd (car (string-split raw)))
+  (define hd (if (memq #\space (string->list raw))
+                 (car (string-split raw))
+                 ""))
   (or (string=? hd "find")
       (string=? hd "f")
       (string=? hd "query")
@@ -138,7 +142,7 @@
 
 (define (find ctx raw)
   (define arg (split-snd raw))
-  (define results (zo-find ctx arg))
+  (define results (if arg (zo-find ctx arg) '()))
   (printf "FIND returned ~a results\n" (length results))
   results)
                
