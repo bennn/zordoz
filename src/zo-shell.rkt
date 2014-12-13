@@ -6,6 +6,7 @@
 (require compiler/zo-parse
          (only-in racket/string string-split string-join)
          (only-in racket/list   empty?)
+         "color.rkt"
          "zo-find.rkt"
          "zo-string.rkt"
          "zo-transition.rkt")
@@ -214,7 +215,7 @@
 
 (define (print-prompt)
   ;; (-> void?)
-  (printf "zo> "))
+  (display "\033[1;32mzo> \033[0;0m"))
 
 (define (print-info str)
   ;; (-> string? void?)
