@@ -184,7 +184,9 @@
 (define (print-context ctx)
   ;; (-> context? void?)
   (cond [(zo?   ctx) (displayln (zo->string ctx))]
-        [(list? ctx) (displayln (map (lambda (z) (zo->string z #:deep? #f)) ctx))]
+        [(list? ctx) (printf "~a[~a]\n"
+                             (map (lambda (z) (zo->string z #:deep? #f)) ctx)
+                             (length ctx))]
         [else        (error (format "Unknown context '~a'"  ctx))]))
 
 (define (print-unknown raw)
