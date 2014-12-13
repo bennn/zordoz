@@ -24,7 +24,7 @@
         [(module-binding?  z) (module-binding->string   deep z)]
         [(nominal-path?    z) (nominal-path->string     deep z)]
         [(provided?        z) (provided->string         deep z)]
-        [else (error (format "Unknown zo '~a'" z))]))
+        [else (error (format "[zo->string] Unknown zo '~a'" z))]))
 
 ;; -- syntax: lazy cons to delay evaluation of tail
 
@@ -96,7 +96,7 @@
         [(mod?            z) (mod->string            deep? z)]
         [(provided?       z) (provided->string       deep? z)]
         [(expr?           z) (expr->string           deep? z)]
-        [else (error (format "Unknown form '~a'" z))]))
+        [else (error (format "[form->string] Unknown form '~a'" z))]))
 
 (define (expr->string deep? z)
   ;; (-> boolean? expr? string?)
@@ -119,7 +119,7 @@
         [(assign?         z) (assign->string         deep? z)]
         [(apply-values?   z) (apply-values->string   deep? z)]
         [(primval?        z) (primval->string        deep? z)]
-        [else (error (format "Unknown expr '~a'" z))]))
+        [else (error (format "[expr->string] Unknown expr '~a'" z))]))
 
 (define (wrapped->string deep? z)
   ;; (-> boolean? wrapped? string?)
@@ -136,7 +136,9 @@
         [(lexical-rename?   z) (lexical-rename->string   deep? z)]
         [(phase-shift?      z) (phase-shift->string      deep? z)]
         [(module-rename?    z) (module-rename->string    deep? z)]
-        [else (error (format "Unknown wrap '~a'" z))]))
+        [(wrap-mark?        z) (wrap-mark->string        deep? z)]
+        [(prune?            z) (prune->string            deep? z)]
+        [else (error (format "[wrap->string] Unknown wrap '~a'" z))]))
 
 (define (free-id-info->string deep? z)
   ;; (-> boolean? free-id-info? string?)
@@ -169,7 +171,7 @@
         [(exported-nominal-module-binding? z) (exported-nominal-module-binding->string deep? z)]
         [(nominal-module-binding?          z) (nominal-module-binding->string          deep? z)]
         [(exported-module-binding?         z) (exported-module-binding->string         deep? z)]
-        [else (error (format "Unknown module-binding '~a'" z))]))
+        [else (error (format "[module-binding->string] Unknown '~a'" z))]))
 
 
 (define (nominal-path->string deep? z)
@@ -177,7 +179,7 @@
   (cond [(simple-nominal-path?   z) (simple-nominal-path->string   deep? z)]
         [(imported-nominal-path? z) (imported-nominal-path->string deep? z)]
         [(phased-nominal-path?   z) (phased-nominal-path->string   deep? z)]
-        [else (error (format "Unknown nominal-path '~a'" z))]))
+        [else (error (format "[nominal-path] Unknown '~a'" z))]))
 
 ;; -- form
 
@@ -267,8 +269,8 @@
                (for/list ([pd pds])
                  (format "(~a ~a ~a)"
                          (car pd) ; (or/c exact-integer? #f)
-                         (format "~a" (listof-zo->string provided->string (car (cdr pd))))
-                         (format "~a" (listof-zo->string provided->string (car (cdr (cdr pd)))))))))
+                         (format "~a" (listof-zo->string provided->string (cadr pd)))
+                         (format "~a" (listof-zo->string provided->string (caddr pd)))))))
 
 (define (mod-requires->string rqs)
   ;; (-> (listof (cons/c (or/c exact-integer #f) (listof module-path-index?))) string?)
@@ -513,9 +515,21 @@
                  (lcons "kind"         (module-rename-kind z))
                  (lcons "set-id"       (module-rename-set-id z))
                  (lcons "unmarshals"   (listof-zo->string all-from-module->string (module-rename-unmarshals z)))
-                 (lcons "renames"      (listof-zo->string module-binding->string (module-rename-renames z)))
+                 (lcons "renames"      (module-rename-renames z));(listof-zo->string module-binding->string (module-rename-renames z)))
                  (lcons "mark-renames" (module-rename-mark-renames z))
                  (lcons "plus-kern"    (module-rename-plus-kern? z))))
+
+(define (wrap-mark->string deep? z)
+  ;; (-> boolean? wrap-mark? string?)
+  (format-struct deep?
+                 "wrap-mark"
+                 (lcons "val" (wrap-mark-val z))))
+
+(define (prune->string deep? z)
+  ;; (-> boolean? prune? string?)
+  (format-struct deep?
+                 "prune"
+                 (lcons "sym" (prune-sym z))))
 
 ;; -- module-binding
 
