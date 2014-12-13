@@ -620,7 +620,7 @@
 (define (listof-zo->string z->str zs)
   ;; (-> (-> boolean? zo? string?) (listof zo?) string?)
   (cond [(empty? zs) "[]"]
-        [else        "~a[~a]" (z->str #f (car zs)) (length zs)]))
+        [else        (format "~a[~a]" (z->str #f (car zs)) (length zs))]))
 
 ;; If [str] has fewer than [w] characters, (w - (len str)) characters to its right end
 (define (pad str w #:char [c #\space])
