@@ -3,6 +3,7 @@
 (provide zo->string)
 
 (require compiler/zo-structs
+         racket/contract
          (only-in racket/string string-join)
          (only-in racket/list   empty?))
 
@@ -39,33 +40,33 @@
 
 ;; -- string specifications
 
-;; TODO not quite correct -- list always has enough fields.
-;; Also tails are not always strings (but probably should be).
-;; (define (summaryof z)
-;;   ;; (-> zo? (-> (cons/c boolean? (cons/c string? (listof string?))) boolean?))
-;;   (lambda (str-list)
-;;     ;; A proper zo-spec should have the title and, if deep, a string for each struct field
-;;     (and/c (list?  str-list)
-;;            (< 1 (length str-list))
-;;            (string? (cadr str-list))
-;;            ;; Title matches struct name
-;;            (if (car str-list) ;; if deep?
-;;                (and (= (length cddr str-list) (sub1 (vector-length (struct->vector z))))
-;;                     #t) ;; Each field name appears in a string
-;;                (empty? (cddr str-list))))))
+;; beware, tails are not always strings (but probably should be).
+(define (summaryof z)
+  ;; (-> zo? (-> (cons/c boolean? (cons/c string? (listof (cons/c string? (-> string?)))) boolean?))
+  (lambda (str-list)
+    ;; A proper zo-spec should have the title and, if deep, a string for each struct field
+    (and/c (list?  str-list)
+           (< 1 (length str-list))
+           (string? (cadr str-list))
+           ;; Title matches struct name
+           (and (= (length (cddr str-list)) (sub1 (vector-length (struct->vector z))))
+                #t) ;; Each field name appears in a string
+           )))
 
 ;; -- private functions
 
-(define (compilation-top->string deep? z)
-  ;; (-> boolean? compilation-top? (summaryof compilation-top))
+(define/contract
+  (compilation-top->string deep? z)
+  (-> boolean? compilation-top? (summaryof compilation-top))
   (list deep?
         "compilation-top"
         (lcons "max-let-depth" (compilation-top-max-let-depth z))
         (lcons "prefix"        (prefix->string #f (compilation-top-prefix z)))
         (lcons "code"          (form-or-any->string (compilation-top-code z)))))
 
-(define (prefix->string deep? z)
-  ;; (-> boolean? prefix? (summaryof prefix))
+(define/contract
+  (prefix->string deep? z)
+  (-> boolean? prefix? (summaryof prefix))
   (list deep?
         "prefix"
         (lcons "num-lifts" (prefix-num-lifts z))
@@ -78,7 +79,6 @@
     (cond [(module-variable? tl) (module-variable->string #f tl)]
           [(global-bucket?   tl) (global-bucket->string #f tl)]
           [else (format "~a" tl)])))
-
 
 (define (global-bucket->string deep? z)
   ;; (->  boolean? global-bucket? (summaryof global-bucket))
@@ -257,8 +257,8 @@
         (lcons "direct" (expr->string #f (inline-variant-direct z)))
         (lcons "inline" (expr->string #f (inline-variant-inline z)))))
 
-(define (mod->string deep? z)
-  ;; (-> boolean? mod? (summaryof mod))
+(define/contract (mod->string deep? z)
+  (-> boolean? mod? (summaryof mod))
   (list deep?
         "mod"
         (lcons "name"             (mod-name z))
