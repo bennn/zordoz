@@ -1,7 +1,7 @@
 #lang racket/base
 
 ;; Command-line UI for exploring the output of zo-parse
-
+(provide init)
 
 (require compiler/zo-parse
          (only-in racket/string string-split string-join)
@@ -241,4 +241,3 @@
   (cond [(empty? args)       (print-usage)]
         [(empty? (cdr args)) (init-from-filename (car args))]
         [else                (print-usage)]))
-(init)
