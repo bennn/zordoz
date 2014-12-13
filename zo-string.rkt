@@ -23,7 +23,8 @@
         [(all-from-module? z) (all-from-module->string  deep z)]
         [(module-binding?  z) (module-binding->string   deep z)]
         [(nominal-path?    z) (nominal-path->string     deep z)]
-        [else "?zo"]))
+        [(provided?        z) (provided->string         deep z)]
+        [else (error (format "Unknown zo '~a'" z))]))
 
 ;; -- syntax: lazy cons to delay evaluation of tail
 
@@ -95,7 +96,7 @@
         [(mod?            z) (mod->string            deep? z)]
         [(provided?       z) (provided->string       deep? z)]
         [(expr?           z) (expr->string           deep? z)]
-        [else "?form"]))
+        [else (error (format "Unknown form '~a'" z))]))
 
 (define (expr->string deep? z)
   ;; (-> boolean? expr? string?)
@@ -118,7 +119,7 @@
         [(assign?         z) (assign->string         deep? z)]
         [(apply-values?   z) (apply-values->string   deep? z)]
         [(primval?        z) (primval->string        deep? z)]
-        [else "?expr"]))
+        [else (error (format "Unknown expr '~a'" z))]))
 
 (define (wrapped->string deep? z)
   ;; (-> boolean? wrapped? string?)
@@ -135,7 +136,7 @@
         [(lexical-rename?   z) (lexical-rename->string   deep? z)]
         [(phase-shift?      z) (phase-shift->string      deep? z)]
         [(module-rename?    z) (module-rename->string    deep? z)]
-        [else "?wrap"]))
+        [else (error (format "Unknown wrap '~a'" z))]))
 
 (define (free-id-info->string deep? z)
   ;; (-> boolean? free-id-info? string?)
@@ -168,7 +169,7 @@
         [(exported-nominal-module-binding? z) (exported-nominal-module-binding->string deep? z)]
         [(nominal-module-binding?          z) (nominal-module-binding->string          deep? z)]
         [(exported-module-binding?         z) (exported-module-binding->string         deep? z)]
-        [else "?module-binding"]))
+        [else (error (format "Unknown module-binding '~a'" z))]))
 
 
 (define (nominal-path->string deep? z)
@@ -176,7 +177,7 @@
   (cond [(simple-nominal-path?   z) (simple-nominal-path->string   deep? z)]
         [(imported-nominal-path? z) (imported-nominal-path->string deep? z)]
         [(phased-nominal-path?   z) (phased-nominal-path->string   deep? z)]
-        [else "?nominal-path"]))
+        [else (error (format "Unknown nominal-path '~a'" z))]))
 
 ;; -- form
 

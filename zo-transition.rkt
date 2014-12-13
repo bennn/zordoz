@@ -23,6 +23,7 @@
           [(all-from-module? z) (all-from-module-> z field-name)]
           [(module-binding?  z) (module-binding->  z field-name)]
           [(nominal-path?    z) (nominal-path->    z field-name)]
+          [(provided?        z) (provided->        z field-name)]
           [else (error (format "[transition] Unknown struct '~a'" z))]))
   ;; Check if transition failed, pack result values
   (if (or (zo? nxt) (list? nxt)) (values nxt #t) (values z #f)))

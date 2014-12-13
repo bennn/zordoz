@@ -39,10 +39,10 @@
 (define (get-children z strs)
   ;; (-> zo? string? (listof zo?))
   (cond [(empty? strs) '()]
-        [(string=? (car strs) "dummy") (get-children z (cdr strs))]
+        ;; [(string=? (car strs) "dummy") (get-children z (cdr strs))]
         [else (let-values ([(r success?) (transition z (car strs))])
                 (cond [(not success?) (get-children z (cdr strs))]
-                      [(list? r) (append r (get-children z (cdr strs)))]
+                      [(list? r) (append (filter zo? r) (get-children z (cdr strs)))]
                       [(zo?   r) (cons   r (get-children z (cdr strs)))]))]))
 
 ;; Deconstruct a printed zo to a string.
