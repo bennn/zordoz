@@ -27,11 +27,6 @@
 
 ;; -- private functions
 
-;; 2014-12-10: Should replace all 'map' with a more specific formatting function.
-(define (format-list xs)
-  ;; (-> (listof string?) string?)
-  (string-join xs "\n"))
-
 (define (compilation-top->string deep? z)
   ;; (-> boolean? compilation-top? string?)
   (if (not deep?)
@@ -49,12 +44,16 @@
       "<struct:prefix>"
       (format-list (list "prefix"
                          (format "  num-lifts : ~a" (prefix-num-lifts z))
-                         (format "  toplevels : ~a" (map (lambda (tl)
-                                                           (cond [(module-variable? tl) (module-variable->string #f tl)]
-                                                                 [(global-bucket?   tl) (global-bucket->string #f tl)]
-                                                                 [else (format "~a" tl)]))
-                                                         (prefix-toplevels z)))
+                         (format "  toplevels : ~a" (prefix-toplevels->string (prefix-toplevels z)))
                          (format "  stxs      : ~a" (listof-zo->string stx->string (prefix-stxs z)))))))
+
+(define (prefix-toplevels->string tls)
+  ;; (-> (listof (or/c module-variable? global-bucket? any/c)) (listof string?))
+  (for/list ([tl tls])
+    (cond [(module-variable? tl) (module-variable->string #f tl)]
+          [(global-bucket?   tl) (global-bucket->string #f tl)]
+          [else (format "~a" tl)])))
+
 
 (define (global-bucket->string deep? z)
   ;; (->  boolean? global-bucket? string?)
@@ -212,10 +211,7 @@
   (if (not deep?)
       "<struct:seq-for-syntax>"
       (format-list (list "seq-for-syntax"
-                         (format "  forms         : ~a" (map (lambda (fm)
-                                                               (cond [(form? fm) (form->string #f fm)]
-                                                                     [else       (any->string)]))
-                                                             (seq-for-syntax-forms z)))
+                         (format "  forms         : ~a" (listof-form-or-any->string (seq-for-syntax-forms z)))
                          (format "  prefix        : ~a" (prefix->string #f (seq-for-syntax-prefix z)))
                          (format "  max-let-depth : ~a" (seq-for-syntax-max-let-depth z))
                          (format "  dummy         : ~a" (let ([dm (seq-for-syntax-dummy z)])
@@ -235,20 +231,14 @@
   (if (not deep?)
       "<struct:seq>"
       (format-list (list "seq"
-                         (format "  forms : ~a" (map (lambda (fm)
-                                                       (cond [(form? fm) (form->string #f fm)]
-                                                             [else       (any->string)]))
-                                                     (seq-forms z)))))))
+                         (format "  forms : ~a" (listof-form-or-any->string (seq-forms z)))))))
 
 (define (splice->string deep? z)
   ;; (-> boolean? splice? string?)
   (if (not deep?)
       "<struct:splice>"
       (format-list (list "splice"
-                         (format "  forms : ~a" (map (lambda (fm)
-                                                       (cond [(form? fm) (form->string #f fm)]
-                                                             [else       (any->string)]))
-                                                     (splice-forms z)))))))
+                         (format "  forms : ~a" (listof-form-or-any->string (splice-forms z)))))))
 
 (define (inline-variant->string deep? z)
   ;; (-> boolean? inline-variant? string?)
@@ -269,10 +259,7 @@
                          (format "  prefix           : ~a" (prefix->string #f (mod-prefix z)))
                          (format "  provides         : ~a" (mod-provides->string (mod-provides z)))
                          (format "  requires         : ~a" (mod-requires->string (mod-requires z)))
-                         (format "  body             : ~a" (map (lambda (fm)
-                                                                  (cond [(form? fm) (form->string #f fm)]
-                                                                        [else       (any->string)]))
-                                                                (mod-body z)))
+                         (format "  body             : ~a" (listof-form-or-any->string (mod-body z)))
                          (format "  syntax-bodies    : ~a" (mod-syntax-bodies->string (mod-syntax-bodies z)))
                          (format "  unexported       : ~a" (mod-unexported z))
                          (format "  max-let-depth    : ~a" (mod-max-let-depth z))
@@ -286,39 +273,32 @@
                          (format "  pre-submodules   : ~a" (listof-zo->string mod->string (mod-pre-submodules z)))
                          (format "  post-submodules  : ~a" (listof-zo->string mod->string (mod-post-submodules z)))))))
 
-;; 2014-12-10: Ugly
 (define (mod-provides->string pds)
   ;; (-> (listof (list/c (or/c exact-integer? #f) (listof provided?) (listof provided?))) string?)
-  (string-join (map (lambda (pd)
-                      (format "(~a ~a ~a)"
-                              (car pd) ; (or/c exact-integer? #f)
-                              (format "~a" (listof-zo->string provided->string (car (cdr pd))))
-                              (format "~a" (listof-zo->string provided->string (car (cdr (cdr pd)))))))
-                    pds)
-               " "))
+  (format-list #:sep " "
+               (for/list ([pd pds])
+                 (format "(~a ~a ~a)"
+                         (car pd) ; (or/c exact-integer? #f)
+                         (format "~a" (listof-zo->string provided->string (car (cdr pd))))
+                         (format "~a" (listof-zo->string provided->string (car (cdr (cdr pd)))))))))
 
-;; 2014-12-10: Ugly
 (define (mod-requires->string rqs)
   ;; (-> (listof (cons/c (or/c exact-integer #f) (listof module-path-index?))) string?)
-  (string-join (map (lambda (rq)
-                      (format "(~a ~a)"
-                              (car rq)
-                              (cdr rq)))
-                    rqs)
-               " "))
+  (format-list #:sep " "
+               (for/list ([rq rqs])
+                 (format "(~a ~a)" (car rq) (cdr rq)))))
 
 ;; 2014-12-10: Ugly
 (define (mod-syntax-bodies->string sbs)
   ;; (-> (listof (cons/c exact-positive-integer (listof (or/c def-syntaxes? seq-for-syntax?)))) string?)
-  (string-join (map (lambda (sb)
-                      (format "(~a . ~a)"
-                              (car sb)
-                              (map (lambda (d)
-                                     (cond [(def-syntaxes?   d) (def-syntaxes->string #f d)]
-                                           [(seq-for-syntax? d) (seq-for-syntax->string #f d)]))
-                                   (cdr sb))))
-                    sbs)
-               " "))
+  (format-list #:sep " "
+               (for/list ([sb sbs])
+                 (format "(~a . ~a)"
+                         (car sb)
+                         (for/list ([d (cdr sb)])
+                                (cond [(def-syntaxes?   d) (def-syntaxes->string #f d)]
+                                      [(seq-for-syntax? d) (seq-for-syntax->string #f d)]
+                                      [else (error "[mod-syntax-bodies->string] Unexpected arg")]))))))
                 
 (define (provided->string deep? z)
   ;; (-> boolean? provided? string?)
@@ -539,17 +519,16 @@
 ;; 2014-12-10: Ugly!!!
 (define (lexical-rename-alist->string alst)
   ;; (-> (listof (cons/c symbol? (or/c symbol? (cons/c symbol? (or/c (cons/c symbol? (or/c symbol? #f)) free-id-info?))))) string?)
-  (string-join (map (lambda (a)
-                      (format "(~a . ~a)"
-                              (car a)
-                              (cond [(symbol? (cdr a)) (cdr a)]
-                                    [else (let ([a* (cdr a)])
-                                            (format "(~a . ~a)"
-                                                    (car a*)
-                                                    (cond [(free-id-info? (cdr a*)) (free-id-info->string #f (cdr a*))]
-                                                          [else (cdr a*)])))])))
-                    alst)
-               " "))
+  (format-list #:sep " "
+               (for/list ([a alst])
+                 (format "(~a . ~a)"
+                         (car a)
+                         (cond [(symbol? (cdr a)) (cdr a)]
+                               [else (let ([a* (cdr a)])
+                                       (format "(~a . ~a)"
+                                               (car a*)
+                                               (cond [(free-id-info? (cdr a*)) (free-id-info->string #f (cdr a*))]
+                                                     [else (cdr a*)])))])))))
   
 (define (phase-shift->string deep? z)
   ;; (-> boolean? phase-shift? string?)
@@ -649,16 +628,28 @@
 
 ;; -- helpers
 
+(define (any->string)
+  ;; (-> string?)
+  "<any>")
+
 (define (expr-seq-any->string z)
   ;; (-> (or/c expr? seq? any/c) string?)
   (cond [(expr? z) "<struct:expr>"]
         [(seq?  z) "<struct:seq>"]
         [else      (any->string)]))
 
-(define (any->string)
-  "<any>")
+(define (format-list xs #:sep [sep "\n"])
+  ;; (-> (listof string?) string?)
+  (string-join xs sep))
+
+(define (listof-form-or-any->string xs)
+  ;; (-> (listof (or/c form? any/c)) (listof string?))
+  (for/list ([x xs])
+    (cond [(form? x) (form->string #f x)]
+          [else      (any->string)])))
 
 (define (listof-zo->string z->str zs)
   ;; (-> (-> boolean? zo? string?) (listof zo?) string?)
   (cond [(empty? zs) "[]"]
         [else        "~a[~a]" (z->str #f (car zs)) (length zs)]))
+
