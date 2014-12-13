@@ -23,6 +23,7 @@
           [(all-from-module? z) (all-from-module-> z field-name)]
           [(module-binding?  z) (module-binding->  z field-name)]
           [(nominal-path?    z) (nominal-path->    z field-name)]
+          [(provided?        z) (provided->        z field-name)]
           [else (error (format "[transition] Unknown struct '~a'" z))]))
   ;; Check if transition failed, pack result values
   (if (or (zo? nxt) (list? nxt)) (values nxt #t) (values z #f)))
@@ -105,6 +106,8 @@
         [(lexical-rename?   z) (lexical-rename->   z field-name)]
         [(phase-shift?      z) (phase-shift->      z field-name)]
         [(module-rename?    z) (module-rename->    z field-name)]
+        [(wrap-mark?        z) (wrap-mark->        z field-name)]
+        [(prune?            z) (prune->            z field-name)]
         [else #f]))
 
 (define (free-id-info-> z field-name)
@@ -391,7 +394,7 @@
 
 ;; 2014-12-11: omfg
 (define (get-free-id-info als)
-  ;; (-> (listof (cons/c symbol? (or/c symbol? (cons/c symbol? (or/c (cons/c symbol? (or/c symbol? #f)) free-id-info?)))))
+  ;; (-> (listof (cons/c symbol? (or/c symbol? (cons/c symbol? (or/c (cons/c symbol? (or/c symbol? #f)) free-id-info?))))) (listof free-id-info?))
   (cond [(empty? als) empty]
         [else (append (if (and (pair?         (cdar als))
                                (free-id-info? (cddar als)))
@@ -406,6 +409,14 @@
 ;; 2014-12-10: Possibly dive into 'unmarshals'
 (define (module-rename-> z field-name)
   ;; (-> module-rename? string? (or/c (listof zo?) zo? #f))
+  #f)
+
+(define (wrap-mark-> z field-name)
+  ;; (-> wrap-mark? string? (or/c (listof zo?) zo? #f))
+  #f)
+
+(define (prune-> z field-name)
+  ;; (-> prune? string? (or/c (listof zo?) zo? #f))
   #f)
 
 ;; -- module-binding
