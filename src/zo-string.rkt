@@ -9,25 +9,25 @@
 
 ;; -- API functions
 
-(define (zo->string z #:deep? [deep #t])
+(define (zo->string z #:deep? [deep? #t])
   ;; (-> zo? [#:deep boolean?] string?)
   (define str-spec
-    (cond [(compilation-top? z) (compilation-top->string  deep z)]
-          [(prefix?          z) (prefix->string           deep z)]
-          [(global-bucket?   z) (global-bucket->string    deep z)]
-          [(module-variable? z) (module-variable->string  deep z)]
-          [(stx?             z) (stx->string              deep z)]
-          [(form?            z) (form->string             deep z)]
-          [(expr?            z) (expr->string             deep z)]
-          [(wrapped?         z) (wrapped->string          deep z)]
-          [(wrap?            z) (wrap->string             deep z)]
-          [(free-id-info?    z) (free-id-info->string     deep z)]
-          [(all-from-module? z) (all-from-module->string  deep z)]
-          [(module-binding?  z) (module-binding->string   deep z)]
-          [(nominal-path?    z) (nominal-path->string     deep z)]
-          [(provided?        z) (provided->string         deep z)]
+    (cond [(compilation-top? z) (compilation-top->string  z)]
+          [(prefix?          z) (prefix->string           z)]
+          [(global-bucket?   z) (global-bucket->string    z)]
+          [(module-variable? z) (module-variable->string  z)]
+          [(stx?             z) (stx->string              z)]
+          [(form?            z) (form->string             z)]
+          [(expr?            z) (expr->string             z)]
+          [(wrapped?         z) (wrapped->string          z)]
+          [(wrap?            z) (wrap->string             z)]
+          [(free-id-info?    z) (free-id-info->string     z)]
+          [(all-from-module? z) (all-from-module->string  z)]
+          [(module-binding?  z) (module-binding->string   z)]
+          [(nominal-path?    z) (nominal-path->string     z)]
+          [(provided?        z) (provided->string         z)]
           [else (error (format "[zo->string] Unknown zo '~a'" z))]))
-  (format-struct str-spec))
+  (format-struct deep? str-spec))
 
 ;; -- syntax: lazy cons to delay evaluation of tail
 
@@ -40,129 +40,139 @@
 
 ;; -- string specifications
 
+(define (summary? xs)
+  (and (list? xs)
+       (< 0 (length xs))
+       (string? (car xs))
+       ))
+       ;; (listof (cons/c string? (-> summary?)))))
+
 ;; beware, tails are not always strings (but probably should be).
 (define (summaryof z)
   ;; (-> zo? (-> (cons/c boolean? (cons/c string? (listof (cons/c string? (-> string?)))) boolean?))
   (lambda (str-list)
     ;; A proper zo-spec should have the title and, if deep, a string for each struct field
     (and/c (list?  str-list)
-           (< 1 (length str-list))
-           (string? (cadr str-list))
+           (< 0 (length str-list))
+           (string? (car str-list))
            ;; Title matches struct name
-           (and (= (length (cddr str-list)) (sub1 (vector-length (struct->vector z))))
-                #t) ;; Each field name appears in a string
+           (and (= (length (cdr str-list)) (sub1 (vector-length (struct->vector z))))
+                #t) ;; cdr is list of (cons string? (-> summary?))
+                    ;; each struct field appears in one pair
            )))
 
 ;; -- private functions
 
 (define/contract
-  (compilation-top->string deep? z)
-  (-> boolean? compilation-top? (summaryof compilation-top))
-  (list deep?
-        "compilation-top"
+  (compilation-top->string z)
+  (-> compilation-top? (summaryof compilation-top))
+  (list "compilation-top"
         (lcons "max-let-depth" (compilation-top-max-let-depth z))
         (lcons "prefix"        (prefix->string #f (compilation-top-prefix z)))
         (lcons "code"          (form-or-any->string (compilation-top-code z)))))
 
 (define/contract
-  (prefix->string deep? z)
-  (-> boolean? prefix? (summaryof prefix))
-  (list deep?
-        "prefix"
+  (prefix->string z)
+  (-> prefix? (summaryof prefix))
+  (list "prefix"
         (lcons "num-lifts" (prefix-num-lifts z))
         (lcons "toplevels" (prefix-toplevels->string (prefix-toplevels z)))
         (lcons "stxs"      (listof-zo->string stx->string (prefix-stxs z)))))
 
-(define (prefix-toplevels->string tls)
-  ;; (-> (listof (or/c module-variable? global-bucket? any/c)) (listof string?))
+(define/contract
+  (prefix-toplevels->string tls)
+  (-> (listof (or/c module-variable? global-bucket? any/c)) (listof string?))
   (for/list ([tl tls])
     (cond [(module-variable? tl) (module-variable->string #f tl)]
           [(global-bucket?   tl) (global-bucket->string #f tl)]
-          [else (format "~a" tl)])))
+          [else                  (format "~a" tl)])))
 
-(define (global-bucket->string deep? z)
-  ;; (->  boolean? global-bucket? (summaryof global-bucket))
-  (list deep?
-        "global-bucket"
+(define/contract
+  (global-bucket->string  z)
+  (-> global-bucket? (summaryof global-bucket))
+  (list "global-bucket"
         (lcons "name" (global-bucket-name z))))
 
-                                        ; 2014-12-10: May want to print 'constantness' nicer. Define struct-shape->string.
-(define (module-variable->string deep? z)
-  ;; (-> boolean? module-variable? (summaryof module-variable))
-  (list deep?
-        "module-variable"
+; 2014-12-10: May want to print 'constantness' nicer. Define struct-shape->string.
+(define/contract
+  (module-variable->string z)
+  (-> module-variable? (summaryof module-variable))
+  (list "module-variable"
         (lcons "modidx"       (module-variable-modidx z))
         (lcons "sym"          (module-variable-sym z))
         (lcons "pos"          (module-variable-pos z))
         (lcons "phase"        (module-variable-phase z))
         (lcons "constantness" (module-variable-constantness z))))
 
-(define (stx->string deep? z)
-  ;; (-> boolean? stx? (summaryof stx))
-  (list deep?
-        "stx"
+(define/contract
+  (stx->string z)
+  (-> stx? (summaryof stx))
+  (list "stx"
         (lcons "encoded" (wrapped->string #f (stx-encoded z)))))
 
-(define (form->string deep? z)
-  ;; (-> boolean? form? (summaryof form))
-  (cond [(def-values?     z) (def-values->string     deep? z)]
-        [(def-syntaxes?   z) (def-syntaxes->string   deep? z)]
-        [(seq-for-syntax? z) (seq-for-syntax->string deep? z)]
-        [(req?            z) (req->string            deep? z)]
-        [(seq?            z) (seq->string            deep? z)]
-        [(splice?         z) (splice->string         deep? z)]
-        [(inline-variant? z) (inline-variant->string deep? z)]
-        [(mod?            z) (mod->string            deep? z)]
-        [(provided?       z) (provided->string       deep? z)]
-        [(expr?           z) (expr->string           deep? z)]
+(define/contract
+  (form->string z)
+  (-> form? (summaryof form))
+  (cond [(def-values?     z) (def-values->string     z)]
+        [(def-syntaxes?   z) (def-syntaxes->string   z)]
+        [(seq-for-syntax? z) (seq-for-syntax->string z)]
+        [(req?            z) (req->string            z)]
+        [(seq?            z) (seq->string            z)]
+        [(splice?         z) (splice->string         z)]
+        [(inline-variant? z) (inline-variant->string z)]
+        [(mod?            z) (mod->string            z)]
+        [(provided?       z) (provided->string       z)]
+        [(expr?           z) (expr->string           z)]
         [else (error (format "[form->string] Unknown form '~a'" z))]))
 
-(define (expr->string deep? z)
-  ;; (-> boolean? expr? (summaryof expr))
-  (cond [(lam?            z) (lam->string            deep? z)]
-        [(closure?        z) (closure->string        deep? z)]
-        [(case-lam?       z) (case-lam->string       deep? z)]
-        [(let-one?        z) (let-one->string        deep? z)]
-        [(let-void?       z) (let-void->string       deep? z)]
-        [(install-value?  z) (install-value->string  deep? z)]
-        [(let-rec?        z) (let-rec->string        deep? z)]
-        [(boxenv?         z) (boxenv->string         deep? z)]
-        [(localref?       z) (localref->string       deep? z)]
-        [(toplevel?       z) (toplevel->string       deep? z)]
-        [(topsyntax?      z) (topsyntax->string      deep? z)]
-        [(application?    z) (application->string    deep? z)]
-        [(branch?         z) (branch->string         deep? z)]
-        [(with-cont-mark? z) (with-cont-mark->string deep? z)]
-        [(beg0?           z) (beg0->string           deep? z)]
-        [(varref?         z) (varref->string         deep? z)]
-        [(assign?         z) (assign->string         deep? z)]
-        [(apply-values?   z) (apply-values->string   deep? z)]
-        [(primval?        z) (primval->string        deep? z)]
+(define/contract
+  (expr->string z)
+  (-> expr? (summaryof expr))
+  (cond [(lam?            z) (lam->string            z)]
+        [(closure?        z) (closure->string        z)]
+        [(case-lam?       z) (case-lam->string       z)]
+        [(let-one?        z) (let-one->string        z)]
+        [(let-void?       z) (let-void->string       z)]
+        [(install-value?  z) (install-value->string  z)]
+        [(let-rec?        z) (let-rec->string        z)]
+        [(boxenv?         z) (boxenv->string         z)]
+        [(localref?       z) (localref->string       z)]
+        [(toplevel?       z) (toplevel->string       z)]
+        [(topsyntax?      z) (topsyntax->string      z)]
+        [(application?    z) (application->string    z)]
+        [(branch?         z) (branch->string         z)]
+        [(with-cont-mark? z) (with-cont-mark->string z)]
+        [(beg0?           z) (beg0->string           z)]
+        [(varref?         z) (varref->string         z)]
+        [(assign?         z) (assign->string         z)]
+        [(apply-values?   z) (apply-values->string   z)]
+        [(primval?        z) (primval->string        z)]
         [else (error (format "[expr->string] Unknown expr '~a'" z))]))
 
-(define (wrapped->string deep? z)
-  ;; (-> boolean? wrapped? (summaryof wrapped))
-  (list deep?
-        "wrapped"
+(define/contract
+  (wrapped->string z)
+  (-> wrapped? (summaryof wrapped))
+  (list "wrapped"
         (lcons "datum"         (wrapped-datum z))
         (lcons "wraps"         (listof-zo->string wrap->string (wrapped-wraps z)))
         (lcons "tamper-status" (wrapped-tamper-status z))))
 
-(define (wrap->string deep? z)
-  ;; (-> boolean? wrap? (summaryof wrap))
-  (cond [(top-level-rename? z) (top-level-rename->string deep? z)]
-        [(mark-barrier?     z) (mark-barrier->string     deep? z)]
-        [(lexical-rename?   z) (lexical-rename->string   deep? z)]
-        [(phase-shift?      z) (phase-shift->string      deep? z)]
-        [(module-rename?    z) (module-rename->string    deep? z)]
-        [(wrap-mark?        z) (wrap-mark->string        deep? z)]
-        [(prune?            z) (prune->string            deep? z)]
+(define/contract
+  (wrap->string z)
+  (-> wrap? (summaryof wrap))
+  (cond [(top-level-rename? z) (top-level-rename->string z)]
+        [(mark-barrier?     z) (mark-barrier->string     z)]
+        [(lexical-rename?   z) (lexical-rename->string   z)]
+        [(phase-shift?      z) (phase-shift->string      z)]
+        [(module-rename?    z) (module-rename->string    z)]
+        [(wrap-mark?        z) (wrap-mark->string        z)]
+        [(prune?            z) (prune->string            z)]
         [else (error (format "[wrap->string] Unknown wrap '~a'" z))]))
 
-(define (free-id-info->string deep? z)
-  ;; (-> boolean? free-id-info? (summaryof free-id-info))
-  (list deep?
-        "free-id-info"
+(define/contract
+  (free-id-info->string z)
+  (-> free-id-info? (summaryof free-id-info))
+  (list "free-id-info"
         (lcons "path0"                 (free-id-info-path0 z))
         (lcons "symbol0"               (free-id-info-symbol0 z))
         (lcons "path1"                 (free-id-info-path1 z))
@@ -172,10 +182,10 @@
         (lcons "phase2"                (free-id-info-phase2 z))
         (lcons "use-current-inspector" (free-id-info-use-current-inspector? z))))
 
-(define (all-from-module->string deep? z)
-  ;; (-> boolean? all-from-module? (summaryof all-from-module))
-  (list deep?
-        "all-from-module"
+(define/contract
+  (all-from-module->string z)
+  (-> all-from-module? (summaryof all-from-module))
+  (list "all-from-module"
         (lcons "path"      (all-from-module-path z))
         (lcons "phase"     (all-from-module-phase z))
         (lcons "src-phase" (all-from-module-src-phase z))
@@ -183,28 +193,30 @@
         (lcons "prefix"    (all-from-module-prefix z))
         (lcons "context"   (all-from-module-context z))))
 
-(define (module-binding->string deep? z)
-  ;; (-> boolean? module-binding? (summaryof module-binding))
-  (cond [(simple-module-binding?           z) (simple-module-binding->string           deep? z)]
-        [(phased-module-binding?           z) (phased-module-binding->string           deep? z)]
-        [(exported-nominal-module-binding? z) (exported-nominal-module-binding->string deep? z)]
-        [(nominal-module-binding?          z) (nominal-module-binding->string          deep? z)]
-        [(exported-module-binding?         z) (exported-module-binding->string         deep? z)]
+(define/contract
+  (module-binding->string z)
+  (-> module-binding? (summaryof module-binding))
+  (cond [(simple-module-binding?           z) (simple-module-binding->string           z)]
+        [(phased-module-binding?           z) (phased-module-binding->string           z)]
+        [(exported-nominal-module-binding? z) (exported-nominal-module-binding->string z)]
+        [(nominal-module-binding?          z) (nominal-module-binding->string          z)]
+        [(exported-module-binding?         z) (exported-module-binding->string         z)]
         [else (error (format "[module-binding->string] Unknown '~a'" z))]))
 
-(define (nominal-path->string deep? z)
-  ;; (-> boolean? nominal-path? (summaryof nominal-path))
-  (cond [(simple-nominal-path?   z) (simple-nominal-path->string   deep? z)]
-        [(imported-nominal-path? z) (imported-nominal-path->string deep? z)]
-        [(phased-nominal-path?   z) (phased-nominal-path->string   deep? z)]
+(define/contract
+  (nominal-path->string z)
+  (-> nominal-path? (summaryof nominal-path))
+  (cond [(simple-nominal-path?   z) (simple-nominal-path->string   z)]
+        [(imported-nominal-path? z) (imported-nominal-path->string z)]
+        [(phased-nominal-path?   z) (phased-nominal-path->string   z)]
         [else (error (format "[nominal-path] Unknown '~a'" z))]))
 
 ;; -- form
 
-(define (def-values->string deep? z)
-  ;; (-> boolean? def-values? (summaryof def-values))
-  (list deep?
-        "def-values"
+(define/contract
+  (def-values->string z)
+  (-> def-values? (summaryof def-values))
+  (list "def-values"
         (lcons "ids" (listof-zo->string def-values->string (def-values-ids z)))
         (lcons "rhs" (let ([rhs (def-values-rhs z)])
                        (cond [(expr? rhs) (expr->string #f rhs)]
@@ -212,55 +224,55 @@
                              [(inline-variant? rhs) (inline-variant->string #f rhs)]
                              [else                  rhs])))))
 
-(define (def-syntaxes->string deep? z)
-  ;; (-> boolean? def-syntaxes? (summaryof def-syntaxes))
-  (list deep?
-        "def-syntaxes"
+(define/contract
+  (def-syntaxes->string z)
+  (-> def-syntaxes? (summaryof def-syntaxes))
+  (list "def-syntaxes"
         (lcons "ids"           (def-syntaxes-ids z))
         (lcons "rhs"           (expr-seq-any->string (def-syntaxes-rhs z)))
         (lcons "prefix"        (prefix->string #f (def-syntaxes-prefix z)))
         (lcons "max-let-depth" (def-syntaxes-max-let-depth z))
         (lcons "dummy"         (toplevel-or-any->string (def-syntaxes-dummy z)))))
 
-(define (seq-for-syntax->string deep? z)
-  ;; (-> boolean? seq-for-syntax? (summaryof seq-for-syntax))
-  (list deep?
-        "seq-for-syntax"
+(define/contract
+  (seq-for-syntax->string z)
+  (-> seq-for-syntax? (summaryof seq-for-syntax))
+  (list "seq-for-syntax"
         (lcons "forms"         (listof-form-or-any->string (seq-for-syntax-forms z)))
         (lcons "prefix"        (prefix->string #f (seq-for-syntax-prefix z)))
         (lcons "max-let-depth" (seq-for-syntax-max-let-depth z))
         (lcons "dummy"         (toplevel-or-any->string (seq-for-syntax-dummy z)))))
 
-(define (req->string deep? z)
-  ;; (-> boolean? req? (summaryof req))
-  (list deep?
-        "req"
+(define/contract
+  (req->string z)
+  (-> req? (summaryof req))
+  (list "req"
         (lcons "reqs"  (stx->string #f (req-reqs z)))
         (lcons "dummy" (toplevel->string #f (req-dummy z)))))
 
-(define (seq->string deep? z)
-  ;; (-> boolean? seq? (summaryof seq))
-  (list deep?
-        "seq"
+(define/contract
+  (seq->string z)
+  (-> seq? (summaryof seq))
+  (list "seq"
         (lcons "forms" (listof-form-or-any->string (seq-forms z)))))
 
-(define (splice->string deep? z)
-  ;; (-> boolean? splice? (summaryof splice))
-  (list deep?
-        "splice"
+(define/contract
+  (splice->string z)
+  (-> splice? (summaryof splice))
+  (list "splice"
         (lcons "forms" (listof-form-or-any->string (splice-forms z)))))
 
-(define (inline-variant->string deep? z)
-  ;; (-> boolean? inline-variant? (summaryof inline-variant))
-  (list deep?
-        "inline-variant"
+(define/contract
+  (inline-variant->string z)
+  (-> inline-variant? (summaryof inline-variant))
+  (list "inline-variant"
         (lcons "direct" (expr->string #f (inline-variant-direct z)))
         (lcons "inline" (expr->string #f (inline-variant-inline z)))))
 
-(define/contract (mod->string deep? z)
-  (-> boolean? mod? (summaryof mod))
-  (list deep?
-        "mod"
+(define/contract
+  (mod->string z)
+  (-> mod? (summaryof mod))
+  (list "mod"
         (lcons "name"             (mod-name z))
         (lcons "srcname"          (mod-srcname z))
         (lcons "self-modidx"      (mod-self-modidx z))
@@ -281,8 +293,9 @@
         (lcons "pre-submodules"   (listof-zo->string mod->string (mod-pre-submodules z)))
         (lcons "post-submodules"  (listof-zo->string mod->string (mod-post-submodules z)))))
 
-(define (mod-provides->string pds)
-  ;; (-> (listof (list/c (or/c exact-integer? #f) (listof provided?) (listof provided?))) string?)
+(define/contract
+  (mod-provides->string pds)
+  (-> (listof (list/c (or/c exact-integer? #f) (listof provided?) (listof provided?))) string?)
   (format-list #:sep " "
                (for/list ([pd pds])
                  (format "(~a ~a ~a)"
@@ -290,15 +303,17 @@
                          (format "~a" (listof-zo->string provided->string (cadr pd)))
                          (format "~a" (listof-zo->string provided->string (caddr pd)))))))
 
-(define (mod-requires->string rqs)
-  ;; (-> (listof (cons/c (or/c exact-integer #f) (listof module-path-index?))) string?)
+(define/contract
+  (mod-requires->string rqs)
+  (-> (listof (cons/c (or/c exact-integer? #f) (listof module-path-index?))) string?)
   (format-list #:sep " "
                (for/list ([rq rqs])
                  (format "(~a ~a)" (car rq) (cdr rq)))))
 
 ;; 2014-12-10: Ugly
-(define (mod-syntax-bodies->string sbs)
-  ;; (-> (listof (cons/c exact-positive-integer (listof (or/c def-syntaxes? seq-for-syntax?)))) string?)
+(define/contract
+  (mod-syntax-bodies->string sbs)
+  (-> (listof (cons/c exact-positive-integer? (listof (or/c def-syntaxes? seq-for-syntax?)))) string?)
   (format-list #:sep " "
                (for/list ([sb sbs])
                  (format "(~a . ~a)"
@@ -308,10 +323,10 @@
                                       [(seq-for-syntax? d) (seq-for-syntax->string #f d)]
                                       [else (error "[mod-syntax-bodies->string] Unexpected arg")]))))))
                 
-(define (provided->string deep? z)
-  ;; (-> boolean? provided? (summaryof provided))
-  (list deep?
-        "provided"
+(define/contract
+  (provided->string z)
+  (-> provided? (summaryof provided))
+  (list "provided"
         (lcons "name"      (provided-name z))
         (lcons "src"       (provided-src  z))
         (lcons "src-name"  (provided-src-name z))
@@ -321,10 +336,10 @@
 
 ;; -- expr
 
-(define (lam->string deep? z)
-  ;; (-> boolean? lam? (summaryof lam))
-  (list deep?
-        "lam"
+(define/contract
+  (lam->string z)
+  (-> lam? (summaryof lam))
+  (list "lam"
         (lcons "name"          (lam-name z))
         (lcons "flags"         (lam-flags z))
         (lcons "num-params"    (lam-num-params z))
@@ -336,121 +351,122 @@
         (lcons "max-let-depth" (lam-max-let-depth z))
         (lcons "body"          (expr-seq-any->string (lam-body z)))))
 
-(define (closure->string deep? z)
-  ;; (-> boolean? closure? (summaryof closure))
-  (list deep?
-        "closure"
+(define/contract
+  (closure->string z)
+  (-> closure? (summaryof closure))
+  (list "closure"
         (lcons "code"   (lam->string #f (closure-code z)))
         (lcons "gen-id" (closure-gen-id z))))
 
-(define (case-lam->string deep? z)
-  ;; (-> boolean? case-lam? (summaryof case-lam))
-  (list deep?
-        "case-lam"
+(define/contract
+  (case-lam->string z)
+  (-> case-lam? (summaryof case-lam))
+  (list "case-lam"
         (lcons "name"    (case-lam-name z))
         (lcons "clauses" (listof-zo->string lam->string (case-lam-clauses z)))))
 
-(define (let-one->string deep? z)
-  ;; (-> boolean? let-one? (summaryof let-one))
-  (list deep?
-        "let-one"
+(define/contract
+  (let-one->string z)
+  (-> let-one? (summaryof let-one))
+  (list "let-one"
         (lcons "rhs"    (expr-seq-any->string (let-one-rhs  z)))
         (lcons "body"   (expr-seq-any->string (let-one-body z)))
         (lcons "type"   (let-one-type z))
         (lcons "unused" (let-one-unused? z))))
 
-(define (let-void->string deep? z)
-  ;; (-> boolean? let-void? (summaryof let-void))
-  (list deep?
-        "let-void"
+(define/contract
+  (let-void->string z)
+  (-> let-void? (summaryof let-void))
+  (list "let-void"
         (lcons "count" (let-void-count z))
         (lcons "boxes" (let-void-boxes? z))
         (lcons "body"  (expr-seq-any->string (let-void-body z)))))
 
-(define (install-value->string deep? z)
-  ;; (-> boolean? install-value? (summaryof install-value))
-  (list deep?
-        "install-value"
+(define/contract
+  (install-value->string z)
+  (-> install-value? (summaryof install-value))
+  (list "install-value"
         (lcons "count" (install-value-count z))
         (lcons "pos"   (install-value-pos z))
         (lcons "boxes" (install-value-boxes? z))
         (lcons "rhs"   (expr-seq-any->string (install-value-rhs z)))
         (lcons "body"  (expr-seq-any->string (install-value-body z)))))
 
-(define (let-rec->string deep? z)
-  ;; (-> boolean? let-rec? (summaryof let-rec))
-  (list deep?
-        "let-rec"
+(define/contract
+  (let-rec->string z)
+  (-> let-rec? (summaryof let-rec))
+  (list "let-rec"
         (lcons "procs" (listof-zo->string lam->string (let-rec-procs z)))
         (lcons "body"  (expr-seq-any->string (let-rec-body z)))))
 
-(define (boxenv->string deep? z)
-  ;; (-> boolean? boxenv? (summaryof boxenv))
-  (list deep?
-        "boxenv"
+(define/contract
+  (boxenv->string z)
+  (-> boxenv? (summaryof boxenv))
+  (list "boxenv"
         (lcons "pos"  (boxenv-pos z))
         (lcons "body" (expr-seq-any->string (boxenv-body z)))))
 
-(define (localref->string deep? z)
-  ;; (-> boolean? localref? (summaryof localref))
-  (list deep?
-        "localref"
+(define/contract
+  (localref->string z)
+  (-> localref? (summaryof localref))
+  (list "localref"
         (lcons "unbox"        (localref-unbox? z))
         (lcons "pos"          (localref-pos z))
         (lcons "clear"        (localref-clear? z))
         (lcons "other-clears" (localref-other-clears? z))
         (lcons "type"         (localref-type z))))
 
-(define (toplevel->string deep? z)
-  ;; (-> boolean? toplevel? (summaryof toplevel))
-  (list deep?
+(define/contract
+  (toplevel->string z)
+  (-> toplevel? (summaryof toplevel))
+  (list
         "toplevel"
         (lcons "depth" (toplevel-depth z))
         (lcons "pos"   (toplevel-pos z))
         (lcons "const" (toplevel-const? z))
         (lcons "ready" (toplevel-ready? z))))
 
-(define (topsyntax->string deep? z)
-  ;; (-> boolean? topsyntax? (summaryof topsyntax))
-  (list deep?
-        "topsyntax"
+(define/contract
+  (topsyntax->string z)
+  (-> topsyntax? (summaryof topsyntax))
+  (list "topsyntax"
         (lcons "depth" (topsyntax-depth z))
         (lcons "pos"   (topsyntax-pos z))
         (lcons "midpt" (topsyntax-midpt z))))
 
-(define (application->string deep? z)
-  ;; (-> boolean? application? (summaryof application))
-  (list deep?
-        "application"
+(define/contract
+  (application->string z)
+  (-> application? (summaryof application))
+  (list "application"
         (lcons "rator" (expr-seq-any->string (application-rator z)))
         (lcons "rands" (map expr-seq-any->string (application-rands z)))))
 
-(define (branch->string deep? z)
-  ;; (->  boolean? branch? (summaryof branch))
-  (list deep?
-        "branch"
+(define/contract
+  (branch->string z)
+  (-> branch? (summaryof branch))
+  (list "branch"
         (lcons "test" (expr-seq-any->string (branch-test z)))
         (lcons "then" (expr-seq-any->string (branch-then z)))
         (lcons "else" (expr-seq-any->string (branch-else z)))))
 
-(define (with-cont-mark->string deep? z)
-  ;; (-> boolean? with-cont-mark? (summaryof with-cont-mark))
-  (list deep?
-        "with-cont-mark"
+(define/contract
+  (with-cont-mark->string z)
+  (-> with-cont-mark? (summaryof with-cont-mark))
+  (list "with-cont-mark"
         (lcons "key"  (expr-seq-any->string (with-cont-mark-key  z)))
         (lcons "val"  (expr-seq-any->string (with-cont-mark-val  z)))
         (lcons "body" (expr-seq-any->string (with-cont-mark-body z)))))
 
-(define (beg0->string deep? z)
-  ;; (-> boolean? beg0? (summaryof beg0))
-  (list deep?
-        "beg0"
+(define/contract
+  (beg0->string z)
+  (-> beg0? (summaryof beg0))
+  (list "beg0"
         (lcons "seq" (map expr-seq-any->string (beg0-seq)))))
 
-(define (varref->string deep? z)
-  ;; (-> boolean? varref? (summaryof varref))
-  (list deep?
-        "varref"
+(define/contract
+  (varref->string z)
+  (-> varref? (summaryof varref))
+  (list "varref"
         (lcons "toplevel" (let ([tl (varref-toplevel z)])
                             (cond [(toplevel? tl) (toplevel->string #f tl)]
                                   [else           tl])))
@@ -458,52 +474,53 @@
                             (cond [(toplevel? dm) (toplevel->string #f dm)]
                                   [else           dm])))))
 
-(define (assign->string deep? z)
-  ;; (-> boolean? assign? (summaryof assign))
-  (list deep?
-        "assign"
+(define/contract
+  (assign->string z)
+  (-> assign? (summaryof assign))
+  (list "assign"
         (lcons "id"       (toplevel->string #f (assign-id z)))
         (lcons "rhs"      (expr-seq-any->string (assign-rhs z)))
         (lcons "undef-ok" (assign-undef-ok? z))))
 
-(define (apply-values->string deep? z)
-  ;; (-> boolean? apply-values? (summaryof apply-values))
-  (list deep?
-        "apply-values"
+(define/contract
+  (apply-values->string z)
+  (-> apply-values? (summaryof apply-values))
+  (list "apply-values"
         (lcons "proc"      (expr-seq-any->string (apply-values-proc z)))
         (lcons "args-expr" (expr-seq-any->string (apply-values-args-expr z)))))
 
-(define (primval->string deep? z)
-  ;; (-> boolean? primval? (summaryof primval))
-  (list deep?
-        "primval"
+(define/contract
+  (primval->string z)
+  (-> primval? (summaryof primval))
+  (list "primval"
         (lcons "id" (primval-id z))))
 
 ;; -- wrap
 
-(define (top-level-rename->string deep? z)
-  ;; (-> boolean? top-level-rename? (summaryof top-level-rename))
-  (list deep?
-        "top-level-rename"
+(define/contract
+  (top-level-rename->string z)
+  (-> top-level-rename? (summaryof top-level-rename))
+  (list "top-level-rename"
         (lcons "flag" (top-level-rename z))))
 
-(define (mark-barrier->string deep? z)
-  ;; (-> boolean? mark-barrier? (summaryof mark-barrier))
-  (list deep?
-        "mark-barrier"
+(define/contract
+  (mark-barrier->string z)
+  (-> mark-barrier? (summaryof mark-barrier))
+  (list "mark-barrier"
         (lcons "value" (mark-barrier-value z))))
 
-(define (lexical-rename->string deep? z)
-  ;; (-> boolean? lexical-rename? (summaryof lexical-rename))
-  (list deep?
-        "lexical-rename"
+(define/contract
+  (lexical-rename->string z)
+  (-> lexical-rename? (summaryof lexical-rename))
+  (list "lexical-rename"
         (lcons "has-free-id-renames" (lexical-rename-has-free-id-renames? z))
         (lcons "bool2"               (lexical-rename-bool2 z))
         (lcons "alist"               (lexical-rename-alist->string (lexical-rename-alist z)))))
 
 ;; 2014-12-10: Ugly!!!
-(define (lexical-rename-alist->string alst)
-  ;; (-> (listof (cons/c symbol? (or/c symbol? (cons/c symbol? (or/c (cons/c symbol? (or/c symbol? #f)) free-id-info?))))) string?)
+(define/contract
+  (lexical-rename-alist->string alst)
+  (-> (listof (cons/c symbol? (or/c symbol? (cons/c symbol? (or/c (cons/c symbol? (or/c symbol? #f)) free-id-info?))))) string?)
   (format-list #:sep " "
                (for/list ([a alst])
                  (format "(~a . ~a)"
@@ -515,20 +532,20 @@
                                                (cond [(free-id-info? (cdr a*)) (free-id-info->string #f (cdr a*))]
                                                      [else (cdr a*)])))])))))
   
-(define (phase-shift->string deep? z)
-  ;; (-> boolean? phase-shift? (summaryof phase-shift))
-  (list deep?
-        "phase-shift"
+(define/contract
+  (phase-shift->string z)
+  (-> phase-shift? (summaryof phase-shift))
+  (list "phase-shift"
         (lcons "amt"       (phase-shift-amt z))
         (lcons "src"       (phase-shift-src z))
         (lcons "dest"      (phase-shift-dest z))
         (lcons "cancel-id" (phase-shift-cancel-id z))))
 
 ;; 2014-12-10: Curious about 'unmarshals'
-(define (module-rename->string deep? z)
-  ;; (-> boolean? module-rename? (summaryof module-rename))
-  (list deep?
-        "module-rename"
+(define/contract
+  (module-rename->string z)
+  (-> module-rename? (summaryof module-rename))
+  (list "module-rename"
         (lcons "phase"        (module-rename-phase z))
         (lcons "kind"         (module-rename-kind z))
         (lcons "set-id"       (module-rename-set-id z))
@@ -537,113 +554,112 @@
         (lcons "mark-renames" (module-rename-mark-renames z))
         (lcons "plus-kern"    (module-rename-plus-kern? z))))
 
-(define (wrap-mark->string deep? z)
-  ;; (-> boolean? wrap-mark? (summaryof wrap-mark))
-  (list deep?
-        "wrap-mark"
+(define/contract
+  (wrap-mark->string z)
+  (-> wrap-mark? (summaryof wrap-mark))
+  (list "wrap-mark"
         (lcons "val" (wrap-mark-val z))))
 
-(define (prune->string deep? z)
-  ;; (-> boolean? prune? (summaryof prune))
-  (list deep?
-        "prune"
+(define/contract
+  (prune->string z)
+  (-> prune? (summaryof prune))
+  (list "prune"
         (lcons "sym" (prune-sym z))))
 
 ;; -- module-binding
 
-(define (simple-module-binding->string deep? z)
-  ;; (-> boolean? simple-module-binding? (summaryof simple-module-binding))
-  (list deep?
-        "simple-module-binding"
+(define/contract
+  (simple-module-binding->string z)
+  (-> simple-module-binding? (summaryof simple-module-binding))
+  (list "simple-module-binding"
         (lcons "path" (simple-module-binding-path z))))
 
-(define (phased-module-binding->string deep? z)
-  ;; (-> boolean? phased-module-binding? (summaryof phased-module-binding))
-  (list deep?
-        "phased-module-binding"
+(define/contract
+  (phased-module-binding->string z)
+  (-> phased-module-binding? (summaryof phased-module-binding))
+  (list "phased-module-binding"
         (lcons "path"                (phased-module-binding-path z))
         (lcons "phase"               (phased-module-binding-phase z))
         (lcons "export-name"         (phased-module-binding-export-name z))
         (lcons "nominal-path"        (nominal-path->string #f (phased-module-binding-nominal-path z)))
         (lcons "nominal-export-name" (phased-module-binding-nominal-export-name z))))
 
-(define (exported-nominal-module-binding->string deep? z)
-  ;; (-> boolean? exported-nominal-module-binding? (summaryof exported-nominal-module-binding))
-  (list deep?
-        "exported-nominal-module-binding"
+(define/contract
+  (exported-nominal-module-binding->string z)
+  (-> exported-nominal-module-binding? (summaryof exported-nominal-module-binding))
+  (list "exported-nominal-module-binding"
         (lcons "path"                (exported-nominal-module-binding-path z))
         (lcons "export-name"         (exported-nominal-module-binding-export-name z))
         (lcons "nominal-path"        (nominal-path->string #f (exported-nominal-module-binding-nominal-path z)))
         (lcons "nominal-export-name" (exported-nominal-module-binding-nominal-export-name z))))
 
-(define (nominal-module-binding->string deep? z)
-  ;; (-> boolean? nominal-module-binding? (summaryof nominal-module-binding))
-  (list deep?
-        "nominal-module-binding"
+(define/contract
+  (nominal-module-binding->string z)
+  (-> nominal-module-binding? (summaryof nominal-module-binding))
+  (list "nominal-module-binding"
         (lcons "path"         (nominal-module-binding-path z))
         (lcons "nominal-path" (nominal-path->string (nominal-module-binding-nominal-path z)))))
 
-(define (exported-module-binding->string deep? z)
-  ;; (-> boolean? exported-module-binding? (summaryof exported-module-binding))
-  (list deep?
-        "exported-module-binding"
+(define/contract
+  (exported-module-binding->string z)
+  (-> exported-module-binding? (summaryof exported-module-binding))
+  (list "exported-module-binding"
         (lcons "path"        (exported-module-binding-path z))
         (lcons "export-name" (exported-module-binding-export-name z))))
 
 ;; -- nominal-path
 
-(define (simple-nominal-path->string deep? z)
-  ;; (-> boolean? simple-nominal-path? (summaryof simple-nominal-path))
-  (list deep?
-        "simple-nominal-path"
+(define/contract
+  (simple-nominal-path->string z)
+  (-> simple-nominal-path? (summaryof simple-nominal-path))
+  (list "simple-nominal-path"
         (lcons "value" (simple-nominal-path-value z))))
 
-(define (imported-nominal-path->string deep? z)
-  ;; (-> boolean? imported-nominal-path? (summaryof imported-nominal-path))
-  (list deep?
-        "imported-nominal-path"
+(define/contract
+  (imported-nominal-path->string z)
+  (-> imported-nominal-path? (summaryof imported-nominal-path))
+  (list "imported-nominal-path"
         (lcons "value"        (imported-nominal-path-value z))
         (lcons "import-phase" (imported-nominal-path-import-phase z))))
 
-(define (phased-nominal-path->string deep? z)
-  ;; (-> boolean? phased-nominal-path? (summaryof phased-nominal-path))
-  (list deep?
-        "phased-nominal-path"
+(define/contract
+  (phased-nominal-path->string z)
+  (-> phased-nominal-path? (summaryof phased-nominal-path))
+  (list "phased-nominal-path"
         (lcons "value"        (phased-nominal-path-value z))
         (lcons "import-phase" (phased-nominal-path-import-phase z))
         (lcons "phase"        (phased-nominal-path-phase z))))
 
 ;; -- helpers
 
-(define (any->string z)
-  ;; (-> any/c string?)
+(define/contract
+  (any->string z)
+  (-> any/c string?)
   (format "~a" z))
 
-(define (expr-seq-any->string z)
-  ;; (-> (or/c expr? seq? any/c) string?)
+(define/contract
+  (expr-seq-any->string z)
+  (-> (or/c expr? seq? any/c) string?)
   (cond [(expr? z) (format-struct #f "expr")]
         [(seq?  z) (format-struct #f "seq")]
         [else      (any->string z)]))
 
-(define (form-or-any->string fm)
+(define/contract
+  (form-or-any->string fm)
+  (-> (or/c form? any/c) string?)
   (cond [(form? fm) (form->string #f fm)]
         [else       (any->string fm)]))
 
-(define (format-list xs #:sep [sep "\n"])
-  ;; (-> (listof string?) string?)
+(define/contract
+  (format-list xs #:sep [sep "\n"])
+  (-> (listof string?) string?)
   (string-join xs sep))
 
-(define (summary? xs)
-  (and (list? xs)
-       (< 1 (length xs))
-       (boolean? (car xs))
-       (string?  (cadr xs))))
-
-(define (format-struct struct-spec)
-  ;; (->* (cons/c boolean (cons/c string? (listof string?))) string?)
-  (define deep? (car struct-spec))
-  (define title (cadr struct-spec))
-  (define fields (cddr struct-spec))
+(define/contract
+  (format-struct deep? struct-spec)
+  (-> boolean? summary? string?)
+  (define title (car struct-spec))
+  (define fields (cdr struct-spec))
   (define title-str (format "<struct:~a>" title))
   (define field-name-lengths
     (for/list ([fd fields]) (string-length (car fd))))
@@ -656,25 +672,29 @@
                                   [rest   (if (summary? forced) (format-struct forced) forced)])
                              (format "  ~a : ~a" (pad (car fd) w) rest)))))))
 
-(define (listof-form-or-any->string xs)
-  ;; (-> (listof (or/c form? any/c)) (listof string?))
+(define/contract
+  (listof-form-or-any->string xs)
+  (-> (listof (or/c form? any/c)) (listof string?))
   (for/list ([x xs])
     (form-or-any->string x)))
 
-(define (listof-zo->string z->str zs)
-  ;; (-> (-> boolean? zo? string?) (listof zo?) string?)
+(define/contract
+  (listof-zo->string z->str zs)
+  (-> (-> zo? summary?) (listof zo?) string?)
   (cond [(empty? zs) "[]"]
         [else        (format "~a[~a]" (z->str #f (car zs)) (length zs))]))
 
 ;; If [str] has fewer than [w] characters, (w - (len str)) characters to its right end
-(define (pad str w #:char [c #\space])
-  ;; (-> natural-number/c string? string?)
+(define/contract
+  (pad str w #:char [c #\space])
+  (-> string? natural-number/c string?) ;; TODO sized string combinator
   (define l (string-length str))
   (cond [(< l w) (let ([diff (- w l)])
                    (format "~a~a" str (make-string diff c)))]
         [else    str]))
 
-(define (toplevel-or-any->string tl)
-  ;; (-> (or/c toplevel? any/c) string?)
+(define/contract
+  (toplevel-or-any->string tl)
+  (-> (or/c toplevel? any/c) string?)
   (cond [(toplevel? tl) (toplevel->string #f tl)]
         [else           (any->string tl)]))
