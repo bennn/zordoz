@@ -9,8 +9,9 @@
 
 ;; -- API functions
 
-(define (zo->string z #:deep? [deep? #t])
-  ;; (-> zo? [#:deep boolean?] string?)
+(define/contract
+  (zo->string z #:deep? [deep? #t])
+  (->* (zo?) (#:deep? boolean?) string?)
   (define str-spec
     (cond [(compilation-top? z) (compilation-top->string  z)]
           [(prefix?          z) (prefix->string           z)]
@@ -44,22 +45,25 @@
   (and (list? xs)
        (< 0 (length xs))
        (string? (car xs))
+       (for/and ([s (cdr xs)]) (string? s))
        ))
        ;; (listof (cons/c string? (-> summary?)))))
 
 ;; beware, tails are not always strings (but probably should be).
 (define (summaryof z)
   ;; (-> zo? (-> (cons/c boolean? (cons/c string? (listof (cons/c string? (-> string?)))) boolean?))
-  (lambda (str-list)
-    ;; A proper zo-spec should have the title and, if deep, a string for each struct field
-    (and/c (list?  str-list)
-           (< 0 (length str-list))
-           (string? (car str-list))
-           ;; Title matches struct name
-           (and (= (length (cdr str-list)) (sub1 (vector-length (struct->vector z))))
-                #t) ;; cdr is list of (cons string? (-> summary?))
-                    ;; each struct field appears in one pair
-           )))
+  (cons/c string? (listof (cons/c string? (-> string?)))))
+  ;; (lambda (str-list)
+  ;;   ;; A proper zo-spec should have the title and, if deep, a string for each struct field
+  ;;   (and/c (list?  str-list)
+  ;;          (< 0 (length str-list))
+  ;;          (string? (car str-list))
+  ;;          ;; Title matches struct name
+  ;;          (and (= (length str-list) (vector-length (struct->vector z)))
+  ;;               (for/and ([lpair (cdr xs)]) (and (string? (car xs)) (
+  ;;               #t) ;; cdr is list of (cons string? (-> summary?))
+  ;;                   ;; each struct field appears in one pair
+  ;;          )))
 
 ;; -- private functions
 
@@ -658,19 +662,20 @@
 (define/contract
   (format-struct deep? struct-spec)
   (-> boolean? summary? string?)
-  (define title (car struct-spec))
   (define fields (cdr struct-spec))
-  (define title-str (format "<struct:~a>" title))
+  (define title (format "<struct:~a>" (car struct-spec)))
   (define field-name-lengths
     (for/list ([fd fields]) (string-length (car fd))))
   (define w ;; width of longest struct field name
     (if (empty? fields) 0 (apply max field-name-lengths)))
-  (if (not deep?) title-str
-      (format-list (cons title-str
+  (if (not deep?) title
+      (format-list (cons title
                          (for/list ([fd fields])
                            (let* ([forced ((cdr fd))]
-                                  [rest   (if (summary? forced) (format-struct forced) forced)])
-                             (format "  ~a : ~a" (pad (car fd) w) rest)))))))
+                                  [rest   (if (summary? forced)
+                                              (format-struct forced)
+                                              forced)])
+                             (format "  ~a : ~a" (car (pad (car fd) w)) rest)))))))
 
 (define/contract
   (listof-form-or-any->string xs)
@@ -684,14 +689,23 @@
   (cond [(empty? zs) "[]"]
         [else        (format "~a[~a]" (z->str #f (car zs)) (length zs))]))
 
+(define string-with-size?
+  (lambda (pair)
+    (let ([str  (car pair)]
+          [size (cdr pair)])
+      (and (string?  str)
+           (exact-positive-integer? size)
+           (= size (string-length str))))))
+
 ;; If [str] has fewer than [w] characters, (w - (len str)) characters to its right end
 (define/contract
   (pad str w #:char [c #\space])
-  (-> string? natural-number/c string?) ;; TODO sized string combinator
+  (-> string? natural-number/c string-with-size?)
   (define l (string-length str))
-  (cond [(< l w) (let ([diff (- w l)])
-                   (format "~a~a" str (make-string diff c)))]
-        [else    str]))
+  (cond [(< l w) (let* ([diff (- w l)]
+                        [str* (format "~a~a" str (make-string diff c))])
+                   (cons str* w))]
+        [else    (cons str l)]))
 
 (define/contract
   (toplevel-or-any->string tl)
