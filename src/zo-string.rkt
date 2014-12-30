@@ -4,7 +4,6 @@
 
 (require compiler/zo-structs
          racket/contract
-         (only-in racket/format ~a)
          (only-in racket/list   empty?)
          (only-in racket/string string-join))
 
