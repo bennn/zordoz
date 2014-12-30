@@ -42,19 +42,6 @@
 
 ;; -- string specifications
 
-;; A spec is a non-empty list
-;; - first element is a string
-;; - successive elements, if any, are pairs of
-;;   - a string
-;;   - a thunk returning a spec or a string (we don't check the return value)
-(define (spec? x)
-  (and (list? x)
-       (string? (car x))
-       (list? (cdr x))
-       (for/and ([y (cdr x)]) (and (pair? x)
-                                   (string? (car x))
-                                   (procedure? (cdr x))))))
-
 ;; Contract for specs, asserts the given list has as many elements as
 ;; the struct parameter [z].
 (define spec/c
