@@ -140,8 +140,8 @@
   ;; (-> def-values? string? (or/c (listof zo?) zo? #f))
   (cond [(string=? field-name "ids") (def-values-ids z)]
         [(string=? field-name "rhs") (let ([rhs (def-values-rhs z)])
-                                       (cond [(or (expr? rhs)
-                                                  (seq? rhs)
+                                       (cond [(or (expr?           rhs)
+                                                  (seq?            rhs)
                                                   (inline-variant? rhs)) rhs]
                                              [else #f]))]
         [else #f]))
