@@ -20,11 +20,15 @@
 ;; - The cdr of each field is a thunk for building a representation of the field's value.
 ;;   If the value is a zo-struct, the thunk should build a spec/c
 ;;   Otherwise, the thunk should build a string
-;; 2015-01-12: spec/c is not constrained by the original struct. Maybe it should accept
-;;             a zo struct as input and ensure the number of fields / elements in list match.
 (define spec/c
   (recursive-contract
    (cons/c string? (listof (cons/c string? (-> (or/c spec/c string?)))))))
+
+;; Given a zo struct [z], creates a predicate that accepts only specs with the
+;; same number of elements as the struct [z] has fields (+1, for the title).
+(define (specof z)
+  (lambda (res)
+    (= (length res) (vector-length (struct->vector z)))))
 
 (require compiler/zo-structs
          racket/contract
@@ -39,22 +43,22 @@
 ;; Convert any zo struct to a spec/c representation.
 (define/contract
   (zo->spec z)
-  (-> zo? spec/c)
+  (->i ([z zo?]) () [res (z) (and/c spec/c (specof z))])
   (cond [(compilation-top? z) (compilation-top->string  z)]
-          [(prefix?          z) (prefix->string           z)]
-          [(global-bucket?   z) (global-bucket->string    z)]
-          [(module-variable? z) (module-variable->string  z)]
-          [(stx?             z) (stx->string              z)]
-          [(form?            z) (form->string             z)]
-          [(expr?            z) (expr->string             z)]
-          [(wrapped?         z) (wrapped->string          z)]
-          [(wrap?            z) (wrap->string             z)]
-          [(free-id-info?    z) (free-id-info->string     z)]
-          [(all-from-module? z) (all-from-module->string  z)]
-          [(module-binding?  z) (module-binding->string   z)]
-          [(nominal-path?    z) (nominal-path->string     z)]
-          [(provided?        z) (provided->string         z)]
-          [else (error (format "[zo->string] Unknown zo '~a'" z))]))
+        [(prefix?          z) (prefix->string           z)]
+        [(global-bucket?   z) (global-bucket->string    z)]
+        [(module-variable? z) (module-variable->string  z)]
+        [(stx?             z) (stx->string              z)]
+        [(form?            z) (form->string             z)]
+        [(expr?            z) (expr->string             z)]
+        [(wrapped?         z) (wrapped->string          z)]
+        [(wrap?            z) (wrap->string             z)]
+        [(free-id-info?    z) (free-id-info->string     z)]
+        [(all-from-module? z) (all-from-module->string  z)]
+        [(module-binding?  z) (module-binding->string   z)]
+        [(nominal-path?    z) (nominal-path->string     z)]
+        [(provided?        z) (provided->string         z)]
+        [else (error (format "[zo->string] Unknown zo '~a'" z))]))
 
 ;; Convert any zo struct to a string.
 ;; First builds a spec, then forces the thunks in that spec to build a string.
