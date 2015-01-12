@@ -1,19 +1,25 @@
 #lang racket/base
 
-(provide zo->string)
+(provide spec/c zo->spec zo->string)
 
 (require compiler/zo-structs
          racket/contract
          (only-in racket/list   empty?)
          (only-in racket/string string-join))
 
+;; -- string specifications
+
+;; Contract for specs
+(define spec/c
+  (recursive-contract
+   (cons/c string? (listof (cons/c string? (-> (or/c spec/c string?)))))))
+
 ;; -- API functions
 
 (define/contract
-  (zo->string z #:deep? [deep? #t])
-  (->* (zo?) (#:deep? boolean?) string?)
-  (define str-spec
-    (cond [(compilation-top? z) (compilation-top->string  z)]
+  (zo->spec z)
+  (-> zo? spec/c)
+  (cond [(compilation-top? z) (compilation-top->string  z)]
           [(prefix?          z) (prefix->string           z)]
           [(global-bucket?   z) (global-bucket->string    z)]
           [(module-variable? z) (module-variable->string  z)]
@@ -28,7 +34,11 @@
           [(nominal-path?    z) (nominal-path->string     z)]
           [(provided?        z) (provided->string         z)]
           [else (error (format "[zo->string] Unknown zo '~a'" z))]))
-  (format-struct deep? str-spec))
+
+(define/contract
+  (zo->string z #:deep? [deep? #t])
+  (->* (zo?) (#:deep? boolean?) string?)
+  (format-struct deep? (zo->spec z)))
 
 ;; -- syntax: lazy cons to delay evaluation of tail
 
@@ -38,14 +48,6 @@
     [(_)       (raise-syntax-error #f "[lcons] Expected two arguments.")]
     [(_ _)     (raise-syntax-error #f "[lcons] Expected two arguments.")]
     [(_ hd tl) #'(cons hd (lambda () tl))]))
-
-;; -- string specifications
-
-;; Contract for specs, asserts the given list has as many elements as
-;; the struct parameter [z].
-(define spec/c
-  (recursive-contract
-   (cons/c string? (listof (cons/c string? (-> (or/c spec/c string?)))))))
 
 ;; -- private functions
 
