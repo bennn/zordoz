@@ -13,6 +13,8 @@
          (only-in "zo-transition.rkt" transition)
          (only-in "zo-string.rkt" zo->spec spec/c))
 
+;; -----------------------------------------------------------------------------
+
 ;; -- API functions
 
 ;; Searches a zo-struct `z` recursively for member zo-structs matching the `s`.

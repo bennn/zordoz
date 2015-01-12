@@ -14,27 +14,24 @@
          "zo-string.rkt"
          "zo-transition.rkt")
 
-;; --- constants
+;; --- constants & contracts
 
 (define DEBUG   #f)
 (define VERSION 0.1)
 (define VNAME   "outlands")
-
-;; --- misc
-
 ;; (define nat? natural-number/c)
 ;; (define context? (or/c zo? (listof zo?)))
 
-;; Split [raw] by whitespace. Return the second element of the split, if any
-;; otherwise return [#f].
-(define (split-snd raw)
-  ;; (-> string? (or/c #f string?))
-  (define splt (string-split raw))
-  (cond [(empty? splt)             #f]
-        [(empty? (cdr splt))       #f]
-        [(empty? (cdr (cdr splt))) (car (cdr splt))]
-        [else                      (print-warn (format "Ignoring extra arguments: '~a'" (cdr (cdr splt))))
-                                   (car (cdr splt))]))
+;; -----------------------------------------------------------------------------
+
+;; --- API functions
+
+(define (init)
+  ;; (-> void?)
+  (define args (vector->list (current-command-line-arguments)))
+  (cond [(empty? args)       (print-usage)]
+        [(empty? (cdr args)) (init-from-filename (car args))]
+        [else                (print-usage)]))
 
 ;; --- REPL
 
@@ -214,12 +211,16 @@
 (define (print-usage)
   (displayln "Usage: zo-shell FILE.zo"))
 
-;; --- main
+;; --- misc
 
-;; Enter here
-(define (init)
-  ;; (-> void?)
-  (define args (vector->list (current-command-line-arguments)))
-  (cond [(empty? args)       (print-usage)]
-        [(empty? (cdr args)) (init-from-filename (car args))]
-        [else                (print-usage)]))
+;; Split [raw] by whitespace. Return the second element of the split, if any
+;; otherwise return [#f].
+(define (split-snd raw)
+  ;; (-> string? (or/c #f string?))
+  (define splt (string-split raw))
+  (cond [(empty? splt)             #f]
+        [(empty? (cdr splt))       #f]
+        [(empty? (cdr (cdr splt))) (car (cdr splt))]
+        [else                      (print-warn (format "Ignoring extra arguments: '~a'" (cdr (cdr splt))))
+                                   (car (cdr splt))]))
+

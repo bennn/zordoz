@@ -9,6 +9,8 @@
 (require compiler/zo-structs
          (only-in racket/list empty? empty))
 
+;; -----------------------------------------------------------------------------
+
 ;; -- API functions
 
 (define (transition z field-name)

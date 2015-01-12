@@ -12,11 +12,6 @@
  ;; Contract for conversion functions.
  spec/c)
 
-(require compiler/zo-structs
-         racket/contract
-         (only-in racket/list   empty?)
-         (only-in racket/string string-join))
-
 ;; -- string specifications
 
 ;; Contract for conversion functions.
@@ -30,6 +25,13 @@
 (define spec/c
   (recursive-contract
    (cons/c string? (listof (cons/c string? (-> (or/c spec/c string?)))))))
+
+(require compiler/zo-structs
+         racket/contract
+         (only-in racket/list   empty?)
+         (only-in racket/string string-join))
+
+;; -----------------------------------------------------------------------------
 
 ;; -- API functions
 
