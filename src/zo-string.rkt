@@ -29,7 +29,8 @@
 (require compiler/zo-structs
          racket/contract
          (only-in racket/list   empty?)
-         (only-in racket/string string-join))
+         (only-in racket/string string-join)
+         (for-syntax racket/base racket/syntax))
 
 ;; -----------------------------------------------------------------------------
 
@@ -64,7 +65,8 @@
 
 ;; -- syntax: lazy cons to delay evaluation of tail
 
-(require (for-syntax racket/base racket/syntax))
+;; Introduces syntax (lcons a:any b:any).
+;; Wraps second argument in a thunk.
 (define-syntax (lcons stx)
   (syntax-case stx ()
     [(_)       (raise-syntax-error #f "[lcons] Expected two arguments.")]
