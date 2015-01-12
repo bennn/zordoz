@@ -1,7 +1,11 @@
 #lang racket/base
 
-;; Command-line UI for exploring the output of zo-parse
-(provide init)
+;; Command-line UI for exploring decompiled bytecode.
+;; (Use `raco make` to generate bytecode)
+
+(provide
+ ;; Start a REPL using command-line arguments
+ init)
 
 (require compiler/zo-parse
          (only-in racket/string string-split string-join)
