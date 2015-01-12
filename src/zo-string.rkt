@@ -1,6 +1,16 @@
 #lang racket/base
 
-(provide spec/c zo->spec zo->string)
+;; Convert a zo struct to a more readable string representation.
+;; Documentation for zo structs is online here: http://docs.racket-lang.org/raco/decompile.html
+
+(provide
+ ;; Return a string representation of a zo struct
+ zo->string
+ ;; Return a list-of-strings representation of a zo struct.
+ ;; The structure of the list mirrors the structure of the original zo struct.
+ zo->spec
+ ;; Contract for conversion functions.
+ spec/c)
 
 (require compiler/zo-structs
          racket/contract
@@ -9,13 +19,21 @@
 
 ;; -- string specifications
 
-;; Contract for specs
+;; Contract for conversion functions.
+;; A spec/c is the name of a zo struct and a list of pairs representing its fields:
+;; - The car of each field is the name of that field
+;; - The cdr of each field is a thunk for building a representation of the field's value.
+;;   If the value is a zo-struct, the thunk should build a spec/c
+;;   Otherwise, the thunk should build a string
+;; 2015-01-12: spec/c is not constrained by the original struct. Maybe it should accept
+;;             a zo struct as input and ensure the number of fields / elements in list match.
 (define spec/c
   (recursive-contract
    (cons/c string? (listof (cons/c string? (-> (or/c spec/c string?)))))))
 
 ;; -- API functions
 
+;; Convert any zo struct to a spec/c representation.
 (define/contract
   (zo->spec z)
   (-> zo? spec/c)
@@ -35,6 +53,8 @@
           [(provided?        z) (provided->string         z)]
           [else (error (format "[zo->string] Unknown zo '~a'" z))]))
 
+;; Convert any zo struct to a string.
+;; First builds a spec, then forces the thunks in that spec to build a string.
 (define/contract
   (zo->string z #:deep? [deep? #t])
   (->* (zo?) (#:deep? boolean?) string?)
