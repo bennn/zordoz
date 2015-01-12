@@ -208,7 +208,7 @@
 
 ;; Print usage information
 (define (print-usage)
-  (displayln "Usage: zo-shell <file.zo>"))
+  (displayln "Usage: zo-shell FILE.zo"))
 
 ;; --- main
 
