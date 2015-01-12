@@ -21,6 +21,7 @@
 (define VNAME   "outlands")
 ;; (define nat? natural-number/c)
 ;; (define context? (or/c zo? (listof zo?)))
+;; (define history? (listof context?))
 
 ;; -----------------------------------------------------------------------------
 
@@ -34,6 +35,16 @@
         [else                (print-usage)]))
 
 ;; --- REPL
+
+;; Start REPL from a filename
+(define (init-from-filename name)
+  ;; (-> string? void?)
+  (print-info (format "Loading bytecode file '~a'..." name))
+  (define port (open-input-file name))
+  (print-info "Parsing bytecode...")
+  (define ctx  (zo-parse port))
+  (print-info "Parsing complete!")
+  (init-repl ctx))
 
 (define (init-repl ctx)
   ;; (-> context? void?)
@@ -62,7 +73,7 @@
         [else        (print-unknown raw)
                      (repl ctx hist)]))
 
-;; --- commands
+;; --- command predicates
 
 (define (back? raw)
   ;; (-> string? boolean?)
@@ -93,6 +104,8 @@
 (define (quit? raw)
   ;; (-> string? boolean?)
   (member raw (list "q" "quit" "exit")))
+
+;; --- command implementations
 
 (define (dive ctx hist raw)
   ;; (-> context? history? string? (values context? history?))
@@ -127,8 +140,6 @@
                
 ;; --- history
 
-;; (define history? (listof context?))
-
 (define (push hist ctx)
   ;; (-> history? context? history?)
   (cons ctx hist))
@@ -136,18 +147,6 @@
 (define (pop hist)
   ;; (-> history? (values context? history?))
   (values (car hist) (cdr hist)))
-
-;; --- loading
-
-;; Start REPL from a filename
-(define (init-from-filename name)
-  ;; (-> string? void?)
-  (print-info (format "Loading bytecode file '~a'..." name))
-  (define port (open-input-file name))
-  (print-info "Parsing bytecode...")
-  (define ctx  (zo-parse port))
-  (print-info "Parsing complete!")
-  (init-repl ctx))
 
 ;; --- print
 
@@ -211,7 +210,8 @@
 (define (print-usage)
   (displayln "Usage: zo-shell FILE.zo"))
 
-;; --- misc
+;; --- parsing
+;; TODO replace these functions with a command line library
 
 ;; Split [raw] by whitespace. Return the second element of the split, if any
 ;; otherwise return [#f].

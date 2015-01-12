@@ -113,7 +113,8 @@
         (lcons "phase"        (number->string            (module-variable-phase z)))
         (lcons "constantness" (constantness->string      (module-variable-constantness z)))))
 
-;; TODO improve printing. http://docs.racket-lang.org/reference/Module_Names_and_Loading.html
+;; TODO improve module-path printing.
+;; http://docs.racket-lang.org/reference/Module_Names_and_Loading.html
 (define/contract
   (module-path-index->string mpi)
   (-> module-path-index? string?)
