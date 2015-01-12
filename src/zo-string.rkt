@@ -833,7 +833,7 @@
                                   [rest   (if (string? forced)
                                               forced
                                               (format-struct #f forced))])
-                             (format "  ~a : ~a" (car (pad (car fd) w)) rest)))))))
+                             (format "  ~a : ~a" (pad (car fd) w) rest)))))))
 
 (define/contract
   (list->string f xs)
@@ -852,23 +852,24 @@
   (cond [(empty? zs) "[]"]
         [else        (format "~a[~a]" (format-struct #f (z->spec (car zs))) (length zs))]))
 
-(define string-with-size? ;; TODO Should be a contract
-  (lambda (pair)
-    (let ([str  (car pair)]
-          [size (cdr pair)])
-      (and (string?  str)
-           (exact-positive-integer? size)
-           (= size (string-length str))))))
+;; True if `str` starts with `prefix`.
+(define/contract
+  (starts-with str prefix)
+  (-> string? string? boolean?)
+  (and (<= (string-length prefix) (string-length str))
+       (string=? (substring str 0 (string-length prefix))
+                 prefix)))
 
 ;; If [str] has fewer than [w] characters, (w - (len str)) characters to its right end
 (define/contract
   (pad str w #:char [c #\space])
-  (-> string? natural-number/c string-with-size?)
+  (->i ([str string?] [n natural-number/c]) () [str* (str n)
+                                                     (lambda (str*) (and (= n (string-length str*))
+                                                                         (starts-with str* str)))])
   (define l (string-length str))
-  (cond [(< l w) (let* ([diff (- w l)]
-                        [str* (format "~a~a" str (make-string diff c))])
-                   (cons str* w))]
-        [else    (cons str l)]))
+  (cond [(< l w) (let* ([diff (- w l)])
+                        (format "~a~a" str (make-string diff c)))]
+        [else    str]))
 
 (define/contract
   (toplevel-or-any->string tl)
