@@ -1,6 +1,10 @@
 #lang racket/base
 
-(provide transition)
+;; Access the fields of a struct by name at runtime.
+
+(provide
+ ;; Access "structName-fieldName myStruct" at runtime.
+ transition)
 
 (require compiler/zo-structs
          (only-in racket/list empty? empty))
