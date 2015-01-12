@@ -880,3 +880,10 @@
   (-> (or/c toplevel? any/c) string?)
   (cond [(toplevel? tl) (format-struct #f (toplevel->string tl))]
         [else           (any->string tl)]))
+
+;; -- testing
+
+(module+ test
+  (require rackunit)
+  (check-equal? #t #t)
+)

@@ -457,3 +457,10 @@
 (define (expr-or-seq? x)
   ;; (-> any/c boolean?)
   (or (expr? x) (seq? x)))
+
+;; -- testing
+
+(module+ test
+  (require rackunit)
+  (check-equal? #t #t)
+)

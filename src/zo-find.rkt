@@ -64,3 +64,10 @@
                 (cond [(not success?) (get-children z (cdr strs))]
                       [(list? r) (append (filter zo? r) (get-children z (cdr strs)))]
                       [(zo?   r) (cons   r (get-children z (cdr strs)))]))]))
+
+;; -- testing
+
+(module+ test
+  (require rackunit)
+  (check-equal? #t #t)
+)
