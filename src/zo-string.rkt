@@ -841,8 +841,9 @@
 (define/contract
   (list->string f xs)
   (-> (-> any/c string?) (listof any/c) string?)
-  (format-list #:sep " "
-               (for/list ([x xs]) (f x))))
+  (format "[~a]"
+          (format-list #:sep " "
+                       (for/list ([x xs]) (f x)))))
 
 (define/contract
   (listof-form-or-any->string xs)
