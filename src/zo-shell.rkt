@@ -61,10 +61,10 @@
                            [else          (let-values ([(a b) (pop hist)]) (repl a b))])]
         [(dive? raw) (let-values ([(ctx* hist*) (dive ctx hist raw)])
                        (repl ctx* hist*))]
-        [(find? raw) (let ([ctx* (find ctx raw)])
-                       (if (empty? ctx*)
-                           (repl ctx hist)
-                           (repl ctx* (push hist ctx))))]
+        [(find? raw) (define ctx* (find ctx raw))
+                     (if (empty? ctx*)
+                         (repl ctx hist)
+                         (repl ctx* (push hist ctx)))]
         [(help? raw) (print-help)
                      (repl ctx hist)]
         [(info? raw) (print-context ctx)
@@ -118,12 +118,12 @@
 
 (define (dive-list ctx hist arg)
   ;; (-> context? history? string? (values context? history?))
-  (let ([index (string->number arg)])
-    (cond [(or (not index)
-               (< index 0)
-               (>= index (length ctx))) (print-unknown (format "dive ~a" arg))
-                                        (values ctx hist)]
-          [else (values (list-ref ctx index) (push hist ctx))])))
+  (define index (string->number arg))
+  (cond [(or (not index)
+             (< index 0)
+             (>= index (length ctx))) (print-unknown (format "dive ~a" arg))
+                                      (values ctx hist)]
+        [else (values (list-ref ctx index) (push hist ctx))]))
   
 (define (dive-zo ctx hist field)
   ;; (-> context? history? string? (values context? history?))

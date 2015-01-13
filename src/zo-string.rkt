@@ -613,11 +613,11 @@
                  (format "(~a . ~a)"
                          (car a)
                          (cond [(symbol? (cdr a)) (cdr a)]
-                               [else (let ([a* (cdr a)])
-                                       (format "(~a . ~a)"
-                                               (car a*)
-                                               (cond [(free-id-info? (cdr a*)) (free-id-info->string (cdr a*))]
-                                                     [else (cdr a*)])))])))))
+                               [else (define a* (cdr a))
+                                     (format "(~a . ~a)"
+                                             (car a*)
+                                             (cond [(free-id-info? (cdr a*)) (free-id-info->string (cdr a*))]
+                                                   [else                     (cdr a*)]))])))))
   
 (define/contract
   (phase-shift->string z)
@@ -833,11 +833,11 @@
       title
       (format-list (cons title
                          (for/list ([fd fields])
-                           (let* ([forced ((cdr fd))]
-                                  [rest   (if (string? forced)
+                           (define forced ((cdr fd)))
+                           (define rest   (if (string? forced)
                                               forced
-                                              (format-struct #f forced))])
-                             (format "  ~a : ~a" (pad (car fd) w) rest)))))))
+                                              (format-struct #f forced)))
+                           (format "  ~a : ~a" (pad (car fd) w) rest))))))
 
 (define/contract
   (list->string f xs)
@@ -871,8 +871,7 @@
                                                      (lambda (str*) (and (= n (string-length str*))
                                                                          (starts-with str* str)))])
   (define l (string-length str))
-  (cond [(< l w) (let* ([diff (- w l)])
-                        (format "~a~a" str (make-string diff c)))]
+  (cond [(< l w) (format "~a~a" str (make-string (- w l) c))]
         [else    str]))
 
 (define/contract

@@ -145,32 +145,32 @@
 (define (def-values-> z field-name)
   ;; (-> def-values? string? (or/c (listof zo?) zo? #f))
   (cond [(string=? field-name "ids") (def-values-ids z)]
-        [(string=? field-name "rhs") (let ([rhs (def-values-rhs z)])
-                                       (cond [(or (expr?           rhs)
-                                                  (seq?            rhs)
-                                                  (inline-variant? rhs)) rhs]
-                                             [else #f]))]
+        [(string=? field-name "rhs") (define rhs (def-values-rhs z))
+                                     (cond [(or (expr?           rhs)
+                                                (seq?            rhs)
+                                                (inline-variant? rhs)) rhs]
+                                           [else #f])]
         [else #f]))
 
 (define (def-syntaxes-> z field-name)
   ;; (-> def-syntaxes? string? (or/c (listof zo?) zo? #f))
-  (cond [(string=? field-name "rhs")    (let ([rhs (def-syntaxes-rhs z)])
-                                          (cond [(or (expr? rhs)
-                                                     (seq?  rhs)) (def-syntaxes-rhs z)]
-                                                [else #f]))]
+  (cond [(string=? field-name "rhs")    (define rhs (def-syntaxes-rhs z))
+                                        (cond [(or (expr? rhs)
+                                                   (seq?  rhs)) (def-syntaxes-rhs z)]
+                                              [else #f])]
         [(string=? field-name "prefix") (def-syntaxes-prefix z)]
-        [(string=? field-name "dummy")  (let ([dm (def-syntaxes-dummy z)])
-                                          (cond [(toplevel? dm) dm]
-                                                [else #f]))]
+        [(string=? field-name "dummy")  (define dm (def-syntaxes-dummy z))
+                                        (cond [(toplevel? dm) dm]
+                                              [else #f])]
         [else #f]))
 
 (define (seq-for-syntax-> z field-name)
   ;; (-> seq-for-syntax? string? (or/c (listof zo?) zo? #f))
   (cond [(string=? field-name "forms")  (filter form? (seq-for-syntax-forms z))]
         [(string=? field-name "prefix") (seq-for-syntax-prefix z)]
-        [(string=? field-name "dummy")  (let ([dm (seq-for-syntax-dummy z)])
-                                          (cond [(toplevel? dm) dm]
-                                                [else #f]))]
+        [(string=? field-name "dummy")  (define dm (seq-for-syntax-dummy z))
+                                        (cond [(toplevel? dm) dm]
+                                              [else #f])]
         [else #f]))
 
 (define (req-> z field-name)
@@ -202,10 +202,10 @@
         [(string=? field-name "body")             (filter form? (mod-body z))]
         [(string=? field-name "syntax-bodies")    (get-syntaxes (mod-syntax-bodies z))]
         [(string=? field-name "dummy")            (mod-dummy z)]
-        [(string=? field-name "internal-context") (let ([ic (mod-internal-context z)])
-                                                    (cond [(stx?    ic) ic]
-                                                          [(vector? ic) (vector->list ic)]
-                                                          [else #f]))]
+        [(string=? field-name "internal-context") (define ic (mod-internal-context z))
+                                                  (cond [(stx?    ic) ic]
+                                                        [(vector? ic) (vector->list ic)]
+                                                        [else #f])]
         [(string=? field-name "pre-submodules")   (mod-pre-submodules z)]
         [(string=? field-name "post-submodules")  (mod-post-submodules z)]
         [else #f]))
@@ -231,9 +231,9 @@
 
 (define (lam-> z field-name)
   ;; (-> lam? string? (or/c (listof zo?) zo? #f))
-  (cond [(string=? field-name "body") (let ([bd (lam-body z)])
-                                        (cond [(expr-or-seq? bd) bd]
-                                              [else #f]))]
+  (cond [(string=? field-name "body") (define bd (lam-body z))
+                                      (cond [(expr-or-seq? bd) bd]
+                                            [else #f])]
         [else #f]))
 
 (define (closure-> z field-name)
@@ -248,44 +248,44 @@
 
 (define (let-one-> z field-name)
   ;; (-> let-one? string? (or/c (listof zo?) zo? #f))
-  (cond [(string=? field-name "rhs")  (let ([rhs (let-one-rhs z)])
-                                        (cond [(expr-or-seq? rhs) rhs]
-                                              [else #f]))]
-        [(string=? field-name "body") (let ([body (let-one-body z)])
-                                        (cond [(expr-or-seq? body) body]
-                                              [else #f]))]
+  (cond [(string=? field-name "rhs")  (define rhs (let-one-rhs z))
+                                      (cond [(expr-or-seq? rhs) rhs]
+                                            [else #f])]
+        [(string=? field-name "body") (define body (let-one-body z))
+                                      (cond [(expr-or-seq? body) body]
+                                            [else #f])]
         [else #f]))
 
 (define (let-void-> z field-name)
   ;; (-> let-void? string? (or/c (listof zo?) zo? #f))
-  (cond [(string=? field-name "body") (let ([body (let-one-body z)])
-                                        (cond [(expr-or-seq? body) body]
-                                              [else #f]))]
+  (cond [(string=? field-name "body") (define body (let-one-body z))
+                                      (cond [(expr-or-seq? body) body]
+                                            [else #f])]
         [else #f]))
 
 (define (install-value-> z field-name)
   ;; (-> install-value? string? (or/c (listof zo?) zo? #f))
-  (cond [(string=? field-name "rhs")  (let ([rhs  (install-value-rhs z)])
-                                        (cond [(expr-or-seq? rhs)  rhs]
-                                              [else #f]))]
-        [(string=? field-name "body") (let ([body (install-value-body z)])
-                                        (cond [(expr-or-seq? body) body]
-                                              [else #f]))]
+  (cond [(string=? field-name "rhs")  (define rhs  (install-value-rhs z))
+                                      (cond [(expr-or-seq? rhs)  rhs]
+                                            [else #f])]
+        [(string=? field-name "body") (define body (install-value-body z))
+                                      (cond [(expr-or-seq? body) body]
+                                            [else #f])]
         [else #f]))
 
 (define (let-rec-> z field-name)
   ;; (-> let-rec? string? (or/c (listof zo?) zo? #f))
   (cond [(string=? field-name "procs") (let-rec-procs z)]
-        [(string=? field-name "body")  (let ([body (let-rec-body z)])
-                                         (cond [(expr-or-seq? body) body]
-                                               [else #f]))]
+        [(string=? field-name "body")  (define body (let-rec-body z))
+                                       (cond [(expr-or-seq? body) body]
+                                             [else #f])]
         [else #f]))
 
 (define (boxenv-> z field-name)
   ;; (-> boxenv? string? (or/c (listof zo?) zo? #f))
-  (cond [(string=? field-name "body") (let ([body (boxenv-body z)])
-                                        (cond [(expr-or-seq? body) body]
-                                              [else #f]))]
+  (cond [(string=? field-name "body") (define body (boxenv-body z))
+                                      (cond [(expr-or-seq? body) body]
+                                            [else #f])]
         [else #f]))
 
 (define (localref-> z field-name)
@@ -302,36 +302,36 @@
 
 (define (application-> z field-name)
   ;; (-> application? string? (or/c (listof zo?) zo? #f))
-  (cond [(string=? field-name "rator") (let ([rator (application-rator z)])
-                                         (cond [(expr-or-seq? rator) rator]
-                                               [else #f]))]
+  (cond [(string=? field-name "rator") (define rator (application-rator z))
+                                       (cond [(expr-or-seq? rator) rator]
+                                             [else #f])]
         [(string=? field-name "rands") (filter expr-or-seq? (application-rands z))]
         [else #f]))
 
 (define (branch-> z field-name)
   ;; (-> branch? string? (or/c (listof zo?) zo? #f))
-  (cond [(string=? field-name "test") (let ([test (branch-test z)])
-                                         (cond [(expr-or-seq? test) test]
-                                               [else #f]))]
-        [(string=? field-name "then") (let ([then (branch-then z)])
-                                        (cond [(expr-or-seq? then) then]
-                                              [else #f]))]
-        [(string=? field-name "else") (let ([el (branch-else z)])
-                                        (cond [(expr-or-seq? el) el]
-                                              [else #f]))]
+  (cond [(string=? field-name "test") (define test (branch-test z))
+                                       (cond [(expr-or-seq? test) test]
+                                             [else #f])]
+        [(string=? field-name "then") (define then (branch-then z))
+                                      (cond [(expr-or-seq? then) then]
+                                            [else #f])]
+        [(string=? field-name "else") (define el (branch-else z))
+                                      (cond [(expr-or-seq? el) el]
+                                            [else #f])]
         [else #f]))
 
 (define (with-cont-mark-> z field-name)
   ;; (-> with-cont-mark? string? (or/c (listof zo?) zo? #f))
-  (cond [(string=? field-name "key")  (let ([key  (with-cont-mark-key z)])
-                                        (cond [(expr-or-seq? key)  key]
-                                              [else #f]))]
-        [(string=? field-name "val")  (let ([val  (with-cont-mark-val z)])
-                                        (cond [(expr-or-seq? val)  val]
-                                              [else #f]))]
-        [(string=? field-name "body") (let ([body (with-cont-mark-body z)])
-                                        (cond [(expr-or-seq? body) body]
-                                              [else #f]))]
+  (cond [(string=? field-name "key")  (define key  (with-cont-mark-key z))
+                                      (cond [(expr-or-seq? key)  key]
+                                            [else #f])]
+        [(string=? field-name "val")  (define val  (with-cont-mark-val z))
+                                      (cond [(expr-or-seq? val)  val]
+                                            [else #f])]
+        [(string=? field-name "body") (define body (with-cont-mark-body z))
+                                      (cond [(expr-or-seq? body) body]
+                                            [else #f])]
         [else #f]))
 
 (define (beg0-> z field-name)
@@ -341,30 +341,30 @@
 
 (define (varref-> z field-name)
   ;; (-> varref? string? (or/c (listof zo?) zo? #f))
-  (cond [(string=? field-name "toplevel") (let ([tl (varref-toplevel z)])
-                                            (cond [(toplevel? tl) tl]
-                                                  [else #f]))]
-        [(string=? field-name "dummy")    (let ([dm (varref-dummy z)])
-                                            (cond [(toplevel? dm) dm]
-                                                  [else #f]))]
+  (cond [(string=? field-name "toplevel") (define tl (varref-toplevel z))
+                                          (cond [(toplevel? tl) tl]
+                                                [else #f])]
+        [(string=? field-name "dummy")    (define dm (varref-dummy z))
+                                          (cond [(toplevel? dm) dm]
+                                                [else #f])]
         [else #f]))
 
 (define (assign-> z field-name)
   ;; (-> assign? string? (or/c (listof zo?) zo? #f))
   (cond [(string=? field-name "id")  (assign-id z)]
-        [(string=? field-name "rhs") (let ([rhs (assign-rhs z)])
-                                       (cond [(expr-or-seq? rhs) rhs]
-                                             [else #f]))]
+        [(string=? field-name "rhs") (define rhs (assign-rhs z))
+                                     (cond [(expr-or-seq? rhs) rhs]
+                                           [else #f])]
         [else #f]))
 
 (define (apply-values-> z field-name)
   ;; (-> apply-values? string? (or/c (listof zo?) zo? #f))
-  (cond [(string=? field-name "proc")      (let ([proc      (apply-values-proc z)])
-                                             (cond [(expr-or-seq? proc) proc]
-                                                   [else #f]))]
-        [(string=? field-name "args-expr") (let ([args-expr (apply-values-args-expr z)])
-                                             (cond [(expr-or-seq? args-expr) args-expr]
-                                                   [else #f]))]
+  (cond [(string=? field-name "proc")      (define proc      (apply-values-proc z))
+                                           (cond [(expr-or-seq? proc) proc]
+                                                 [else #f])]
+        [(string=? field-name "args-expr") (define args-expr (apply-values-args-expr z))
+                                           (cond [(expr-or-seq? args-expr) args-expr]
+                                                 [else #f])]
         [else #f]))
 
 (define (primval-> z field-name)
