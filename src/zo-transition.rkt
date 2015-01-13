@@ -16,7 +16,7 @@
 
 ;; -----------------------------------------------------------------------------
 
-;; -- API functions
+;; --- API functions
 
 ;; Look up the field name `field-name` in the struct `z`.
 ;; First use predicates to decide what type of struct `z` is,
@@ -48,7 +48,7 @@
   ;; Check if transition failed, pack result values
   (if (or (zo? nxt) (list? nxt)) (values nxt #t) (values z #f)))
 
-;; -- private getters
+;; --- private getters
 
 (define (compilation-top-> z field-name)
   ;; (-> compilation-top? string? (or/c (listof zo?) zo? #f))
@@ -154,7 +154,7 @@
         [(phased-nominal-path?   z) (phased-nominal-path->   z field-name)]
         [else #f]))
 
-;; -- form
+;; --- form
 
 (define (def-values-> z field-name)
   ;; (-> def-values? string? (or/c (listof zo?) zo? #f))
@@ -243,7 +243,7 @@
   ;; (-> provided? string? (or/c (listof zo?) zo? #f))
   #f)
 
-;; -- expr
+;; --- expr
 
 (define (lam-> z field-name)
   ;; (-> lam? string? (or/c (listof zo?) zo? #f))
@@ -387,7 +387,7 @@
   ;; (-> primval? string? (or/c (listof zo?) zo? #f))
   #f)
 
-;; -- wrap
+;; --- wrap
 
 (define (top-level-rename-> z field-name)
   ;; (-> top-level-rename? string? (or/c (listof zo?) zo? #f))
@@ -430,7 +430,7 @@
   ;; (-> prune? string? (or/c (listof zo?) zo? #f))
   #f)
 
-;; -- module-binding
+;; --- module-binding
 
 (define (simple-module-binding-> z field-name)
   ;; (-> simple-module-binding? string? (or/c (listof zo?) zo? #f))
@@ -455,7 +455,7 @@
   ;; (-> exported-module-binding? string? (or/c (listof zo?) zo? #f))
   #f)
 
-;; -- nominal-path
+;; --- nominal-path
 
 (define (simple-nominal-path-> z field-name)
   ;; (-> simple-nominal-path? string? (or/c (listof zo?) zo? #f))
@@ -469,14 +469,14 @@
   ;; (-> phased-nominal-path? string? (or/c (listof zo?) zo? #f))
   #f)
 
-;; -- helpers
+;; --- helpers
 
 ;; True if the argument is an 'expr' or a 'seq' zo struct.
 (define (expr-or-seq? x)
   ;; (-> any/c boolean?)
   (or (expr? x) (seq? x)))
 
-;; -- testing
+;; --- testing
 
 (module+ test
   (require rackunit)

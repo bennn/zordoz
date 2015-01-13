@@ -275,7 +275,7 @@
         [else                      (print-warn (format "Ignoring extra arguments: '~a'" (cdr (cdr splt))))
                                    (car (cdr splt))]))
 
-;; -- testing
+;; --- testing
 
 (module+ test
   (require rackunit)

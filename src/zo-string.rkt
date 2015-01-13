@@ -21,7 +21,7 @@
  ;; Contract for conversion functions.
  spec/c)
 
-;; -- string specifications
+;; --- string specifications
 
 ;; Contract for conversion functions.
 ;; A spec/c is the name of a zo struct and a list of pairs representing its fields:
@@ -46,7 +46,7 @@
 
 ;; -----------------------------------------------------------------------------
 
-;; -- API functions
+;; --- API functions
 
 ;; Convert any zo struct to a spec/c representation.
 (define/contract
@@ -76,7 +76,7 @@
   (->* (zo?) (#:deep? boolean?) string?)
   (format-spec deep? (zo->spec z)))
 
-;; -- syntax: lazy cons to delay evaluation of tail
+;; --- syntax: lazy cons to delay evaluation of tail
 
 ;; Introduces syntax (lcons a:any b:any).
 ;; Wraps second argument in a thunk.
@@ -86,7 +86,7 @@
     [(_ _)     (raise-syntax-error #f "[lcons] Expected two arguments.")]
     [(_ hd tl) #'(cons hd (lambda () tl))]))
 
-;; -- private functions
+;; --- private functions
 
 (define/contract
   (compilation-top->string z)
@@ -260,7 +260,7 @@
         [(phased-nominal-path?   z) (phased-nominal-path->string   z)]
         [else (error (format "[nominal-path] Unknown '~a'" z))]))
 
-;; -- form
+;; --- form
 
 (define/contract
   (def-values->string z)
@@ -409,7 +409,7 @@
         (lcons "src-phase" (provided-src-phase z))
         (lcons "protected" (provided-protected? z))))
 
-;; -- expr
+;; --- expr
 
 (define/contract
   (lam->string z)
@@ -582,7 +582,7 @@
   (list "primval"
         (lcons "id" (number->string (primval-id z)))))
 
-;; -- wrap
+;; --- wrap
 
 (define/contract
   (top-level-rename->string z)
@@ -653,7 +653,7 @@
   (list "prune"
         (lcons "sym" (symbol->string (prune-sym z)))))
 
-;; -- module-binding
+;; --- module-binding
 
 (define/contract
   (simple-module-binding->string z)
@@ -694,7 +694,7 @@
         (lcons "path"        (module-path-index->string (exported-module-binding-path z)))
         (lcons "export-name" (any->string               (exported-module-binding-export-name z)))))
 
-;; -- nominal-path
+;; --- nominal-path
 
 (define/contract
   (simple-nominal-path->string z)
@@ -717,7 +717,7 @@
         (lcons "import-phase" (number->string            (phased-nominal-path-import-phase z)))
         (lcons "phase"        (number->string            (phased-nominal-path-phase z)))))
 
-;; -- Shapes
+;; --- Shapes
 
 ;; Shapes are not zo structs per se, but they are documented in the
 ;; decompile guide and do not seem to have a nice formatting method.
@@ -779,7 +779,7 @@
   (-> struct-other-shape? string?)
   (format-list (list "struct-other-shape")))
 
-;; -- helpers
+;; --- helpers
 
 ;; Turn any value into a string.
 (define/contract
@@ -896,7 +896,7 @@
   (cond [(toplevel? tl) (format-spec #f (toplevel->string tl))]
         [else           (any->string tl)]))
 
-;; -- misc
+;; --- misc
 
 ;; True if the string `str` starts with the string `prefix`.
 (define/contract
@@ -917,7 +917,7 @@
   (cond [(< l w) (format "~a~a" str (make-string (- w l) c))]
         [else    str]))
 
-;; -- testing
+;; --- testing
 
 (module+ test
   (require rackunit)

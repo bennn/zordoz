@@ -15,7 +15,7 @@
 
 ;; -----------------------------------------------------------------------------
 
-;; -- API functions
+;; --- API functions
 
 ;; Searches a zo-struct `z` recursively for member zo-structs matching the `s`.
 ;; Search terminates after at most `#:limit` recursive calls.
@@ -27,7 +27,7 @@
            (for/list ([z* children])
              (zo-find-aux z* str 0 lim)))))
 
-;; -- private functions
+;; --- private functions
 
 ;; Recursive helper for `zo-find`.
 ;; Add the current struct to the results, if it matches.
@@ -67,7 +67,7 @@
                       [(zo?   r)      (cons r
                                             (get-children z (cdr strs)))]))]))
 
-;; -- testing
+;; --- testing
 
 (module+ test
   (require rackunit)
