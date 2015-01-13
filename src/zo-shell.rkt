@@ -61,10 +61,12 @@
                            [else          (let-values ([(a b) (pop hist)]) (repl a b))])]
         [(dive? raw) (let-values ([(ctx* hist*) (dive ctx hist raw)])
                        (repl ctx* hist*))]
-        [(find? raw) (define ctx* (find ctx raw))
-                     (if (empty? ctx*)
-                         (repl ctx hist)
-                         (repl ctx* (push hist ctx)))]
+        [(find? raw) (cond [(zo? ctx) (define ctx* (find ctx raw))
+                                      (if (empty? ctx*)
+                                          (repl ctx hist)
+                                          (repl ctx* (push hist ctx)))]
+                           [else      (print-unknown raw)
+                                      (repl ctx hist)])]
         [(help? raw) (print-help)
                      (repl ctx hist)]
         [(info? raw) (print-context ctx)
