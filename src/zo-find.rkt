@@ -52,18 +52,20 @@
   (define child-strs (for/list ([pair (cdr z-spec)]) (car pair)))
   (values title (get-children z child-strs)))
 
-;; Given a zo [z] and list of possible field names [strs], return the list of zo-structs
-;; obtained by looking up each name in [strs] in the struct [z].
-;; Relies on `zo-transition.rkt` to accomplish the lookup.
+;; Given a zo `z` and list of possible field names `strs`, return the list
+;; of zo-structs obtained by looking up each name in `strs` in the struct `z`.
+;; Relies on `zo-transition.rkt` to do the lookup.
 (define (get-children z strs)
   ;; (-> zo? string? (listof zo?))
   (cond [(empty? strs) '()]
-        ;; TODO necessary?
+        ;; TODO 2015-01-12: is this check necessary?
         ;; [(string=? (car strs) "dummy") (get-children z (cdr strs))]
         [else (let-values ([(r success?) (transition z (car strs))])
                 (cond [(not success?) (get-children z (cdr strs))]
-                      [(list? r) (append (filter zo? r) (get-children z (cdr strs)))]
-                      [(zo?   r) (cons   r (get-children z (cdr strs)))]))]))
+                      [(list? r)      (append (filter zo? r)
+                                              (get-children z (cdr strs)))]
+                      [(zo?   r)      (cons r
+                                            (get-children z (cdr strs)))]))]))
 
 ;; -- testing
 

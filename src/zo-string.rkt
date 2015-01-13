@@ -1,7 +1,16 @@
 #lang racket/base
 
 ;; Convert a zo struct to a more readable string representation.
-;; Documentation for zo structs is online here: http://docs.racket-lang.org/raco/decompile.html
+
+;; Uses predicates to guess which struct we have, then convert the known
+;; fields to strings.
+;; Printing a field recursively is potentially expensive,
+;; so we wrap the computation in a thunk.
+;; The macro `lcons` makes thunk creation a little prettier.
+;; The function `format-spec` forces these thunks.
+
+;; Documentation for zo structs is online:
+;; http://docs.racket-lang.org/raco/decompile.html
 
 (provide
  ;; Return a string representation of a zo struct
@@ -61,10 +70,11 @@
 
 ;; Convert any zo struct to a string.
 ;; First builds a spec, then forces the thunks in that spec to build a string.
+;; If `deep` is `#f`, only formats the name of the struct `z`.
 (define/contract
   (zo->string z #:deep? [deep? #t])
   (->* (zo?) (#:deep? boolean?) string?)
-  (format-struct deep? (zo->spec z)))
+  (format-spec deep? (zo->spec z)))
 
 ;; -- syntax: lazy cons to delay evaluation of tail
 
@@ -90,8 +100,8 @@
   (prefix->string z)
   (-> prefix? spec/c)
   (define (tl->string tl)
-    (cond [(module-variable? tl) (format-struct #f (module-variable->string tl))]
-          [(global-bucket?   tl) (format-struct #f (global-bucket->string tl))]
+    (cond [(module-variable? tl) (format-spec #f (module-variable->string tl))]
+          [(global-bucket?   tl) (format-spec #f (global-bucket->string tl))]
           [(eq? #f tl)           "#f"]
           [else (symbol->string tl)]))
   (list "prefix"
@@ -105,7 +115,6 @@
   (list "global-bucket"
         (lcons "name" (symbol->string (global-bucket-name z)))))
 
-; 2014-12-10: May want to print 'constantness' nicer. Define struct-shape->string.
 (define/contract
   (module-variable->string z)
   (-> module-variable? spec/c)
@@ -116,18 +125,7 @@
         (lcons "phase"        (number->string            (module-variable-phase z)))
         (lcons "constantness" (constantness->string      (module-variable-constantness z)))))
 
-;; TODO improve module-path printing.
-;; http://docs.racket-lang.org/reference/Module_Names_and_Loading.html
-(define/contract
-  (module-path-index->string mpi)
-  (-> module-path-index? string?)
-  (any->string mpi))
-
-(define/contract
-  (module-path->string mp)
-  (-> module-path? string?)
-  (any->string mp))
-
+;; Helper for `module-variable->string`.
 (define/contract
   (constantness->string cs)
   (-> (or/c #f 'constant 'fixed function-shape? struct-shape?) string?)
@@ -214,6 +212,7 @@
         (lcons "phase2"                (phase->string             (free-id-info-phase2 z)))
         (lcons "use-current-inspector" (boolean->string           (free-id-info-use-current-inspector? z)))))
 
+;; Helper for `free-id-info->string`.
 (define/contract
   (phase->string ph)
   (-> (or/c exact-integer? #f) string?)
@@ -359,6 +358,7 @@
         (lcons "pre-submodules"   (listof-zo->string mod->string (mod-pre-submodules z)))
         (lcons "post-submodules"  (listof-zo->string mod->string (mod-post-submodules z)))))
 
+;; Helper for `mod->string`. Formats the 'provides' field.
 (define/contract
   (mod-provides->string pds)
   (-> (listof (list/c (or/c exact-integer? #f) (listof provided?) (listof provided?))) string?)
@@ -371,6 +371,7 @@
                        (listof-zo->string provided->string (caddr e)))))
   (list->string elem->string pds))
 
+;; Helper for `mod->string`. Formats the 'requires' field.
 (define/contract
   (mod-requires->string rqs)
   (-> (listof (cons/c (or/c exact-integer? #f) (listof module-path-index?))) string?)
@@ -382,7 +383,8 @@
                        (list->string module-path-index->string (cdr e)))))
   (list->string elem->string rqs))
 
-;; 2014-12-10: Ugly
+;; Helper for `mod->string`. Formats the 'syntax-bodies' field.
+;; 2014-12-10: Make this less ugly.
 (define/contract
   (mod-syntax-bodies->string sbs)
   (-> (listof (cons/c exact-positive-integer? (listof (or/c def-syntaxes? seq-for-syntax?)))) string?)
@@ -428,6 +430,13 @@
         (lcons "toplevel-map"  (toplevel-map->string        (lam-toplevel-map z)))
         (lcons "max-let-depth" (number->string              (lam-max-let-depth z)))
         (lcons "body"          (expr-seq-any->string        (lam-body z)))))
+
+;; Helper for `lam->string`. Formats the 'name' field.
+(define/contract
+  (lam-name->string nm)
+  (-> (or/c symbol? vector?) string?)
+  (cond [(vector? nm) (any->string nm)]
+        [else         (symbol->string nm)]))
 
 (define/contract
   (closure->string z)
@@ -573,14 +582,6 @@
   (list "primval"
         (lcons "id" (number->string (primval-id z)))))
 
-;; -- expr helpers
-
-(define/contract
-  (lam-name->string nm)
-  (-> (or/c symbol? vector?) string?)
-  (cond [(vector? nm) (any->string nm)]
-        [else         (symbol->string nm)]))
-
 ;; -- wrap
 
 (define/contract
@@ -603,7 +604,7 @@
         (lcons "bool2"               (boolean->string              (lexical-rename-bool2 z)))
         (lcons "alist"               (lexical-rename-alist->string (lexical-rename-alist z)))))
 
-;; 2014-12-10: TODO Ugly!!!
+;; 2014-12-10: Make less ugly.
 (define/contract
   (lexical-rename-alist->string alst)
   (-> (listof (cons/c symbol? (or/c symbol? (cons/c symbol? (or/c (cons/c symbol? (or/c symbol? #f)) free-id-info?))))) string?)
@@ -627,7 +628,6 @@
         (lcons "dest"      (module-path-index->string (phase-shift-dest z)))
         (lcons "cancel-id" (number-or-f->string       (phase-shift-cancel-id z)))))
 
-;; 2014-12-10: Curious about 'unmarshals'
 (define/contract
   (module-rename->string z)
   (-> module-rename? spec/c)
@@ -635,6 +635,7 @@
         (lcons "phase"        (number->string                            (module-rename-phase z)))
         (lcons "kind"         (symbol->string                            (module-rename-kind z)))
         (lcons "set-id"       (any->string                               (module-rename-set-id z)))
+        ;; 2015-01-13: The docs on 'unmarshals' use the name 'make-all-from-module'. I'm curious whether 'all-from-module->string' will work.
         (lcons "unmarshals"   (listof-zo->string all-from-module->string (module-rename-unmarshals z)))
         (lcons "renames"      (listof-zo->string module-binding->string  (module-rename-renames z)))
         (lcons "mark-renames" (any->string                               (module-rename-mark-renames z)))
@@ -716,7 +717,10 @@
         (lcons "import-phase" (number->string            (phased-nominal-path-import-phase z)))
         (lcons "phase"        (number->string            (phased-nominal-path-phase z)))))
 
-;; -- Shapes 
+;; -- Shapes
+
+;; Shapes are not zo structs per se, but they are documented in the
+;; decompile guide and do not seem to have a nice formatting method.
 
 (define/contract
   (function-shape->string fs)
@@ -777,50 +781,44 @@
 
 ;; -- helpers
 
+;; Turn any value into a string.
 (define/contract
   (any->string z)
   (-> any/c string?)
   (format "~a" z))
 
+;; Turn a boolean value into a string.
 (define/contract
   (boolean->string b)
   (-> boolean? string?)
-  (if b "#t" "#f"))
+  (any->string b))
 
+;; Turn an 'expr' struct or a 'seq' struct or any other value into a string.
 (define/contract
   (expr-seq-any->string z)
   (-> (or/c expr? seq? any/c) string?)
-  (cond [(expr? z) (format-struct #f (list "expr"))]
-        [(seq?  z) (format-struct #f (list "seq"))]
+  (cond [(expr? z) (format-spec #f (list "expr"))]
+        [(seq?  z) (format-spec #f (list "seq"))]
         [else      (any->string z)]))
 
+;; Turn a 'form' struct or anything else into a string.
 (define/contract
   (form-or-any->string fm)
   (-> (or/c form? any/c) string?)
-  (cond [(form? fm) (format-struct #f (form->string fm))]
+  (cond [(form? fm) (format-spec #f (form->string fm))]
         [else       (any->string   fm)]))
 
-(define/contract
-  (symbol-or-f->string sf)
-  (-> (or/c symbol? #f) string?)
-  (if (eq? #f sf)
-      "#f"
-      (symbol->string sf)))
-
-(define/contract
-  (number-or-f->string nf)
-  (-> (or/c number? #f) string?)
-  (if (eq? #f nf)
-      "#f"
-      (number->string nf)))
-
+;; Alternate syntax for `string-join` -- the `sep` argument appears as a label
+;; and defaults to a newline character.
 (define/contract
   (format-list xs #:sep [sep "\n"])
   (->* ((listof string?)) (#:sep string?) string?)
   (string-join xs sep))
 
+;; Turn a spec into a string.
+;; If `deep?` is false, only format the title (ignore the field names + thunks).
 (define/contract
-  (format-struct deep? struct-spec)
+  (format-spec deep? struct-spec)
   (-> boolean? spec/c string?)
   (define fields (cdr struct-spec))
   (define title (format "<struct:~a>" (car struct-spec)))
@@ -835,9 +833,10 @@
                            (define forced ((cdr fd)))
                            (define rest   (if (string? forced)
                                               forced
-                                              (format-struct #f forced)))
+                                              (format-spec #f forced)))
                            (format "  ~a : ~a" (pad (car fd) w) rest))))))
 
+;; Turn a list into a string.
 (define/contract
   (list->string f xs)
   (-> (-> any/c string?) (listof any/c) string?)
@@ -845,18 +844,61 @@
           (format-list #:sep " "
                        (for/list ([x xs]) (f x)))))
 
+;; Turn a list of things that might be 'form' structs into a list of strings.
 (define/contract
   (listof-form-or-any->string xs)
   (-> (listof (or/c form? any/c)) string?)
   (list->string form-or-any->string xs))
 
+;; Turn a list of zo structs into a list of strings using the helper function
+;; `z->spec`.
 (define/contract
   (listof-zo->string z->spec zs)
   (-> (-> zo? spec/c) (listof zo?) string?)
   (cond [(empty? zs) "[]"]
-        [else        (format "~a[~a]" (format-struct #f (z->spec (car zs))) (length zs))]))
+        [else        (format "~a[~a]" (format-spec #f (z->spec (car zs))) (length zs))]))
 
-;; True if `str` starts with `prefix`.
+;; Turn a module-path-index into a string
+;; TODO I think we can do better than ~a
+;; http://docs.racket-lang.org/reference/Module_Names_and_Loading.html
+(define/contract
+  (module-path-index->string mpi)
+  (-> module-path-index? string?)
+  (any->string mpi))
+
+;; Turn a module path into a string
+;; TODO can probably improve on ~a
+(define/contract
+  (module-path->string mp)
+  (-> module-path? string?)
+  (any->string mp))
+
+;; Turn a number or #f into a string.
+(define/contract
+  (number-or-f->string nf)
+  (-> (or/c number? #f) string?)
+  (if (eq? #f nf)
+      "#f"
+      (number->string nf)))
+
+;; Turn a symbol or #f into a string.
+(define/contract
+  (symbol-or-f->string sf)
+  (-> (or/c symbol? #f) string?)
+  (if (eq? #f sf)
+      "#f"
+      (symbol->string sf)))
+
+;; Turn something that might be a 'toplevel' struct into a string.
+(define/contract
+  (toplevel-or-any->string tl)
+  (-> (or/c toplevel? any/c) string?)
+  (cond [(toplevel? tl) (format-spec #f (toplevel->string tl))]
+        [else           (any->string tl)]))
+
+;; -- misc
+
+;; True if the string `str` starts with the string `prefix`.
 (define/contract
   (starts-with str prefix)
   (-> string? string? boolean?)
@@ -864,7 +906,8 @@
        (string=? (substring str 0 (string-length prefix))
                  prefix)))
 
-;; If [str] has fewer than [w] characters, (w - (len str)) characters to its right end
+;; If `str` has fewer than `w` characters,
+;; append `(w - (len str))` characters to its right end.
 (define/contract
   (pad str w #:char [c #\space])
   (->i ([str string?] [n natural-number/c]) () [str* (str n)
@@ -873,12 +916,6 @@
   (define l (string-length str))
   (cond [(< l w) (format "~a~a" str (make-string (- w l) c))]
         [else    str]))
-
-(define/contract
-  (toplevel-or-any->string tl)
-  (-> (or/c toplevel? any/c) string?)
-  (cond [(toplevel? tl) (format-struct #f (toplevel->string tl))]
-        [else           (any->string tl)]))
 
 ;; -- testing
 

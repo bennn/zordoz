@@ -2,6 +2,11 @@
 
 ;; Access the fields of a struct by name at runtime.
 
+;; Uses predicates to guess what struct its argument is,
+;; then compares strings with statically-known field names.
+;; Functions that end with '->' are the specific transition function
+;; for a type of zo struct.
+
 (provide
  ;; Access "structName-fieldName myStruct" at runtime.
  transition)
@@ -13,6 +18,15 @@
 
 ;; -- API functions
 
+;; Look up the field name `field-name` in the struct `z`.
+;; First use predicates to decide what type of struct `z` is,
+;; then use string equality to check if `field-name` matches any
+;; statically-known name.
+;; Return two values.
+;; - First is a zo struct or list of zo structs, depending on the
+;;   value stored in the field denoted by `field-name`
+;; - Second is a boolean indicating success or failure.
+;;   On failure, the returned zo struct is `z`.
 (define (transition z field-name)
   ;; (-> zo? string? (values (or/c zo? (listof zo?)) boolean))
   (define nxt ;; Try to get next struct
@@ -210,6 +224,7 @@
         [(string=? field-name "post-submodules")  (mod-post-submodules z)]
         [else #f]))
 
+;; Helper for `mod->`, formats the 'provided' field.
 (define (get-provided pds)
   ;; (-> (listof (list/c (or/c exact-integer? #f) (listof provided?) (listof provided?))) (listof provided?))
   (cond [(empty? pds) empty]
@@ -217,6 +232,7 @@
                       (caddar pds)
                       (get-provided (cdr pds)))]))
 
+;; Helper for `mod->`, formats the 'syntax-bodies' field.
 (define (get-syntaxes sxs)
   ;; (-> (listof (cons/c exact-positive-integer? (listof (or/c def-syntaxes? seq-for-syntax?)))) (listof (or/c def-syntaxes? seq-for-syntax?)))
   (cond [(empty? sxs) empty]
@@ -386,7 +402,8 @@
   (cond [(string=? field-name "alist") (get-free-id-info (lexical-rename-alist z))]
         [else #f]))
 
-;; 2014-12-11: omfg
+;; Helper for `lexical-rename->`, formats the 'alist' field.
+;; 2014-12-11: The contract here is a little crazy, but that's what's documented.
 (define (get-free-id-info als)
   ;; (-> (listof (cons/c symbol? (or/c symbol? (cons/c symbol? (or/c (cons/c symbol? (or/c symbol? #f)) free-id-info?))))) (listof free-id-info?))
   (cond [(empty? als) empty]
@@ -454,6 +471,7 @@
 
 ;; -- helpers
 
+;; True if the argument is an 'expr' or a 'seq' zo struct.
 (define (expr-or-seq? x)
   ;; (-> any/c boolean?)
   (or (expr? x) (seq? x)))
