@@ -33,8 +33,8 @@
   (recursive-contract
    (cons/c string? (listof (cons/c string? (-> (or/c spec/c string?)))))))
 
-;; Given a zo struct [z], creates a predicate that accepts only specs with the
-;; same number of elements as the struct [z] has fields (+1, for the title).
+;; Given a zo struct `z`, creates a predicate that accepts only specs with the
+;; same number of elements as the struct `z` has fields (+1, for the title).
 (define ((specof z) res)
   (= (length res) (vector-length (struct->vector z))))
 
