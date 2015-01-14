@@ -29,7 +29,7 @@
 ;;   On failure, the returned zo struct is `z`.
 (define (transition z field-name)
   ;; (-> zo? string? (values (or/c zo? (listof zo?)) boolean))
-  (define nxt ;; Try to get next struct
+  (define nxt ;; Try to get next struct or list
     (cond [(compilation-top? z) (compilation-top-> z field-name)]
           [(prefix?          z) (prefix->          z field-name)]
           [(global-bucket?   z) (global-bucket->   z field-name)]
@@ -45,8 +45,13 @@
           [(nominal-path?    z) (nominal-path->    z field-name)]
           [(provided?        z) (provided->        z field-name)]
           [else (error (format "[transition] Unknown struct '~a'" z))]))
-  ;; Check if transition failed, pack result values
-  (if (or (zo? nxt) (list? nxt)) (values nxt #t) (values z #f)))
+  ;; Check if transition failed or returned a list without any zo, pack result values.
+  (cond [(zo? nxt)   (values nxt #t)]
+        [(list? nxt) (define zo-list (filter zo? nxt))
+                     (if (empty? zo-list)
+                         (values z       #f)
+                         (values zo-list #t))]
+        [else        (values z #f)]))
 
 ;; --- private getters
 
