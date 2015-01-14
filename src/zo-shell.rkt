@@ -27,11 +27,10 @@
 
 ;; --- API functions
 
-;; Entry point to the REPL. Loads a file using a single command line argument.
+;; Entry point to the REPL, expects command-line arguments passed as a list.
 ;; In the future, there may be more entry points.
-(define (init)
-  ;; (-> void?)
-  (define args (vector->list (current-command-line-arguments)))
+(define (init args)
+  ;; (-> (listof string?) void?)
   (cond [(empty? args)       (print-usage)]
         [(empty? (cdr args)) (init-from-filename (car args))]
         [else                (print-usage)]))
@@ -278,6 +277,240 @@
 ;; --- testing
 
 (module+ test
-  (require rackunit)
-  (check-equal? #t #t)
-)
+  (require rackunit
+           compiler/zo-structs)
+
+  ;; --- API
+  ;; -- invalid args for init
+  (check-equal? (init '())                 (void))
+  (check-equal? (init '(two args))         (void))
+  (check-equal? (init '(more than 2 args)) (void))
+  
+  ;; --- command predicates
+  (check-pred back? "back")
+  (check-pred back? "b")
+  (check-pred back? "up")
+  (check-pred back? "../")
+
+  (check-false (back? "back ARG"))
+  (check-false (back? "BACK"))
+  (check-false (back? "help"))
+  (check-false (back? ""))
+
+  ;; -- DIVE command requires a single argument (doesn't fail for multiple arguments)
+  (check-pred dive? "dive ARG")
+  (check-pred dive? "d ARG")
+  (check-pred dive? "next ARG")
+  (check-pred dive? "step ARG1 ARG2 ARG3")
+
+  (check-false (dive? "dive"))
+  (check-false (dive? "d"))
+  (check-false (dive? "quit"))
+  (check-false (dive? "a mistake"))
+
+  ;; -- FIND command takes one argument, just like DIVE
+  (check-pred find? "find ARG")
+  (check-pred find? "f ARG1 ARG2 ARG3")
+  (check-pred find? "query ")
+  (check-pred find? "search branch")
+  (check-pred find? "look up")
+
+  (check-false (find? "find"))
+  (check-false (find? "back"))
+  (check-false (find? "hello world"))
+
+  (check-pred help? "help")
+  (check-pred help? "h")
+  (check-pred help? "--help")
+  (check-pred help? "-help")
+
+  (check-false (help? 'help))
+  (check-false (help? "help me"))
+  (check-false (help? "lost"))
+  (check-false (help? "stuck, please help"))
+
+  (check-pred info? "info")
+  (check-pred info? "i")
+  (check-pred info? "print")
+  (check-pred info? "show")
+
+  (check-false (info? "println"))
+  (check-false (info? "help"))
+  (check-false (info? "display"))
+  (check-false (info? "write to out"))
+
+  (check-pred quit? "q")
+  (check-pred quit? "quit")
+  (check-pred quit? "exit")
+
+  (check-false (quit? "leave"))
+  (check-false (quit? "(quit)"))
+  (check-false (quit? "(exit)"))
+  (check-false (quit? "get me out of here"))
+
+  ;; --- command implementations
+
+  ;; -- dive end-to-end
+  ;; Invalid command
+  (let ([ctx '()] [hist '()] [arg "dive "])
+    (let-values ([(ctx* hist*) (dive ctx hist arg)])
+      (begin (check-equal? ctx ctx*)
+             (check-equal? hist hist*))))
+
+  ;; List out-of-bounds
+  (let ([ctx '((a) (b))] [hist '((c) (d))] [arg  "dive 2"])
+    (let-values ([(ctx* hist*) (dive ctx hist arg)])
+      (begin (check-equal? ctx ctx*)
+             (check-equal? hist hist*))))
+
+  ;; List, in-bounds
+  (let ([ctx '((a) (b))] [hist '((c) (d))] [arg "dive 0"])
+    (let-values ([(ctx* hist*) (dive ctx hist arg)])
+      (begin (check-equal? ctx*  (car ctx))
+             (check-equal? hist* (cons ctx hist) ))))
+
+  ;; zo, valid field
+  (let* ([z (wrap)]
+         [ctx (wrapped #f (list z z z) 'tainted)]
+         [hist '()]
+         [arg "dive wraps"])
+    (let-values ([(ctx* hist*) (dive ctx hist arg)])
+      (begin (check-equal? ctx*  (list z z z))
+             (check-equal? hist* (cons ctx hist) ))))
+
+  ;; zo, invalid field
+  (let ([ctx (wrapped #f '() 'tainted)] [hist '()] [arg "dive datum"])
+    (let-values ([(ctx* hist*) (dive ctx hist arg)])
+      (begin (check-equal? ctx*  ctx)
+             (check-equal? hist* hist))))
+
+  ;; -- dive list
+  ;; Valid list access
+  (let ([ctx '(a b c)] [hist '(d)] [arg "2"])
+    (let-values ([(ctx* hist*) (dive-list ctx hist arg)])
+      (begin (check-equal? ctx*  (caddr ctx))
+             (check-equal? hist* (cons ctx hist)))))
+
+  ;; Invalid, index is not an integer
+  (let ([ctx '(a)] [hist '()] [arg "x"])
+    (let-values ([(ctx* hist*) (dive-list ctx hist arg)])
+      (begin (check-equal? ctx*  ctx)
+             (check-equal? hist* hist))))
+
+  ;; Invalid, index is not in bounds
+  (let ([ctx '(a b c)] [hist '(d)] [arg "3"])
+    (let-values ([(ctx* hist*) (dive-list ctx hist arg)])
+      (begin (check-equal? ctx*  ctx)
+             (check-equal? hist* hist))))
+
+  ;; -- dive zo (I'm creating these zo structs arbitrarily, using the contracts in 'zo-lib/compiler/zo-structs.rkt')
+  ;; Valid, field is a zo
+  (let* ([z (localref #f 0 #f #f #f)]
+         [ctx (branch #t z #t)]
+         [hist '()]
+         [arg "then"])
+    (let-values ([(ctx* hist*) (dive-zo ctx hist arg)])
+      (begin (check-equal? ctx*  z)
+             (check-equal? hist* (cons ctx hist)))))
+
+  ;; Valid, field is a list of zo
+  (let* ([z (toplevel 999 1 #t #t)]
+         [ctx (def-values (list z z 'arbitrary-symbol) #f)]
+         [hist '(d)]
+         [arg "ids"])
+    (let-values ([(ctx* hist*) (dive-zo ctx hist arg)])
+      (begin (check-equal? ctx*  (list z z))
+             (check-equal? hist* (cons ctx hist)))))
+
+  ;; Invalid, field is not a zo
+  (let* ([z (localref #f 0 #f #f #f)]
+         [ctx (branch #t z #t)]
+         [hist '()]
+         [arg "test"])
+    (let-values ([(ctx* hist*) (dive-zo ctx hist arg)])
+      (begin (check-equal? ctx*  ctx)
+             (check-equal? hist* hist))))
+
+  ;; Invalid, field is a list that does not contain any zo
+  (let* ([z (toplevel 999 1 #t #t)]
+         [ctx (def-values (list z z 'arbitrary-symbol) #f)]
+         [hist '(d)]
+         [arg "rhs"])
+    (let-values ([(ctx* hist*) (dive-zo ctx hist arg)])
+      (begin (check-equal? ctx*  ctx)
+             (check-equal? hist* hist))))
+
+  ;; Invalid, field does not exist
+  (let* ([z (localref #f 0 #f #f #f)]
+         [ctx (branch #t z #t)]
+         [hist '()]
+         [arg ""])
+    (let-values ([(ctx* hist*) (dive-zo ctx hist arg)])
+      (begin (check-equal? ctx*  ctx)
+             (check-equal? hist* hist))))
+
+  ;; -- find
+  ;; Success, search 1 level down
+  (let* ([z (wrap-mark 42)]
+         [ctx (wrapped #f (list z z z) 'tainted)]
+         [arg "find wrap-mark"]
+         [res (find ctx arg)])
+    (check-equal? res (list z z z)))
+  
+  ;; Failure, search 1 level down
+  (let* ([z (wrap-mark 42)]
+         [ctx (wrapped #f (list z z z) 'tainted)]
+         [arg "find mummy"]
+         [res (find ctx arg)])
+    (check-equal? res '()))
+
+  ;; Success, deeper search. Note that the top struct is not in the results
+  (let* ([ctx  (branch #t #t (branch #t #t (branch #t #t (branch #t #t #t))))]
+         [arg "find branch"]
+         [res (find ctx arg)])
+      (begin (check-equal? (length res) 3)
+             (check-equal? (car res) (branch-else ctx))))
+
+  ;; Success, deeper search.
+  (let* ([z (beg0 '())]
+         [ctx  (branch #t #t (branch #t #t (branch #t #t (branch #t z #t))))]
+         [arg "find beg0"]
+         [res (find ctx arg)])
+      (begin (check-equal? (length res) 1)
+             (check-equal? (car res) z)))
+
+  ;; --- history manipulation
+  (check-equal? (push '() 'x) '(x))
+  (check-equal? (push '() '()) '(()))
+
+  (let-values ([(hd tl) (pop '(a b c))])
+    (begin (check-equal? hd 'a)
+           (check-equal? tl '(b c))))
+  (let-values ([(hd tl) (pop '(()))])
+    (begin (check-equal? hd '())
+           (check-equal? tl '())))
+
+  ;; --- printing
+
+  ;; --- parsing
+  ;; Success, has exactly one whitespace
+  (let* ([arg "hey jude"]
+         [res "jude"])
+    (check-equal? (split-snd arg) res))
+
+  ;; Success, but prints warning about extra arguments
+  (let* ([arg "hel lo world"]
+         [res "lo"])
+    (check-equal? (split-snd arg) res))
+
+  ;; Failure, no whitespace
+  (let* ([arg "yolo"]
+         [res #f])
+    (check-equal? (split-snd arg) res))
+
+  ;; Failure, no characters
+  (let* ([arg ""]
+         [res #f])
+    (check-equal? (split-snd arg) res))
+
+) ;; --- end testing
