@@ -279,7 +279,7 @@
 
 (define (let-void-> z field-name)
   ;; (-> let-void? string? (or/c (listof zo?) zo? #f))
-  (cond [(string=? field-name "body") (define body (let-one-body z))
+  (cond [(string=? field-name "body") (define body (let-void-body z))
                                       (cond [(expr-or-seq? body) body]
                                             [else #f])]
         [else #f]))
