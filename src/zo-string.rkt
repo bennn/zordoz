@@ -921,6 +921,37 @@
 ;; --- testing
 
 (module+ test
-  (require rackunit)
-  (check-equal? #t #t)
+  (require rackunit
+           compiler/zo-structs)
+
+  ;; --- API functions
+
+  ;; --- private
+
+  ;; --- helpers
+  ;; any->string
+  (check-equal? (any->string 'any) "any")
+  (check-equal? (any->string "any") "any")
+  (check-equal? (any->string #t) "#t")
+  (check-equal? (any->string (vector 1 2 3)) "#(1 2 3)")
+  (check-equal? (any->string (nominal-path)) "#s((nominal-path zo 0))")
+
+  ;; boolean->string
+  (check-equal? (boolean->string #t) "#t")
+  (check-equal? (boolean->string #f) "#f")
+
+  ;; expr-seq-any->string
+  (check-equal? (expr-seq-any->string (expr)) "<struct:expr>")
+  (check-equal? (expr-seq-any->string (branch #t (expr) (expr))) "<struct:expr>")
+  (check-equal? (expr-seq-any->string (seq '(blah))) "<struct:seq>")
+  (check-equal? (expr-seq-any->string 420) "420")
+  (check-equal? (expr-seq-any->string +) "#<procedure:+>")
+
+  ;; form-or-any->string
+  (check-equal? (form-or-any->string (def-values '() (expr))) "<struct:def-values>")
+  (check-equal? (form-or-any->string (lam 'name '() 3 '() #f '#() '() #f 1 (expr))) "<struct:lam>")
+  (check-equal? (form-or-any->string (zo)) "#s(zo)")
+  (check-equal? (form-or-any->string "()") "()")
+  (check-equal? (form-or-any->string #\H) "H")
+  
 )
