@@ -17,7 +17,7 @@
 ;; --- constants & contracts
 
 (define DEBUG   #f) ;when set, print extra debugging information
-(define VERSION 0.5) ;for aesthetic purposes
+(define VERSION 0.6) ;for aesthetic purposes
 (define VNAME   "outlands") ;also aesthetic
 ;; (define nat? natural-number/c)
 ;; (define context? (or/c zo? (listof zo?)))
@@ -233,12 +233,13 @@
 ;; Print a welcome message (when the user enters the REPL).
 (define (print-welcome)
   ;; (-> void?)
-  (printf "--- Welcome to the .zo shell, version ~a '~a' ---\n" VERSION VNAME))
+  (display
+   (format "\033[1;34m--- Welcome to the .zo shell, version ~a '~a' ---\033[0;0m\n" VERSION VNAME)))
 
 ;; Print the REPL prompt.
 (define (print-prompt)
   ;; (-> void?)
-  (printf "zo> "))
+  (display "\033[1;32mzo> \033[0;0m"))
 
 ;; Print an informative message.
 (define (print-info str)
