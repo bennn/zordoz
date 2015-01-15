@@ -541,7 +541,7 @@
   (let* ([z (expr)])
     (check-equal? (expr-> z "") #f))
 
-  ;; wrapped-> (see below)
+  ;; wrapped->
   (let* ([wps (list (wrap) (wrap) (wrap))]
          [z   (wrapped (void) wps 'tainted)])
     (begin (check-equal? (wrapped-> z "wraps")        wps)
@@ -549,7 +549,7 @@
            (check-equal? (wrapped-> z "tamper-status") #f)
            (check-equal? (wrapped-> z "")              #f)))
 
-  ;; wrap->
+  ;; wrap-> (see below)
   (let* ([z (wrap)])
     (check-equal? (wrap-> z "") #f))
   
@@ -812,7 +812,7 @@
            (check-equal? (localref-> z "pos") #f)
            (check-equal? (localref-> z "clear?") #f)
            (check-equal? (localref-> z "other-clears?") #f)
-           (check-equal? (localref-> z "type?") #f)
+           (check-equal? (localref-> z "type") #f)
            (check-equal? (localref-> z "") #f)))
 
   ;; toplevel->
@@ -861,7 +861,7 @@
            (check-equal? (with-cont-mark-> z* "body") #f)))
 
   ;; beg0->
-  (let* ([z (beg0 (list (expr) 'asdf (expr)))])
+  (let ([z (beg0 (list (expr) 'asdf (expr)))])
     (begin (check-equal? (beg0-> z "seq") (list (expr) (expr)))
            (check-equal? (beg0-> z "")    #f)))
 
