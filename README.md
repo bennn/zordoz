@@ -9,7 +9,9 @@ This is an analyzer for Racket .zo files.
 Usage
 -----
 
-Run `racket main.rkt FILE.zo` to begin interactively exploring the compiled file `FILE.zo`.
+Run `make` to create an executable called `zordoz`.
+You can run this executable by giving it a `.zo` bytecode file: `./zordoz FILE.zo`.
+
 Inside the REPL:
 
 - `back` goes back to the previous context
@@ -18,6 +20,9 @@ Inside the REPL:
 - `help` prints information about these commands
 - `info` prints data about the current context
 - `quit` exits the interpreter
+
+To run tests, execute `make test`.
+Each module in the `src/` folder contains a submodule `test+` containing unit tests.
 
 Background
 ----------
