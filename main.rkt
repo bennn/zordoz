@@ -4,4 +4,4 @@
 
 (require (only-in "src/zo-shell.rkt" init))
 
-(init (vector->list current-command-line-arguments))
+(init (vector->list (current-command-line-arguments)))
