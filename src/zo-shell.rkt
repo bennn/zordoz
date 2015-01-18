@@ -61,9 +61,11 @@
   (print-prompt)
   (define raw (read-line))
   ;; 2015-01-12: Command parsing is currently very simple.
-  (cond [(back? raw) (cond [(empty? hist) (print-unknown raw)
-                                          (repl ctx hist)]
-                           [else          (call-with-values (lambda () (pop hist)) repl)])]
+  (cond [(alias? raw) (print-alias)
+                      (repl ctx hist)]
+        [(back? raw) (cond [(empty? hist) (print-unknown raw)
+                                           (repl ctx hist)]
+                            [else          (call-with-values (lambda () (pop hist)) repl)])]
         [(dive? raw) (call-with-values (lambda () (dive ctx hist raw)) repl)]
         [(find? raw) (cond [(zo? ctx) (define ctx* (find ctx raw))
                                       (if (empty? ctx*)
@@ -81,47 +83,59 @@
 
 ;; --- command predicates
 
+;; ALIAS
+;; No arguments
+(define alst-cmds (list "alst" "a" "alias" "aliases"))
+(define (alias? raw)
+  (member raw alst-cmds))
+
 ;; BACK
 ;; Takes no arguments
+(define back-cmds (list "back" "b" "up" "u" ".." "../" "cd .." "cd ../"))
 (define (back? raw)
   ;; (-> string? boolean?)
-  (member raw (list "back" "b" "up" "u" ".." "../")))
+  (member raw back-cmds))
 
 ;; DIVE ARG
 ;; Takes one argument, a string denoting the field to enter.
+(define dive-cmds (list "dive" "d" "cd" "next" "step"))
 (define (dive? raw)
   ;; (-> string? boolean?)
   (define hd (if (memq #\space (string->list raw))
                  (car (string-split raw))
                  ""))
-  (member hd (list "dive" "next" "step" "d")))
+  (member hd dive-cmds))
 
 ;; FIND ARG
 ;; Takes one argument, a string denoting the struct name to search for.
+(define find-cmds (list "find" "f" "query" "search" "look"))
 (define (find? raw)
   ;; (-> string? boolean?)
   (define hd (if (memq #\space (string->list raw))
                  (car (string-split raw))
                  ""))
-  (member hd (list "find" "f" "query" "search" "look")))
+  (member hd find-cmds))
 
 ;; HELP
 ;; Takes no arguments
+(define help-cmds (list "help" "h" "-h" "--h" "-help" "--help"))
 (define (help? raw)
   ;; (-> string? boolean?)
-  (member raw (list "help" "h" "--h" "--help" "-h" "-help" "fuck")))
+  (member raw help-cmds))
 
 ;; INFO
 ;; Takes no arguments
+(define info-cmds (list "info" "i" "ls" "print" "p" "show"))
 (define (info? raw)
   ;; (-> string? boolean?)
-  (member raw (list "info" "i" "print" "p" "show" "ls")))
+  (member raw info-cmds))
 
 ;; QUIT
 ;; Takes no arguments
+(define quit-cmds (list "quit" "q" "exit"))
 (define (quit? raw)
   ;; (-> string? boolean?)
-  (member raw (list "q" "quit" "exit")))
+  (member raw quit-cmds))
 
 ;; --- command implementations
 
@@ -188,6 +202,18 @@
 
 ;; --- print
 
+(define (print-alias)
+  ;; (-> void?)
+  (displayln (string-join (list "At your service. Command aliases:"
+                                (format "  alst        ~a" (string-join alst-cmds))
+                                (format "  back        ~a" (string-join back-cmds))
+                                (format "  dive        ~a" (string-join dive-cmds))
+                                (format "  find        ~a" (string-join find-cmds))
+                                (format "  help        ~a" (string-join help-cmds))
+                                (format "  info        ~a" (string-join info-cmds))
+                                (format "  quit        ~a" (string-join quit-cmds)))
+                          "\n")))
+
 ;; Print a history object.
 (define (print-history hist)
   ;; (-> history? void?)
@@ -197,6 +223,7 @@
 (define (print-help)
   ;; (-> void?)
   (displayln (string-join (list "At your service. Available commands:"
+                                "  alst        Print command aliases"
                                 "  back        Move up to the previous context"
                                 "  dive ARG    Step into struct field ARG"
                                 "  find ARG    Search the current subtree for structs with the name ARG"
@@ -289,10 +316,21 @@
   (check-equal? (init '(more than 2 args)) (void))
   
   ;; --- command predicates
+  (check-pred alias? "alst")
+  (check-pred alias? "a")
+  (check-pred alias? "alias")
+  (check-pred alias? "aliases")
+
+  (check-false (alias? "alias ARG"))
+  (check-false (alias? "ALIAS"))
+  (check-false (alias? "help"))
+  (check-false (alias? ""))
+
   (check-pred back? "back")
   (check-pred back? "b")
   (check-pred back? "up")
   (check-pred back? "../")
+  (check-pred back? "cd ../")
 
   (check-false (back? "back ARG"))
   (check-false (back? "BACK"))
@@ -302,6 +340,7 @@
   ;; -- DIVE command requires a single argument (doesn't fail for multiple arguments)
   (check-pred dive? "dive ARG")
   (check-pred dive? "d ARG")
+  (check-pred dive? "cd ARG")
   (check-pred dive? "next ARG")
   (check-pred dive? "step ARG1 ARG2 ARG3")
 
@@ -493,7 +532,8 @@
            (check-equal? tl '())))
 
   ;; --- printing
-
+  ;; No tests yet.
+  
   ;; --- parsing
   ;; Success, has exactly one whitespace
   (let* ([arg "hey jude"]
