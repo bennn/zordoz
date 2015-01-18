@@ -76,11 +76,8 @@
                      (repl ctx hist pre-hist)]
         [(info? raw) (print-context ctx)
                      (repl ctx hist pre-hist)]
-        [(jump? raw) (cond [(empty? pre-hist) (print-unknown raw)
-                                              (repl ctx hist pre-hist)]
-                           [else              (let-values ([(hist* pre-hist*) (pop pre-hist)])
-                                                (call-with-values (lambda () (back raw ctx hist* pre-hist*)) repl))])]
-        [(save? raw) (repl ctx '() (push pre-hist (push hist ctx)))]
+        [(jump? raw) (call-with-values (lambda () (jump raw ctx hist pre-hist)) repl)]
+        [(save? raw) (call-with-values (lambda () (save raw ctx hist pre-hist)) repl)]
         [(quit? raw) (print-goodbye)]
         [else        (print-unknown raw)
                      (repl ctx hist pre-hist)]))
@@ -215,6 +212,18 @@
   (printf "FIND returned ~a results\n" (length results))
   results)
 
+;; Jump back to a previously-saved location, if any.
+(define (jump raw ctx hist pre-hist)
+  (cond [(empty? pre-hist) (print-unknown raw)
+                           (values ctx hist pre-hist)]
+        [else              (let-values ([(hist* pre-hist*) (pop pre-hist)])
+                             (back raw ctx hist* pre-hist*))]))
+
+;; Save the current context and history to the pre-history
+;; For now, erases current history. 
+(define (save raw ctx hist pre-hist)
+  (values ctx '() (push pre-hist (push hist ctx))))
+
 ;; --- history
 
 ;; Add the context `ctx` to the stack `hist`.
@@ -347,7 +356,7 @@
   (check-equal? (init '())                 (void))
   (check-equal? (init '(two args))         (void))
   (check-equal? (init '(more than 2 args)) (void))
-  
+
   ;; --- command predicates
   (check-pred alias? "alst")
   (check-pred alias? "a")
