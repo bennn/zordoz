@@ -316,10 +316,21 @@
   (check-equal? (init '(more than 2 args)) (void))
   
   ;; --- command predicates
+  (check-pred alias? "alst")
+  (check-pred alias? "a")
+  (check-pred alias? "alias")
+  (check-pred alias? "aliases")
+
+  (check-false (alias? "alias ARG"))
+  (check-false (alias? "ALIAS"))
+  (check-false (alias? "help"))
+  (check-false (alias? ""))
+
   (check-pred back? "back")
   (check-pred back? "b")
   (check-pred back? "up")
   (check-pred back? "../")
+  (check-pred back? "cd ../")
 
   (check-false (back? "back ARG"))
   (check-false (back? "BACK"))
@@ -329,6 +340,7 @@
   ;; -- DIVE command requires a single argument (doesn't fail for multiple arguments)
   (check-pred dive? "dive ARG")
   (check-pred dive? "d ARG")
+  (check-pred dive? "cd ARG")
   (check-pred dive? "next ARG")
   (check-pred dive? "step ARG1 ARG2 ARG3")
 
@@ -520,7 +532,8 @@
            (check-equal? tl '())))
 
   ;; --- printing
-
+  ;; No tests yet.
+  
   ;; --- parsing
   ;; Success, has exactly one whitespace
   (let* ([arg "hey jude"]
