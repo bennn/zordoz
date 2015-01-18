@@ -578,6 +578,10 @@
       (begin (check-equal? (length res) 1)
              (check-equal? (car res) z)))
 
+  ;; -- back
+  ;; -- jump
+  ;; -- save
+
   ;; --- history manipulation
   (check-equal? (push '() 'x) '(x))
   (check-equal? (push '() '()) '(()))
