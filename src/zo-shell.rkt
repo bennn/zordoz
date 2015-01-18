@@ -52,34 +52,38 @@
 (define (init-repl ctx)
   ;; (-> context? void?)
   (print-welcome)
-  (repl ctx '()))
+  (repl ctx '() '()))
 
 ;; The REPL loop. Process a command using context `ctx` and history `hist`.
-(define (repl ctx hist)
+(define (repl ctx hist pre-hist)
   ;; (-> context? history? void?)
   (when DEBUG (print-history hist))
   (print-prompt)
   (define raw (read-line))
   ;; 2015-01-12: Command parsing is currently very simple.
   (cond [(alias? raw) (print-alias)
-                      (repl ctx hist)]
-        [(back? raw) (cond [(empty? hist) (print-unknown raw)
-                                           (repl ctx hist)]
-                            [else          (call-with-values (lambda () (pop hist)) repl)])]
-        [(dive? raw) (call-with-values (lambda () (dive ctx hist raw)) repl)]
+                      (repl ctx hist pre-hist)]
+        [(back? raw) (call-with-values (lambda () (back raw ctx hist pre-hist)) repl)]
+        [(dive? raw) (let-values ([(ctx* hist*) (dive ctx hist raw)])
+                       (repl ctx* hist* pre-hist))]
         [(find? raw) (cond [(zo? ctx) (define ctx* (find ctx raw))
                                       (if (empty? ctx*)
-                                          (repl ctx hist)
-                                          (repl ctx* (push hist ctx)))]
+                                          (repl ctx hist pre-hist)
+                                          (repl ctx* (push hist ctx) pre-hist))]
                            [else      (print-unknown raw)
-                                      (repl ctx hist)])]
+                                      (repl ctx hist pre-hist)])]
         [(help? raw) (print-help)
-                     (repl ctx hist)]
+                     (repl ctx hist pre-hist)]
         [(info? raw) (print-context ctx)
-                     (repl ctx hist)]
+                     (repl ctx hist pre-hist)]
+        [(jump? raw) (cond [(empty? pre-hist) (print-unknown raw)
+                                              (repl ctx hist pre-hist)]
+                           [else              (let-values ([(hist* pre-hist*) (pop pre-hist)])
+                                                (call-with-values (lambda () (back raw ctx hist* pre-hist*)) repl))])]
+        [(save? raw) (repl ctx '() (push pre-hist (push hist ctx)))]
         [(quit? raw) (print-goodbye)]
         [else        (print-unknown raw)
-                     (repl ctx hist)]))
+                     (repl ctx hist pre-hist)]))
 
 ;; --- command predicates
 
@@ -130,6 +134,19 @@
   ;; (-> string? boolean?)
   (member raw info-cmds))
 
+;; JUMP
+;; No args
+(define jump-cmds (list "jump" "j" "warp"))
+(define (jump? raw)
+  (member raw jump-cmds))
+
+;; SAVE
+;; No args
+(define save-cmds (list "save" "mark"))
+(define (save? raw)
+  ;; (-> string boolean?)
+  (member raw save-cmds))
+
 ;; QUIT
 ;; Takes no arguments
 (define quit-cmds (list "quit" "q" "exit"))
@@ -138,6 +155,18 @@
   (member raw quit-cmds))
 
 ;; --- command implementations
+
+;; Step back to a previous context, if any, and reduce the history.
+;; Try popping from `hist`, fall back to list-of-histories `pre-hist`.
+(define (back raw ctx hist pre-hist)
+  (cond [(and (empty? hist)
+              (empty? pre-hist)) (print-unknown raw)
+                                 (values ctx hist pre-hist)]
+        [(empty? hist)           (let-values ([(hist* pre-hist*) (pop pre-hist)])
+                                   (displayln "BACK removing most recent 'save' mark")
+                                   (back raw ctx hist* pre-hist*))]
+        [else                    (let-values ([(ctx* hist*) (pop hist)])
+                                   (values ctx* hist* pre-hist))]))
 
 ;; Search context `ctx` for a new context matching string `raw`.
 ;; Push `ctx` onto the stack `hist` on success.
@@ -185,7 +214,7 @@
   (define results (if arg (zo-find ctx arg) '()))
   (printf "FIND returned ~a results\n" (length results))
   results)
-               
+
 ;; --- history
 
 ;; Add the context `ctx` to the stack `hist`.
@@ -211,6 +240,8 @@
                                 (format "  find        ~a" (string-join find-cmds))
                                 (format "  help        ~a" (string-join help-cmds))
                                 (format "  info        ~a" (string-join info-cmds))
+                                (format "  jump        ~a" (string-join jump-cmds))
+                                (format "  save        ~a" (string-join save-cmds))
                                 (format "  quit        ~a" (string-join quit-cmds)))
                           "\n")))
 
@@ -229,6 +260,8 @@
                                 "  find ARG    Search the current subtree for structs with the name ARG"
                                 "  help        Print this message"
                                 "  info        Show information about current context"
+                                "  jump        Revert to last saved position"
+                                "  save        Save the current context as jump target"
                                 "  quit        Exit the interpreter"
                                 )
                           "\n")))
@@ -379,6 +412,22 @@
   (check-false (info? "help"))
   (check-false (info? "display"))
   (check-false (info? "write to out"))
+
+  (check-pred jump? "jump")
+  (check-pred jump? "j")
+  (check-pred jump? "warp")
+
+  (check-false (jump? "jump a"))
+  (check-false (jump? "w"))
+
+  (check-pred save? "save")
+  (check-pred save? "s")
+  (check-pred save? "mark")
+
+  (check-false (save? "lasd"))
+  (check-false (save? "step"))
+  (check-false (save? ""))
+  (check-false (save? "save z"))
 
   (check-pred quit? "q")
   (check-pred quit? "quit")
