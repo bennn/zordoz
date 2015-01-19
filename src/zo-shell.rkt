@@ -133,7 +133,7 @@
 
 ;; JUMP
 ;; No args
-(define jump-cmds (list "jump" "j" "warp"))
+(define jump-cmds (list "jump" "j" "warp" "top"))
 (define (jump? raw)
   (member raw jump-cmds))
 
@@ -425,12 +425,12 @@
   (check-pred jump? "jump")
   (check-pred jump? "j")
   (check-pred jump? "warp")
+  (check-pred jump? "top")
 
   (check-false (jump? "jump a"))
   (check-false (jump? "w"))
 
   (check-pred save? "save")
-  (check-pred save? "s")
   (check-pred save? "mark")
 
   (check-false (save? "lasd"))
@@ -579,6 +579,42 @@
              (check-equal? (car res) z)))
 
   ;; -- back
+  ;; - Failure, cannot go back
+  (let* ([ctx      'a]
+         [hist     '()]
+         [pre-hist '()])
+    (let-values ([(ctx* hist* pre-hist*) (back 'foo ctx hist pre-hist)])
+      (begin (check-equal? ctx* ctx)
+             (check-equal? hist* hist)
+             (check-equal? pre-hist* pre-hist))))
+
+  ;; - Success, use hist to go back
+  (let* ([ctx      'a]
+         [hist     '(b)]
+         [pre-hist '()])
+    (let-values ([(ctx* hist* pre-hist*) (back 'foo ctx hist pre-hist)])
+      (begin (check-equal? ctx* 'b)
+             (check-equal? hist* '())
+             (check-equal? pre-hist* pre-hist))))
+
+  ;; - Success, use hist to go back (Do not change pre-hist)
+  (let* ([ctx      'a]
+         [hist     '(b c)]
+         [pre-hist '(x y)])
+    (let-values ([(ctx* hist* pre-hist*) (back 'foo ctx hist pre-hist)])
+      (begin (check-equal? ctx* 'b)
+             (check-equal? hist* (cdr hist))
+             (check-equal? pre-hist* pre-hist))))
+
+  ;; - Success, use pre-hist to go back
+  (let* ([ctx      'z]
+         [hist     '()]
+         [pre-hist '((a b c) (d e f))])
+    (let-values ([(ctx* hist* pre-hist*) (back 'foo ctx hist pre-hist)])
+      (begin (check-equal? ctx* 'a)
+             (check-equal? hist* (cdar pre-hist))
+             (check-equal? pre-hist* (cdr pre-hist)))))
+  
   ;; -- jump
   ;; -- save
 
