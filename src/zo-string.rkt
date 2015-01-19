@@ -341,15 +341,48 @@
                      (list (module-path->spec (vector-ref li 0))
                            (symbol->string      (vector-ref li 1))
                            (any->string         (vector-ref li 2))))))
+  (define;/contract
+    (provides->spec pds)
+    ;(-> (listof (list/c (or/c exact-integer? #f) (listof provided?) (listof provided?))) string?)
+    (define (elem->spec e)
+      (format-list #:sep " "
+                   (list (if (number? (car e))
+                             (number->string (car e))
+                             "#f")
+                         (listof-zo->string provided->spec (cadr e))
+                         (listof-zo->string provided->spec (caddr e)))))
+    (list->string elem->spec pds))
+  (define;/contract
+    (requires->spec rqs)
+    ;(-> (listof (cons/c (or/c exact-integer? #f) (listof module-path-index?))) string?)
+    (define (elem->spec e)
+      (format-list #:sep " "
+                   (list (if (number? (car e))
+                             (number->string (car e))
+                             "#f")
+                         (list->string module-path-index->string (cdr e)))))
+    (list->string elem->spec rqs))
+  (define;/contract
+    (syntax-bodies->spec sbs)
+    ;(-> (listof (cons/c exact-positive-integer? (listof (or/c def-syntaxes? seq-for-syntax?)))) string?)
+    (define (ds-or-sfs->spec d)
+      (cond [(def-syntaxes?   d) (format-spec #f (def-syntaxes->spec d))]
+            [(seq-for-syntax? d) (format-spec #f (seq-for-syntax->spec d))]
+            [else (error "[mod-syntax-bodies->spec] Unexpected arg")]))
+    (define (elem->spec e)
+      (format-list #:sep " "
+                   (list (number->string                 (car e))
+                         (list->string ds-or-sfs->spec (cdr e)))))
+    (list->string elem->spec sbs))
   (list "mod"
         (lcons "name"             (name->spec               (mod-name z)))
         (lcons "srcname"          (symbol->string             (mod-srcname z)))
         (lcons "self-modidx"      (module-path-index->string  (mod-self-modidx z)))
         (lcons "prefix"           (prefix->spec             (mod-prefix z)))
-        (lcons "provides"         (mod-provides->spec       (mod-provides z)))
-        (lcons "requires"         (mod-requires->spec       (mod-requires z)))
+        (lcons "provides"         (provides->spec       (mod-provides z)))
+        (lcons "requires"         (requires->spec       (mod-requires z)))
         (lcons "body"             (listof-form-or-any->string (mod-body z)))
-        (lcons "syntax-bodies"    (mod-syntax-bodies->spec  (mod-syntax-bodies z)))
+        (lcons "syntax-bodies"    (syntax-bodies->spec  (mod-syntax-bodies z)))
         (lcons "unexported"       (unexported->spec         (mod-unexported z)))
         (lcons "max-let-depth"    (number->string             (mod-max-let-depth z)))
         (lcons "dummy"            (toplevel->spec           (mod-dummy z)))
@@ -362,46 +395,6 @@
         (lcons "pre-submodules"   (listof-zo->string mod->spec (mod-pre-submodules z)))
         (lcons "post-submodules"  (listof-zo->string mod->spec (mod-post-submodules z)))))
 
-;; Helper for `mod->spec`. Formats the 'provides' field.
-(define/contract
-  (mod-provides->spec pds)
-  (-> (listof (list/c (or/c exact-integer? #f) (listof provided?) (listof provided?))) string?)
-  (define (elem->spec e)
-    (format-list #:sep " "
-                 (list (if (number? (car e))
-                           (number->string (car e))
-                           "#f")
-                       (listof-zo->string provided->spec (cadr e))
-                       (listof-zo->string provided->spec (caddr e)))))
-  (list->string elem->spec pds))
-
-;; Helper for `mod->spec`. Formats the 'requires' field.
-(define/contract
-  (mod-requires->spec rqs)
-  (-> (listof (cons/c (or/c exact-integer? #f) (listof module-path-index?))) string?)
-  (define (elem->spec e)
-    (format-list #:sep " "
-                 (list (if (number? (car e))
-                           (number->string (car e))
-                           "#f")
-                       (list->string module-path-index->string (cdr e)))))
-  (list->string elem->spec rqs))
-
-;; Helper for `mod->spec`. Formats the 'syntax-bodies' field.
-;; 2014-12-10: Make this less ugly.
-(define/contract
-  (mod-syntax-bodies->spec sbs)
-  (-> (listof (cons/c exact-positive-integer? (listof (or/c def-syntaxes? seq-for-syntax?)))) string?)
-  (define (ds-or-sfs->spec d)
-    (cond [(def-syntaxes?   d) (format-spec #f (def-syntaxes->spec d))]
-          [(seq-for-syntax? d) (format-spec #f (seq-for-syntax->spec d))]
-          [else (error "[mod-syntax-bodies->spec] Unexpected arg")]))
-  (define (elem->spec e)
-    (format-list #:sep " "
-                 (list (number->string                 (car e))
-                       (list->string ds-or-sfs->spec (cdr e)))))
-  (list->string elem->spec sbs))
-                
 (define/contract
   (provided->spec z)
   (-> provided? spec/c)
@@ -607,25 +600,23 @@
 (define/contract
   (lexical-rename->spec z)
   (-> lexical-rename? spec/c)
+  (define/contract
+    (lexical-rename-alist->string alst)
+    (-> (listof (cons/c symbol? (or/c symbol? (cons/c symbol? (or/c (cons/c symbol? (or/c symbol? #f)) free-id-info?))))) string?)
+    (list->string (lambda (x) x)
+                  (for/list ([a alst])
+                    (format "(~a . ~a)"
+                            (car a)
+                            (cond [(symbol? (cdr a)) (cdr a)]
+                                  [else (define a* (cdr a))
+                                        (format "(~a . ~a)"
+                                                (car a*)
+                                                (cond [(free-id-info? (cdr a*)) (free-id-info->spec (cdr a*))]
+                                                      [else                     (cdr a*)]))])))))
   (list "lexical-rename"
         (lcons "has-free-id-renames?" (boolean->string              (lexical-rename-has-free-id-renames? z)))
         (lcons "bool2"                (boolean->string              (lexical-rename-bool2 z)))
         (lcons "alist"                (lexical-rename-alist->string (lexical-rename-alist z)))))
-
-;; 2014-12-10: Make less ugly.
-(define/contract
-  (lexical-rename-alist->string alst)
-  (-> (listof (cons/c symbol? (or/c symbol? (cons/c symbol? (or/c (cons/c symbol? (or/c symbol? #f)) free-id-info?))))) string?)
-  (list->string (lambda (x) x)
-   (for/list ([a alst])
-     (format "(~a . ~a)"
-             (car a)
-             (cond [(symbol? (cdr a)) (cdr a)]
-                   [else (define a* (cdr a))
-                         (format "(~a . ~a)"
-                                 (car a*)
-                                 (cond [(free-id-info? (cdr a*)) (free-id-info->spec (cdr a*))]
-                                       [else                     (cdr a*)]))])))))
 
 (define/contract
   (phase-shift->spec z)

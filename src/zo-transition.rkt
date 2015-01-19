@@ -217,6 +217,17 @@
 
 (define (mod-> z field-name)
   ;; (-> mod? string? (or/c (listof zo?) zo? #f))
+  (define (get-provided pds)
+    ;; (-> (listof (list/c (or/c exact-integer? #f) (listof provided?) (listof provided?))) (listof provided?))
+    (cond [(empty? pds) empty]
+          [else (append (cadar pds)
+                        (caddar pds)
+                        (get-provided (cdr pds)))]))
+  (define (get-syntaxes sxs)
+    ;; (-> (listof (cons/c exact-positive-integer? (listof (or/c def-syntaxes? seq-for-syntax?)))) (listof (or/c def-syntaxes? seq-for-syntax?)))
+    (cond [(empty? sxs) empty]
+          [else (append (cdar sxs)
+                        (get-syntaxes (cdr sxs)))]))
   (cond [(string=? field-name "prefix")           (mod-prefix z)]
         [(string=? field-name "provides")         (get-provided (mod-provides z))]
         [(string=? field-name "body")             (filter form? (mod-body z))]
@@ -229,21 +240,6 @@
         [(string=? field-name "pre-submodules")   (mod-pre-submodules z)]
         [(string=? field-name "post-submodules")  (mod-post-submodules z)]
         [else #f]))
-
-;; Helper for `mod->`, formats the 'provided' field.
-(define (get-provided pds)
-  ;; (-> (listof (list/c (or/c exact-integer? #f) (listof provided?) (listof provided?))) (listof provided?))
-  (cond [(empty? pds) empty]
-        [else (append (cadar pds)
-                      (caddar pds)
-                      (get-provided (cdr pds)))]))
-
-;; Helper for `mod->`, formats the 'syntax-bodies' field.
-(define (get-syntaxes sxs)
-  ;; (-> (listof (cons/c exact-positive-integer? (listof (or/c def-syntaxes? seq-for-syntax?)))) (listof (or/c def-syntaxes? seq-for-syntax?)))
-  (cond [(empty? sxs) empty]
-        [else (append (cdar sxs)
-                      (get-syntaxes (cdr sxs)))]))
 
 (define (provided-> z field-name)
   ;; (-> provided? string? (or/c (listof zo?) zo? #f))
@@ -405,17 +401,14 @@
 
 (define (lexical-rename-> z field-name)
   ;; (-> lexical-rename? string? (or/c (listof zo?) zo? #f))
+  (define (get-free-id-info als)
+    ;; (-> (listof (cons/c symbol? (or/c symbol? (cons/c symbol? (or/c (cons/c symbol? (or/c symbol? #f)) free-id-info?))))) (listof free-id-info?))
+    (for/list ([blah als]
+               #:when (and (pair? (cdr blah))
+                           (free-id-info? (cddr blah))))
+      (cddr blah)))
   (cond [(string=? field-name "alist") (get-free-id-info (lexical-rename-alist z))]
         [else #f]))
-
-;; Helper for `lexical-rename->`, formats the 'alist' field.
-;; 2014-12-11: The contract here is ridiculous, but that's what's documented.
-(define (get-free-id-info als)
-  ;; (-> (listof (cons/c symbol? (or/c symbol? (cons/c symbol? (or/c (cons/c symbol? (or/c symbol? #f)) free-id-info?))))) (listof free-id-info?))
-  (for/list ([blah als]
-             #:when (and (pair? (cdr blah))
-                         (free-id-info? (cddr blah))))
-    (cddr blah)))
   
 (define (phase-shift-> z field-name)
   ;; (-> phase-shift? string? (or/c (listof zo?) zo? #f))
