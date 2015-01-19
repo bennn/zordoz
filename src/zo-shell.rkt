@@ -616,7 +616,58 @@
              (check-equal? pre-hist* (cdr pre-hist)))))
   
   ;; -- jump
+  ;; - Fail, no pre-hist
+  (let* ([ctx      'a]
+         [hist     '(b c d)]
+         [pre-hist '()])
+    (let-values ([(ctx* hist* pre-hist*) (jump 'raw ctx hist pre-hist)])
+      (begin (check-equal? ctx* ctx)
+             (check-equal? hist* hist)
+             (check-equal? pre-hist* pre-hist))))
+
+  ;; - Success! Has pre-hist
+  (let* ([ctx      'z]
+         [hist     '()]
+         [pre-hist '((a b c) (d e f))])
+    (let-values ([(ctx* hist* pre-hist*) (jump 'raw ctx hist pre-hist)])
+      (begin (check-equal? ctx* 'a)
+             (check-equal? hist* (cdar pre-hist))
+             (check-equal? pre-hist* (cdr pre-hist)))))
+
+  ;; - Success, clobber old hist
+  (let* ([ctx      'z]
+         [hist     '(l o l)]
+         [pre-hist '((a b c) (d e f))])
+    (let-values ([(ctx* hist* pre-hist*) (jump 'raw ctx hist pre-hist)])
+      (begin (check-equal? ctx* 'a)
+             (check-equal? hist* (cdar pre-hist))
+             (check-equal? pre-hist* (cdr pre-hist)))))
+
   ;; -- save
+  ;; - Always succeeds, just move hist to the pre-hist
+  (let* ([ctx      'z]
+         [hist     '(l o l)]
+         [pre-hist '((a b c) (d e f))])
+    (let-values ([(ctx* hist* pre-hist*) (save 'raw ctx hist pre-hist)])
+      (begin (check-equal? ctx* 'z)
+             (check-equal? hist* '())
+             (check-equal? pre-hist* (cons (cons ctx hist) pre-hist)))))
+
+  (let* ([ctx      'z]
+         [hist     '()]
+         [pre-hist '()])
+    (let-values ([(ctx* hist* pre-hist*) (save 'raw ctx hist pre-hist)])
+      (begin (check-equal? ctx* 'z)
+             (check-equal? hist* hist)
+             (check-equal? pre-hist* (cons (list ctx) pre-hist)))))
+
+  (let* ([ctx      'z]
+         [hist     '()]
+         [pre-hist '(yolo)])
+    (let-values ([(ctx* hist* pre-hist*) (save 'raw ctx hist pre-hist)])
+      (begin (check-equal? ctx* 'z)
+             (check-equal? hist* hist)
+             (check-equal? pre-hist* '((z) yolo)))))
 
   ;; --- history manipulation
   (check-equal? (push '() 'x) '(x))
