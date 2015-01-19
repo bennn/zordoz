@@ -52,34 +52,35 @@
 (define (init-repl ctx)
   ;; (-> context? void?)
   (print-welcome)
-  (repl ctx '()))
+  (repl ctx '() '()))
 
 ;; The REPL loop. Process a command using context `ctx` and history `hist`.
-(define (repl ctx hist)
+(define (repl ctx hist pre-hist)
   ;; (-> context? history? void?)
   (when DEBUG (print-history hist))
   (print-prompt)
   (define raw (read-line))
   ;; 2015-01-12: Command parsing is currently very simple.
   (cond [(alias? raw) (print-alias)
-                      (repl ctx hist)]
-        [(back? raw) (cond [(empty? hist) (print-unknown raw)
-                                           (repl ctx hist)]
-                            [else          (call-with-values (lambda () (pop hist)) repl)])]
-        [(dive? raw) (call-with-values (lambda () (dive ctx hist raw)) repl)]
+                      (repl ctx hist pre-hist)]
+        [(back? raw) (call-with-values (lambda () (back raw ctx hist pre-hist)) repl)]
+        [(dive? raw) (let-values ([(ctx* hist*) (dive ctx hist raw)])
+                       (repl ctx* hist* pre-hist))]
         [(find? raw) (cond [(zo? ctx) (define ctx* (find ctx raw))
                                       (if (empty? ctx*)
-                                          (repl ctx hist)
-                                          (repl ctx* (push hist ctx)))]
+                                          (repl ctx hist pre-hist)
+                                          (repl ctx* (push hist ctx) pre-hist))]
                            [else      (print-unknown raw)
-                                      (repl ctx hist)])]
+                                      (repl ctx hist pre-hist)])]
         [(help? raw) (print-help)
-                     (repl ctx hist)]
+                     (repl ctx hist pre-hist)]
         [(info? raw) (print-context ctx)
-                     (repl ctx hist)]
+                     (repl ctx hist pre-hist)]
+        [(jump? raw) (call-with-values (lambda () (jump raw ctx hist pre-hist)) repl)]
+        [(save? raw) (call-with-values (lambda () (save raw ctx hist pre-hist)) repl)]
         [(quit? raw) (print-goodbye)]
         [else        (print-unknown raw)
-                     (repl ctx hist)]))
+                     (repl ctx hist pre-hist)]))
 
 ;; --- command predicates
 
@@ -130,6 +131,19 @@
   ;; (-> string? boolean?)
   (member raw info-cmds))
 
+;; JUMP
+;; No args
+(define jump-cmds (list "jump" "j" "warp" "top"))
+(define (jump? raw)
+  (member raw jump-cmds))
+
+;; SAVE
+;; No args
+(define save-cmds (list "save" "mark"))
+(define (save? raw)
+  ;; (-> string boolean?)
+  (member raw save-cmds))
+
 ;; QUIT
 ;; Takes no arguments
 (define quit-cmds (list "quit" "q" "exit"))
@@ -138,6 +152,18 @@
   (member raw quit-cmds))
 
 ;; --- command implementations
+
+;; Step back to a previous context, if any, and reduce the history.
+;; Try popping from `hist`, fall back to list-of-histories `pre-hist`.
+(define (back raw ctx hist pre-hist)
+  (cond [(and (empty? hist)
+              (empty? pre-hist)) (print-unknown raw)
+                                 (values ctx hist pre-hist)]
+        [(empty? hist)           (let-values ([(hist* pre-hist*) (pop pre-hist)])
+                                   (displayln "BACK removing most recent 'save' mark")
+                                   (back raw ctx hist* pre-hist*))]
+        [else                    (let-values ([(ctx* hist*) (pop hist)])
+                                   (values ctx* hist* pre-hist))]))
 
 ;; Search context `ctx` for a new context matching string `raw`.
 ;; Push `ctx` onto the stack `hist` on success.
@@ -185,7 +211,19 @@
   (define results (if arg (zo-find ctx arg) '()))
   (printf "FIND returned ~a results\n" (length results))
   results)
-               
+
+;; Jump back to a previously-saved location, if any.
+(define (jump raw ctx hist pre-hist)
+  (cond [(empty? pre-hist) (print-unknown raw)
+                           (values ctx hist pre-hist)]
+        [else              (let-values ([(hist* pre-hist*) (pop pre-hist)])
+                             (back raw ctx hist* pre-hist*))]))
+
+;; Save the current context and history to the pre-history
+;; For now, erases current history. 
+(define (save raw ctx hist pre-hist)
+  (values ctx '() (push pre-hist (push hist ctx))))
+
 ;; --- history
 
 ;; Add the context `ctx` to the stack `hist`.
@@ -211,6 +249,8 @@
                                 (format "  find        ~a" (string-join find-cmds))
                                 (format "  help        ~a" (string-join help-cmds))
                                 (format "  info        ~a" (string-join info-cmds))
+                                (format "  jump        ~a" (string-join jump-cmds))
+                                (format "  save        ~a" (string-join save-cmds))
                                 (format "  quit        ~a" (string-join quit-cmds)))
                           "\n")))
 
@@ -229,6 +269,8 @@
                                 "  find ARG    Search the current subtree for structs with the name ARG"
                                 "  help        Print this message"
                                 "  info        Show information about current context"
+                                "  jump        Revert to last saved position"
+                                "  save        Save the current context as jump target"
                                 "  quit        Exit the interpreter"
                                 )
                           "\n")))
@@ -314,7 +356,7 @@
   (check-equal? (init '())                 (void))
   (check-equal? (init '(two args))         (void))
   (check-equal? (init '(more than 2 args)) (void))
-  
+
   ;; --- command predicates
   (check-pred alias? "alst")
   (check-pred alias? "a")
@@ -379,6 +421,22 @@
   (check-false (info? "help"))
   (check-false (info? "display"))
   (check-false (info? "write to out"))
+
+  (check-pred jump? "jump")
+  (check-pred jump? "j")
+  (check-pred jump? "warp")
+  (check-pred jump? "top")
+
+  (check-false (jump? "jump a"))
+  (check-false (jump? "w"))
+
+  (check-pred save? "save")
+  (check-pred save? "mark")
+
+  (check-false (save? "lasd"))
+  (check-false (save? "step"))
+  (check-false (save? ""))
+  (check-false (save? "save z"))
 
   (check-pred quit? "q")
   (check-pred quit? "quit")
@@ -519,6 +577,97 @@
          [res (find ctx arg)])
       (begin (check-equal? (length res) 1)
              (check-equal? (car res) z)))
+
+  ;; -- back
+  ;; - Failure, cannot go back
+  (let* ([ctx      'a]
+         [hist     '()]
+         [pre-hist '()])
+    (let-values ([(ctx* hist* pre-hist*) (back 'foo ctx hist pre-hist)])
+      (begin (check-equal? ctx* ctx)
+             (check-equal? hist* hist)
+             (check-equal? pre-hist* pre-hist))))
+
+  ;; - Success, use hist to go back
+  (let* ([ctx      'a]
+         [hist     '(b)]
+         [pre-hist '()])
+    (let-values ([(ctx* hist* pre-hist*) (back 'foo ctx hist pre-hist)])
+      (begin (check-equal? ctx* 'b)
+             (check-equal? hist* '())
+             (check-equal? pre-hist* pre-hist))))
+
+  ;; - Success, use hist to go back (Do not change pre-hist)
+  (let* ([ctx      'a]
+         [hist     '(b c)]
+         [pre-hist '(x y)])
+    (let-values ([(ctx* hist* pre-hist*) (back 'foo ctx hist pre-hist)])
+      (begin (check-equal? ctx* 'b)
+             (check-equal? hist* (cdr hist))
+             (check-equal? pre-hist* pre-hist))))
+
+  ;; - Success, use pre-hist to go back
+  (let* ([ctx      'z]
+         [hist     '()]
+         [pre-hist '((a b c) (d e f))])
+    (let-values ([(ctx* hist* pre-hist*) (back 'foo ctx hist pre-hist)])
+      (begin (check-equal? ctx* 'a)
+             (check-equal? hist* (cdar pre-hist))
+             (check-equal? pre-hist* (cdr pre-hist)))))
+  
+  ;; -- jump
+  ;; - Fail, no pre-hist
+  (let* ([ctx      'a]
+         [hist     '(b c d)]
+         [pre-hist '()])
+    (let-values ([(ctx* hist* pre-hist*) (jump 'raw ctx hist pre-hist)])
+      (begin (check-equal? ctx* ctx)
+             (check-equal? hist* hist)
+             (check-equal? pre-hist* pre-hist))))
+
+  ;; - Success! Has pre-hist
+  (let* ([ctx      'z]
+         [hist     '()]
+         [pre-hist '((a b c) (d e f))])
+    (let-values ([(ctx* hist* pre-hist*) (jump 'raw ctx hist pre-hist)])
+      (begin (check-equal? ctx* 'a)
+             (check-equal? hist* (cdar pre-hist))
+             (check-equal? pre-hist* (cdr pre-hist)))))
+
+  ;; - Success, clobber old hist
+  (let* ([ctx      'z]
+         [hist     '(l o l)]
+         [pre-hist '((a b c) (d e f))])
+    (let-values ([(ctx* hist* pre-hist*) (jump 'raw ctx hist pre-hist)])
+      (begin (check-equal? ctx* 'a)
+             (check-equal? hist* (cdar pre-hist))
+             (check-equal? pre-hist* (cdr pre-hist)))))
+
+  ;; -- save
+  ;; - Always succeeds, just move hist to the pre-hist
+  (let* ([ctx      'z]
+         [hist     '(l o l)]
+         [pre-hist '((a b c) (d e f))])
+    (let-values ([(ctx* hist* pre-hist*) (save 'raw ctx hist pre-hist)])
+      (begin (check-equal? ctx* 'z)
+             (check-equal? hist* '())
+             (check-equal? pre-hist* (cons (cons ctx hist) pre-hist)))))
+
+  (let* ([ctx      'z]
+         [hist     '()]
+         [pre-hist '()])
+    (let-values ([(ctx* hist* pre-hist*) (save 'raw ctx hist pre-hist)])
+      (begin (check-equal? ctx* 'z)
+             (check-equal? hist* hist)
+             (check-equal? pre-hist* (cons (list ctx) pre-hist)))))
+
+  (let* ([ctx      'z]
+         [hist     '()]
+         [pre-hist '(yolo)])
+    (let-values ([(ctx* hist* pre-hist*) (save 'raw ctx hist pre-hist)])
+      (begin (check-equal? ctx* 'z)
+             (check-equal? hist* hist)
+             (check-equal? pre-hist* '((z) yolo)))))
 
   ;; --- history manipulation
   (check-equal? (push '() 'x) '(x))

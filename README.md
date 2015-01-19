@@ -14,11 +14,14 @@ You can run this executable by giving it a `.zo` bytecode file: `./zordoz FILE.z
 
 Inside the REPL:
 
+- `alst` prints all command aliases; for example, the repl treats 'alst' and 'aliases' the same way
 - `back` goes back to the previous context
 - `dive ARG` changes context. For any `<struct:val>` printed by `info`, you can `dive val`. Also, you can `dive i` if `info` prints a list with at least `i` elements.
-- `find ARG` searches for matches to `ARG` and, if successful, changes context to the list of results.
+- `find ARG` searches for matches to `ARG` and, if successful, changes context to the list of results
 - `help` prints information about these commands
 - `info` prints data about the current context
+- `jump` reverts to a previously saved context
+- `save` marks the current context for jumping to, later
 - `quit` exits the interpreter
 
 To run tests, execute `make test`.
