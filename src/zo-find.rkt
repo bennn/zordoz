@@ -23,9 +23,9 @@
 
 ;; Searches a zo-struct `z` recursively for member zo-structs matching the `s`.
 ;; Search terminates after at most `#:limit` recursive calls.
-;; Returns a list of matching zo-structs, excluding the root struct `z`.
+;; Return a list of 'result' structs
 (define (zo-find z str #:limit [lim 10000]) ;;TODO remove the limit
-  ;; (-> zo? string? (listof (cons/c zo? (listof zo?)))
+  ;; (-> zo? string? (listof result?))
   (apply append
          (let-values ([(_ children) (parse-zo z)])
            (for/list ([z* children])

@@ -201,12 +201,13 @@
           [else     (print-unknown (format "dive ~a" field))
                     (values ctx hist)])))
 
-;;
+;; Parse argument, then search for & save results.
 (define (find raw ctx hist pre-hist)
   (define arg (split-snd raw))
   (cond [(and arg (zo? ctx)) (define results (zo-find ctx arg))
                              (printf "FIND returned ~a results\n" (length results))
                              (cond [(empty? results) (values ctx hist pre-hist)]
+                                   ;; Success! Show the results and save them, to allow jumps
                                    [else             (print-context results)
                                                      (printf "FIND automatically saving context\n")
                                                      (save "" results (push hist ctx) pre-hist)])]
