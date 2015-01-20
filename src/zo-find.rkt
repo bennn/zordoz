@@ -5,7 +5,9 @@
 
 (provide
  ;; Search a struct recursively for member zo-structs matching a string.
- zo-find)
+ zo-find
+ ;; Search result: a zo-struct and the path to reach it
+ result result? result-zo result-path)
 
 (require (only-in racket/list empty?)
          (only-in racket/string string-split string-trim)
@@ -17,30 +19,32 @@
 
 ;; --- API functions
 
+(define-struct result (zo path))
+
 ;; Searches a zo-struct `z` recursively for member zo-structs matching the `s`.
 ;; Search terminates after at most `#:limit` recursive calls.
-;; Returns a list of matching zo-structs, excluding the root struct `z`.
-(define (zo-find z str #:limit [lim 10000])
-  ;; (-> zo? string? (listof zo?))
+;; Return a list of 'result' structs
+(define (zo-find z str #:limit [lim 10000]) ;;TODO remove the limit
+  ;; (-> zo? string? (listof result?))
   (apply append
          (let-values ([(_ children) (parse-zo z)])
            (for/list ([z* children])
-             (zo-find-aux z* str 1 lim)))))
+             (zo-find-aux z* '() str 1 lim)))))
 
 ;; --- private functions
 
 ;; Recursive helper for `zo-find`.
 ;; Add the current struct to the results, if it matches.
 ;; Check struct members for matches unless the search has reached its limit.
-(define (zo-find-aux z str i lim)
+(define (zo-find-aux z hist str i lim)
   (define-values (title children) (parse-zo z))
   (define results
-    (cond [(<= lim i) '()]
+    (cond [(and lim (<= lim i)) '()]
           [else (apply append
                        (for/list ([z* children])
-                         (zo-find-aux z* str (add1 i) lim)))]))
+                         (zo-find-aux z* (cons z hist) str (add1 i) lim)))]))
   (if (string=? str title)
-      (cons z results)
+      (cons (make-result z hist) results)
       results))
 
 ;; Return the name of the zo `z` and a list of its child zo structs.
@@ -78,14 +82,24 @@
          [arg "branch"]
          [res (zo-find z arg)])
     (begin (check-equal? (length res) 3)
-           (check-equal? (car res) (branch-else z))))
+           (check-equal? (result-zo (car res))   (branch-else z))
+           (check-equal? (result-path (car res)) '())))
 
   ;; Success, #:limit-ed results
   (let* ([z   (branch #t #t (branch #t #t (branch #t #t (branch #t #t #t))))]
          [arg "branch"]
          [res (zo-find z arg #:limit 2)])
     (begin (check-equal? (length res) 2)
-           (check-equal? (cadr res) (branch-else (branch-else z)))))
+           (check-equal? (result-zo (cadr res)) (branch-else (branch-else z)))
+           (check-equal? (result-path (cadr res)) (list (branch-else z)))))
+
+  ;; This test was problematic in REPL. Should succeed
+  (let* ([tgt (wrap-mark 42)]
+         [z (wrapped #f (list tgt tgt tgt) 'tainted)]
+         [arg "wrap-mark"]
+         [res (zo-find z arg)])
+    (begin (check-equal? (length res) 3)
+           (check-equal? (result-zo (car res)) tgt)))
 
   ;; Fail, no results
   (let* ([z (primval 8)]
@@ -101,23 +115,35 @@
 
   ;; --- private
   ;; -- find-aux
-  ;; Success, search INCLUDES root
+  ;; Success, search INCLUDES root (empty history)
   (let* ([z (primval 8)]
          [arg "primval"]
-         [res (zo-find-aux z arg 1 10)])
-    (check-equal? res (list z)))
+         [res (zo-find-aux z '() arg 1 10)])
+    (begin (check-equal? (length res) 1)
+           (check-equal? (result-zo (car res)) z)
+           (check-equal? (result-path (car res)) '())))
 
-  ;; Failure, search at limit
+  ;; Success, search INCLUDES root (make sure history is passed in result)
   (let* ([z (primval 8)]
          [arg "primval"]
-         [res (zo-find-aux z arg 9 9)])
-    (check-equal? res (list z)))
+         [hist '(a b c d)]
+         [res (zo-find-aux z hist arg 1 10)])
+    (begin (check-equal? (result-zo (car res)) z)
+           (check-equal? (result-path (car res)) hist)))
+
+  ;; Failure, search at limit (remember, find-aux searches the head)
+  (let* ([z (branch #t #t (primval 8))]
+         [arg "primval"]
+         [hist '()]
+         [res (zo-find-aux z hist arg 9 9)])
+    (check-equal? res '()))
 
   ;; Failure, search past limit
-  (let* ([z (primval 8)]
+  (let* ([z (branch #t #t (primval 8))]
          [arg "primval"]
-         [res (zo-find-aux z arg 9 1)])
-    (check-equal? res (list z)))
+         [hist '()]
+         [res (zo-find-aux z hist arg 9 1)])
+    (check-equal? res '()))
 
   ;; Success, searching a few branches
   (let* ([tgt (inline-variant (branch #f #f #f) (branch #f #f #f))]
@@ -125,22 +151,33 @@
                               (seq (list tgt))
                               #f)]
          [arg "inline-variant"]
-         [res (zo-find-aux z arg 1 10)])
-    (check-equal? res (list tgt)))
+         [hist '(a b)]
+         [res (zo-find-aux z hist arg 1 10)])
+    (begin (check-equal? (length res) 1)
+           (check-equal? (result-zo (car res)) tgt)
+           (check-equal? (result-path (car res)) (cons (with-cont-mark-val z) (cons z hist)))))
 
   ;; Success, find multiple results
   (let* ([tgt (topsyntax 1 2 3)]
          [z   (application (beg0 (list (beg0 (list tgt))))
                            (list (primval 3) (primval 4) tgt tgt))]
          [arg "topsyntax"]
-         [res (zo-find-aux z arg 1 10)])
-    (check-equal? res (list tgt tgt tgt)))
+         [hist '(a b c)]
+         [res (zo-find-aux z hist arg 1 10)])
+    (begin (check-equal? (length res) 3)
+           (check-equal? (result-zo (car res)) tgt)
+           (check-equal? (result-zo (cadr res)) tgt)
+           (check-equal? (result-zo (caddr res)) tgt)
+           ;; Verify one history
+           (check-equal? (result-path (car res)) (cons (car (beg0-seq (application-rator z)))
+                                                       (cons (application-rator z)
+                                                             (cons z hist))))))
 
   ;; -- parse-zo
   ;; Simple zo, no interesting fields
   (let ([z (topsyntax 1 2 3)])
     (let-values ([(title children) (parse-zo z)])
-      (begin (check-equal? title             "topsyntax")
+      (begin (check-equal? title "topsyntax")
              (check-equal? (length children) 0))))
 
   ;; Three interesting fields
