@@ -155,7 +155,7 @@
               (empty? pre-hist)) (print-unknown raw)
                                  (values ctx hist pre-hist)]
         [(empty? hist)           (let-values ([(hist* pre-hist*) (pop pre-hist)])
-                                   (displayln "BACK removing most recent 'save' mark")
+                                   (displayln "BACK removing most recent 'save' mark. Be sure to save if you want to continue exploring search result.")
                                    (back raw ctx hist* pre-hist*))]
         [else                    (let-values ([(ctx* hist*) (pop hist)])
                                    (values ctx* hist* pre-hist))]))
