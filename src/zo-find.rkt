@@ -7,7 +7,7 @@
  ;; Search a struct recursively for member zo-structs matching a string.
  zo-find
  ;; Search result: a zo-struct and the path to reach it
- result)
+ result result? result-zo result-path)
 
 (require (only-in racket/list empty?)
          (only-in racket/string string-split string-trim)
@@ -92,6 +92,14 @@
     (begin (check-equal? (length res) 2)
            (check-equal? (result-zo (cadr res)) (branch-else (branch-else z)))
            (check-equal? (result-path (cadr res)) (list (branch-else z)))))
+
+  ;; This test was problematic in REPL. Should succeed
+  (let* ([tgt (wrap-mark 42)]
+         [z (wrapped #f (list tgt tgt tgt) 'tainted)]
+         [arg "wrap-mark"]
+         [res (zo-find z arg)])
+    (begin (check-equal? (length res) 3)
+           (check-equal? (result-zo (car res)) tgt)))
 
   ;; Fail, no results
   (let* ([z (primval 8)]
