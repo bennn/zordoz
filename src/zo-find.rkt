@@ -24,7 +24,7 @@
 ;; Searches a zo-struct `z` recursively for member zo-structs matching the `s`.
 ;; Search terminates after at most `#:limit` recursive calls.
 ;; Return a list of 'result' structs
-(define (zo-find z str #:limit [lim 10000]) ;;TODO remove the limit
+(define (zo-find z str #:limit [lim #f])
   ;; (-> zo? string? (listof result?))
   (apply append
          (let-values ([(_ children) (parse-zo z)])
@@ -33,13 +33,16 @@
 
 ;; --- private functions
 
+;; Closures can loop. Remember them all and check for them.
+;; I guess, nothing else can loop.
+
 ;; Recursive helper for `zo-find`.
 ;; Add the current struct to the results, if it matches.
 ;; Check struct members for matches unless the search has reached its limit.
 (define (zo-find-aux z hist str i lim)
   (define-values (title children) (parse-zo z))
   (define results
-    (cond [(and lim (<= lim i)) '()]
+    (cond [(and lim (<= lim i)) (displayln "shut 'er down") '()]
           [else (apply append
                        (for/list ([z* children])
                          (zo-find-aux z* (cons z hist) str (add1 i) lim)))]))
