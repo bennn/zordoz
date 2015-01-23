@@ -51,7 +51,7 @@
                 (apply append
                        (for/list ([z* children])
                          (zo-find-aux z* (cons z hist) str (add1 i) lim seen*)))]))
-  (if (string=? str title)
+  (if (and (string=? str title) (not (member z seen)))
       (cons (make-result z hist) results)
       results))
 
@@ -180,6 +180,25 @@
            (check-equal? (result-path (car res)) (cons (car (beg0-seq (application-rator z)))
                                                        (cons (application-rator z)
                                                              (cons z hist))))))
+
+  ;; Failure, thing is already seen
+  (let* ([z (closure (lam 'N '() 0 '() #f '#() '() #f 0 #f) 'C)]
+         [arg "lam"]
+         [res (zo-find-aux z '() arg 1 10 (list z))])
+    (begin (check-equal? (length res) 0)))
+  
+  ;; Success, it's a closure but we have not seen it
+  (let* ([z (closure (lam 'N '() 0 '() #f '#() '() #f 0 #f) 'C)]
+         [arg "lam"]
+         [res (zo-find-aux z '() arg 1 10 '())])
+    (begin (check-equal? (length res) 1)
+           (check-equal? (result-zo (car res)) (closure-code z))))
+
+  ;; Checking that we don't add already-seen things
+  (let* ([z (closure (lam 'N '() 0 '() #f '#() '() #f 0 #f) 'C)]
+         [arg "closure"]
+         [res (zo-find-aux z '() arg 1 10 (list z))])
+    (begin (check-equal? (length res) 0)))
 
   ;; -- parse-zo
   ;; Simple zo, no interesting fields
