@@ -29,23 +29,28 @@
   (apply append
          (let-values ([(_ children) (parse-zo z)])
            (for/list ([z* children])
-             (zo-find-aux z* '() str 1 lim)))))
+             (zo-find-aux z* '() str 1 lim '())))))
 
 ;; --- private functions
 
 ;; Closures can loop. Remember them all and check for them.
-;; I guess, nothing else can loop.
+(define (may-loop? str)
+  (member str (list "closure")))
 
 ;; Recursive helper for `zo-find`.
 ;; Add the current struct to the results, if it matches.
 ;; Check struct members for matches unless the search has reached its limit.
-(define (zo-find-aux z hist str i lim)
+(define (zo-find-aux z hist str i lim seen)
   (define-values (title children) (parse-zo z))
   (define results
-    (cond [(and lim (<= lim i)) (displayln "shut 'er down") '()]
-          [else (apply append
+    (cond [(and lim (<= lim i))                    '()]
+          ;; Terminate search if we're seeing a node for the second time
+          [(and (may-loop? title) (member z seen)) '()]
+          ;; Search recursively, remember current node if we might see it again.
+          [else (define seen*   (if (may-loop? title) (cons z seen) seen))
+                (apply append
                        (for/list ([z* children])
-                         (zo-find-aux z* (cons z hist) str (add1 i) lim)))]))
+                         (zo-find-aux z* (cons z hist) str (add1 i) lim seen*)))]))
   (if (string=? str title)
       (cons (make-result z hist) results)
       results))
@@ -121,7 +126,7 @@
   ;; Success, search INCLUDES root (empty history)
   (let* ([z (primval 8)]
          [arg "primval"]
-         [res (zo-find-aux z '() arg 1 10)])
+         [res (zo-find-aux z '() arg 1 10 '())])
     (begin (check-equal? (length res) 1)
            (check-equal? (result-zo (car res)) z)
            (check-equal? (result-path (car res)) '())))
@@ -130,7 +135,7 @@
   (let* ([z (primval 8)]
          [arg "primval"]
          [hist '(a b c d)]
-         [res (zo-find-aux z hist arg 1 10)])
+         [res (zo-find-aux z hist arg 1 10 '())])
     (begin (check-equal? (result-zo (car res)) z)
            (check-equal? (result-path (car res)) hist)))
 
@@ -138,14 +143,14 @@
   (let* ([z (branch #t #t (primval 8))]
          [arg "primval"]
          [hist '()]
-         [res (zo-find-aux z hist arg 9 9)])
+         [res (zo-find-aux z hist arg 9 9 '())])
     (check-equal? res '()))
 
   ;; Failure, search past limit
   (let* ([z (branch #t #t (primval 8))]
          [arg "primval"]
          [hist '()]
-         [res (zo-find-aux z hist arg 9 1)])
+         [res (zo-find-aux z hist arg 9 1 '())])
     (check-equal? res '()))
 
   ;; Success, searching a few branches
@@ -155,7 +160,7 @@
                               #f)]
          [arg "inline-variant"]
          [hist '(a b)]
-         [res (zo-find-aux z hist arg 1 10)])
+         [res (zo-find-aux z hist arg 1 10 '())])
     (begin (check-equal? (length res) 1)
            (check-equal? (result-zo (car res)) tgt)
            (check-equal? (result-path (car res)) (cons (with-cont-mark-val z) (cons z hist)))))
@@ -166,7 +171,7 @@
                            (list (primval 3) (primval 4) tgt tgt))]
          [arg "topsyntax"]
          [hist '(a b c)]
-         [res (zo-find-aux z hist arg 1 10)])
+         [res (zo-find-aux z hist arg 1 10 '())])
     (begin (check-equal? (length res) 3)
            (check-equal? (result-zo (car res)) tgt)
            (check-equal? (result-zo (cadr res)) tgt)
