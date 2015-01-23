@@ -357,11 +357,18 @@
   (require rackunit
            compiler/zo-structs)
 
+  ;; Hijack the print statements
+  (define-values (in out) (make-pipe))
+  (current-output-port out)
+
   ;; --- API
-  ;; -- invalid args for init
+  ;; -- invalid args for init. read-line makes sure some message was printed.
   (check-equal? (init '())                 (void))
+  (check-pred read-line in)
   (check-equal? (init '(two args))         (void))
+  (check-pred read-line in)
   (check-equal? (init '(more than 2 args)) (void))
+  (check-pred read-line in)
 
   ;; --- command predicates
   (check-pred alias? "alst")
@@ -461,12 +468,14 @@
     (let-values ([(ctx* hist*) (dive ctx hist arg)])
       (begin (check-equal? ctx ctx*)
              (check-equal? hist hist*))))
+  (check-pred read-line in)
 
   ;; List out-of-bounds
   (let ([ctx '((a) (b))] [hist '((c) (d))] [arg  "dive 2"])
     (let-values ([(ctx* hist*) (dive ctx hist arg)])
       (begin (check-equal? ctx ctx*)
              (check-equal? hist hist*))))
+  (check-pred read-line in)
 
   ;; List, in-bounds
   (let ([ctx '((a) (b))] [hist '((c) (d))] [arg "dive 0"])
@@ -504,6 +513,7 @@
     (let-values ([(ctx* hist*) (dive ctx hist arg)])
       (begin (check-equal? ctx*  ctx)
              (check-equal? hist* hist))))
+  (check-pred read-line in)
 
   ;; -- dive list
   ;; Valid list access
@@ -517,12 +527,14 @@
     (let-values ([(ctx* hist*) (dive-list ctx hist arg)])
       (begin (check-equal? ctx*  ctx)
              (check-equal? hist* hist))))
+  (check-pred read-line in)
 
   ;; Invalid, index is not in bounds
   (let ([ctx '(a b c)] [hist '(d)] [arg "3"])
     (let-values ([(ctx* hist*) (dive-list ctx hist arg)])
       (begin (check-equal? ctx*  ctx)
              (check-equal? hist* hist))))
+  (check-pred read-line in)
 
   ;; Search results, hist overwritten
   (let ([ctx (list (result (zo) '(a)) 
@@ -562,6 +574,7 @@
     (let-values ([(ctx* hist*) (dive-zo ctx hist arg)])
       (begin (check-equal? ctx*  ctx)
              (check-equal? hist* hist))))
+  (check-pred read-line in)
 
   ;; Invalid, field is a list that does not contain any zo
   (let* ([z (toplevel 999 1 #t #t)]
@@ -571,6 +584,7 @@
     (let-values ([(ctx* hist*) (dive-zo ctx hist arg)])
       (begin (check-equal? ctx*  ctx)
              (check-equal? hist* hist))))
+  (check-pred read-line in)
 
   ;; Invalid, field does not exist
   (let* ([z (localref #f 0 #f #f #f)]
@@ -580,6 +594,7 @@
     (let-values ([(ctx* hist*) (dive-zo ctx hist arg)])
       (begin (check-equal? ctx*  ctx)
              (check-equal? hist* hist))))
+  (check-pred read-line in)
 
   ;; -- find
   ;; Success, search 1 level down
@@ -593,6 +608,9 @@
              (check-equal? (result-path (car ctx*)) '())
              (check-equal? hist* '())
              (check-equal? pre-hist* (cons (cons ctx* (cons ctx hist)) pre-hist)))))
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
 
   ;; Failure, search 1 level down
   (let* ([z (wrap-mark 42)]
@@ -604,6 +622,7 @@
       (begin (check-equal? ctx* ctx)
              (check-equal? hist* hist)
              (check-equal? pre-hist* pre-hist))))
+  (check-pred read-line in)
 
   ;; Success, deeper search. Note that the top struct is not in the results
   (let* ([ctx  (branch #t #t (branch #t #t (branch #t #t (branch #t #t #t))))]
@@ -616,6 +635,9 @@
              (check-equal? (result-path (cadr ctx*)) (list (branch-else ctx)))
              (check-equal? hist* '())
              (check-equal? pre-hist* (cons (cons ctx* (cons ctx hist)) pre-hist)))))
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
 
   ;; Success, deeper search.
   (let* ([z (beg0 '())]
@@ -631,6 +653,9 @@
                                                           (branch-else ctx)))
              (check-equal? hist* '())
              (check-equal? pre-hist* (cons (cons ctx* (cons ctx hist)) pre-hist)))))
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
 
   ;; -- back
   ;; - Failure, cannot go back
@@ -641,6 +666,7 @@
       (begin (check-equal? ctx* ctx)
              (check-equal? hist* hist)
              (check-equal? pre-hist* pre-hist))))
+  (check-pred read-line in)
 
   ;; - Success, use hist to go back
   (let* ([ctx      'a]
@@ -668,6 +694,7 @@
       (begin (check-equal? ctx* 'a)
              (check-equal? hist* (cdar pre-hist))
              (check-equal? pre-hist* (cdr pre-hist)))))
+  (check-pred read-line in)
   
   ;; -- jump
   ;; - Fail, no pre-hist
@@ -678,6 +705,7 @@
       (begin (check-equal? ctx* ctx)
              (check-equal? hist* hist)
              (check-equal? pre-hist* pre-hist))))
+  (check-pred read-line in)
 
   ;; - Success! Has pre-hist
   (let* ([ctx      'z]
@@ -735,7 +763,71 @@
            (check-equal? tl '())))
 
   ;; --- printing
-  ;; No tests yet.
+  (print-alias)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  
+  
+  (print-history '())
+  (check-pred read-line in)
+
+  (print-help)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+
+  (print-context '())
+  (check-pred read-line in)
+
+  (print-context (beg0 '()))
+  (check-pred read-line in)
+  (check-pred read-line in)
+
+  (print-context (list (result (beg0 '()) '())))
+  (check-pred read-line in)
+
+  (print-unknown "")
+  (check-pred read-line in)
+
+  (print-goodbye)
+  (check-pred read-line in)
+  (check-pred read-line in)
+
+  (print-debug "")
+  (check-pred read-line in)
+
+  (print-welcome)
+  (check-pred read-line in)
+
+  (print-prompt) (displayln "")
+  (check-pred read-line in)
+
+  (print-info "")
+  (check-pred read-line in)
+
+  (print-warn "")
+  (check-pred read-line in)
+
+  (print-error "")
+  (check-pred read-line in)
+
+  (print-usage)
+  (check-pred read-line in)
   
   ;; --- parsing
   ;; Success, has exactly one whitespace
@@ -747,6 +839,7 @@
   (let* ([arg "hel lo world"]
          [res "lo"])
     (check-equal? (split-snd arg) res))
+  (check-pred read-line in)
 
   ;; Failure, no whitespace
   (let* ([arg "yolo"]
