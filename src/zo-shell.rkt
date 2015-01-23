@@ -763,6 +763,71 @@
            (check-equal? tl '())))
 
   ;; --- printing
+  (print-alias)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  
+  
+  (print-history '())
+  (check-pred read-line in)
+
+  (print-help)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+  (check-pred read-line in)
+
+  (print-context '())
+  (check-pred read-line in)
+
+  (print-context (beg0 '()))
+  (check-pred read-line in)
+  (check-pred read-line in)
+
+  (print-context (list (result (beg0 '()) '())))
+  (check-pred read-line in)
+
+  (print-unknown "")
+  (check-pred read-line in)
+
+  (print-goodbye)
+  (check-pred read-line in)
+  (check-pred read-line in)
+
+  (print-debug "")
+  (check-pred read-line in)
+
+  (print-welcome)
+  (check-pred read-line in)
+
+  (print-prompt) (displayln "")
+  (check-pred read-line in)
+
+  (print-info "")
+  (check-pred read-line in)
+
+  (print-warn "")
+  (check-pred read-line in)
+
+  (print-error "")
+  (check-pred read-line in)
+
+  (print-usage)
+  (check-pred read-line in)
   
   ;; --- parsing
   ;; Success, has exactly one whitespace
