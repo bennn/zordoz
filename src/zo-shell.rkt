@@ -357,6 +357,9 @@
   (require rackunit
            compiler/zo-structs)
 
+  (define-values (in out) (make-pipe))
+  (current-output-port out)
+
   ;; --- API
   ;; -- invalid args for init
   (check-equal? (init '())                 (void))
