@@ -9,10 +9,10 @@
 
 (require (only-in compiler/zo-parse zo? zo-parse)
          (only-in racket/string string-split string-join)
-         (only-in racket/list   empty?)
          (only-in "zo-find.rkt" zo-find result result? result-zo result-path)
          (only-in "zo-string.rkt" zo->string)
-         (only-in "zo-transition.rkt" transition))
+         (only-in "zo-transition.rkt" transition)
+         racket/match)
 
 ;; --- constants & contracts
 
@@ -31,9 +31,9 @@
 ;; In the future, there may be more entry points.
 (define (init args)
   ;; (-> (listof string?) void?)
-  (cond [(empty? args)       (print-usage)]
-        [(empty? (cdr args)) (init-from-filename (car args))]
-        [else                (print-usage)]))
+  (match args
+    [(list fname) (init-from-filename fname)]
+    [_            (print-usage)]))
 
 ;; --- REPL
 
@@ -61,21 +61,22 @@
   (print-prompt)
   (define raw (read-line))
   ;; 2015-01-12: Command parsing is currently very simple.
-  (cond [(alias? raw) (print-alias)
-                      (repl ctx hist pre-hist)]
-        [(back? raw) (call-with-values (lambda () (back raw ctx hist pre-hist)) repl)]
-        [(dive? raw) (let-values ([(ctx* hist*) (dive ctx hist raw)])
-                       (repl ctx* hist* pre-hist))]
-        [(find? raw) (call-with-values (lambda () (find raw ctx hist pre-hist)) repl)]
-        [(help? raw) (print-help)
-                     (repl ctx hist pre-hist)]
-        [(info? raw) (print-context ctx)
-                     (repl ctx hist pre-hist)]
-        [(jump? raw) (call-with-values (lambda () (jump raw ctx hist pre-hist)) repl)]
-        [(save? raw) (call-with-values (lambda () (save raw ctx hist pre-hist)) repl)]
-        [(quit? raw) (print-goodbye)]
-        [else        (print-unknown raw)
-                     (repl ctx hist pre-hist)]))
+  (match raw
+    [(? alias?) (print-alias)
+                (repl ctx hist pre-hist)]
+    [(? back?)  (call-with-values (lambda () (back raw ctx hist pre-hist)) repl)]
+    [(? dive?)  (let-values ([(ctx* hist*) (dive ctx hist raw)])
+                  (repl ctx* hist* pre-hist))]
+    [(? find?)  (call-with-values (lambda () (find raw ctx hist pre-hist)) repl)]
+    [(? help?)  (print-help)
+                (repl ctx hist pre-hist)]
+    [(? info?)  (print-context ctx)
+                (repl ctx hist pre-hist)]
+    [(? jump?)  (call-with-values (lambda () (jump raw ctx hist pre-hist)) repl)]
+    [(? save?)  (call-with-values (lambda () (save raw ctx hist pre-hist)) repl)]
+    [(? quit?)  (print-goodbye)]
+    [_          (print-unknown raw)
+                (repl ctx hist pre-hist)]))
 
 ;; --- command predicates
 
@@ -151,14 +152,14 @@
 ;; Step back to a previous context, if any, and reduce the history.
 ;; Try popping from `hist`, fall back to list-of-histories `pre-hist`.
 (define (back raw ctx hist pre-hist)
-  (cond [(and (empty? hist)
-              (empty? pre-hist)) (print-unknown raw)
-                                 (values ctx hist pre-hist)]
-        [(empty? hist)           (let-values ([(hist* pre-hist*) (pop pre-hist)])
-                                   (displayln "BACK removing most recent 'save' mark. Be sure to save if you want to continue exploring search result.")
-                                   (back raw ctx hist* pre-hist*))]
-        [else                    (let-values ([(ctx* hist*) (pop hist)])
-                                   (values ctx* hist* pre-hist))]))
+  (match (list hist pre-hist)
+    [(list '() '()) (print-unknown raw)
+                    (values ctx hist pre-hist)]
+    [(list '() _)   (let-values ([(hist* pre-hist*) (pop pre-hist)])
+                      (displayln "BACK removing most recent 'save' mark. Be sure to save if you want to continue exploring search result.")
+                      (back raw ctx hist* pre-hist*))]
+    [_              (let-values ([(ctx* hist*) (pop hist)])
+                      (values ctx* hist* pre-hist))]))
 
 ;; Search context `ctx` for a new context matching string `raw`.
 ;; Push `ctx` onto the stack `hist` on success.
@@ -206,21 +207,23 @@
   (define arg (split-snd raw))
   (cond [(and arg (zo? ctx)) (define results (zo-find ctx arg))
                              (printf "FIND returned ~a results\n" (length results))
-                             (cond [(empty? results) (values ctx hist pre-hist)]
-                                   ;; Success! Show the results and save them, to allow jumps
-                                   [else             (print-context results)
-                                                     (printf "FIND automatically saving context\n")
-                                                     (save "" results (push hist ctx) pre-hist)])]
+                             (match results
+                               ['() (values ctx hist pre-hist)]
+                               ;; Success! Show the results and save them, to allow jumps
+                               [_   (print-context results)
+                                    (printf "FIND automatically saving context\n")
+                                    (save "" results (push hist ctx) pre-hist)])]
         [else      (print-unknown raw)
                    (values ctx hist pre-hist)]))
 
 
 ;; Jump back to a previously-saved location, if any.
 (define (jump raw ctx hist pre-hist)
-  (cond [(empty? pre-hist) (print-unknown raw)
-                           (values ctx hist pre-hist)]
-        [else              (let-values ([(hist* pre-hist*) (pop pre-hist)])
-                             (back raw ctx hist* pre-hist*))]))
+  (match pre-hist
+    ['() (print-unknown raw)
+         (values ctx hist pre-hist)]
+    [_   (let-values ([(hist* pre-hist*) (pop pre-hist)])
+           (back raw ctx hist* pre-hist*))]))
 
 ;; Save the current context and history to the pre-history
 ;; For now, erases current history. 
@@ -344,11 +347,11 @@
 (define (split-snd raw)
   ;; (-> string? (or/c #f string?))
   (define splt (string-split raw))
-  (cond [(empty? splt)             #f]
-        [(empty? (cdr splt))       #f]
-        [(empty? (cdr (cdr splt))) (car (cdr splt))]
-        [else                      (print-warn (format "Ignoring extra arguments: '~a'" (cdr (cdr splt))))
-                                   (car (cdr splt))]))
+  (match splt
+    [(list _ x)       x]
+    [(list _ x ys ...) (print-warn (format "Ignoring extra arguments: '~a'" ys))
+                       x]
+    [_ #f]))
 
 ;; -----------------------------------------------------------------------------
 ;; --- testing
