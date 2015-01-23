@@ -31,9 +31,9 @@
 ;; In the future, there may be more entry points.
 (define (init args)
   ;; (-> (listof string?) void?)
-  (cond [(empty? args)       (print-usage)]
-        [(empty? (cdr args)) (init-from-filename (car args))]
-        [else                (print-usage)]))
+  (if (= (vector-length args) 1)
+      (init-from-filename (car args))
+      (print-usage)))
 
 ;; --- REPL
 
@@ -41,21 +41,16 @@
 (define (init-from-filename name)
   ;; (-> string? void?)
   (print-info (format "Loading bytecode file '~a'..." name))
-  (define port (open-input-file name))
-  (print-info "Parsing bytecode...")
-  (define ctx  (zo-parse port))
-  (print-info "Parsing complete!")
-  (init-repl ctx))
-
-;; Print a welcoming message, initialize REPL history, enter the loop.
-;; Outside functions should call this method instead of `repl` directly.
-(define (init-repl ctx)
-  ;; (-> context? void?)
-  (print-welcome)
-  (repl ctx '() '()))
+  (with-input-from-file name 
+    (lambda ()
+      (print-info "Parsing bytecode...")
+      (define ctx  (zo-parse))
+      (print-info "Parsing complete!")
+      (print-welcome)
+      (repl ctx))))
 
 ;; The REPL loop. Process a command using context `ctx` and history `hist`.
-(define (repl ctx hist pre-hist)
+(define (repl ctx [hist '()] [pre-hist '()])
   ;; (-> context? history? void?)
   (when DEBUG (print-history hist))
   (print-prompt)
@@ -64,8 +59,8 @@
   (cond [(alias? raw) (print-alias)
                       (repl ctx hist pre-hist)]
         [(back? raw) (call-with-values (lambda () (back raw ctx hist pre-hist)) repl)]
-        [(dive? raw) (let-values ([(ctx* hist*) (dive ctx hist raw)])
-                       (repl ctx* hist* pre-hist))]
+        [(dive? raw) (define-values (ctx* hist*) (dive ctx hist raw))
+                     (repl ctx* hist* pre-hist)]
         [(find? raw) (call-with-values (lambda () (find raw ctx hist pre-hist)) repl)]
         [(help? raw) (print-help)
                      (repl ctx hist pre-hist)]
@@ -151,14 +146,21 @@
 ;; Step back to a previous context, if any, and reduce the history.
 ;; Try popping from `hist`, fall back to list-of-histories `pre-hist`.
 (define (back raw ctx hist pre-hist)
-  (cond [(and (empty? hist)
-              (empty? pre-hist)) (print-unknown raw)
-                                 (values ctx hist pre-hist)]
-        [(empty? hist)           (let-values ([(hist* pre-hist*) (pop pre-hist)])
-                                   (displayln "BACK removing most recent 'save' mark. Be sure to save if you want to continue exploring search result.")
-                                   (back raw ctx hist* pre-hist*))]
-        [else                    (let-values ([(ctx* hist*) (pop hist)])
-                                   (values ctx* hist* pre-hist))]))
+  (cond [(and (empty? hist) (empty? pre-hist)) 
+         (print-unknown raw)
+         (values ctx hist pre-hist)]
+        [(empty? hist)
+         (define-values (hist* pre-hist*) (pop pre-hist))
+         (displayln BACK)
+         (back raw ctx hist* pre-hist*)]
+        [else 
+         (define-values (ctx* hist*) (pop hist))
+         (values ctx* hist* pre-hist)]))
+
+(define BACK 
+  (string-append 
+   "BACK removing most recent 'save' mark. "
+   "Be sure to save if you want to continue exploring search result."))
 
 ;; Search context `ctx` for a new context matching string `raw`.
 ;; Push `ctx` onto the stack `hist` on success.
@@ -204,23 +206,30 @@
 ;; Parse argument, then search for & save results.
 (define (find raw ctx hist pre-hist)
   (define arg (split-snd raw))
-  (cond [(and arg (zo? ctx)) (define results (zo-find ctx arg))
-                             (printf "FIND returned ~a results\n" (length results))
-                             (cond [(empty? results) (values ctx hist pre-hist)]
-                                   ;; Success! Show the results and save them, to allow jumps
-                                   [else             (print-context results)
-                                                     (printf "FIND automatically saving context\n")
-                                                     (save "" results (push hist ctx) pre-hist)])]
-        [else      (print-unknown raw)
-                   (values ctx hist pre-hist)]))
+  (cond
+    [(not (and arg (zo? ctx)))
+     (print-unknown raw)
+     (values ctx hist pre-hist)]
+    [else
+     (define results (zo-find ctx arg))
+     (printf "FIND returned ~a results\n" (length results))
+     (if (empty? results)
+         (values ctx hist pre-hist)
+         (begin
+           (print-context results)
+           (printf "FIND automatically saving context\n")
+           (save "" results (push hist ctx) pre-hist)))]))
 
 
 ;; Jump back to a previously-saved location, if any.
 (define (jump raw ctx hist pre-hist)
-  (cond [(empty? pre-hist) (print-unknown raw)
-                           (values ctx hist pre-hist)]
-        [else              (let-values ([(hist* pre-hist*) (pop pre-hist)])
-                             (back raw ctx hist* pre-hist*))]))
+  (cond
+    [(empty? pre-hist)
+     (print-unknown raw)
+     (values ctx hist pre-hist)]
+    [else  
+     (define-values (hist* pre-hist*) (pop pre-hist))
+     (back raw ctx hist* pre-hist*)]))
 
 ;; Save the current context and history to the pre-history
 ;; For now, erases current history. 
@@ -245,17 +254,19 @@
 
 (define (print-alias)
   ;; (-> void?)
-  (displayln (string-join (list "At your service. Command aliases:"
-                                (format "  alst        ~a" (string-join alst-cmds))
-                                (format "  back        ~a" (string-join back-cmds))
-                                (format "  dive        ~a" (string-join dive-cmds))
-                                (format "  find        ~a" (string-join find-cmds))
-                                (format "  help        ~a" (string-join help-cmds))
-                                (format "  info        ~a" (string-join info-cmds))
-                                (format "  jump        ~a" (string-join jump-cmds))
-                                (format "  save        ~a" (string-join save-cmds))
-                                (format "  quit        ~a" (string-join quit-cmds)))
-                          "\n")))
+  (displayln 
+   (string-join
+    (list "At your service. Command aliases:"
+          (format "  alst        ~a" (string-join alst-cmds))
+          (format "  back        ~a" (string-join back-cmds))
+          (format "  dive        ~a" (string-join dive-cmds))
+          (format "  find        ~a" (string-join find-cmds))
+          (format "  help        ~a" (string-join help-cmds))
+          (format "  info        ~a" (string-join info-cmds))
+          (format "  jump        ~a" (string-join jump-cmds))
+          (format "  save        ~a" (string-join save-cmds))
+          (format "  quit        ~a" (string-join quit-cmds)))
+    "\n")))
 
 ;; Print a history object.
 (define (print-history hist)
@@ -265,18 +276,20 @@
 ;; Print a help message for the REPL.
 (define (print-help)
   ;; (-> void?)
-  (displayln (string-join (list "At your service. Available commands:"
-                                "  alst        Print command aliases"
-                                "  back        Move up to the previous context"
-                                "  dive ARG    Step into struct field ARG"
-                                "  find ARG    Search the current subtree for structs with the name ARG"
-                                "  help        Print this message"
-                                "  info        Show information about current context"
-                                "  jump        Revert to last saved position"
-                                "  save        Save the current context as jump target"
-                                "  quit        Exit the interpreter"
-                                )
-                          "\n")))
+  (displayln
+   (string-join
+    (list "At your service. Available commands:"
+          "  alst        Print command aliases"
+          "  back        Move up to the previous context"
+          "  dive ARG    Step into struct field ARG"
+          "  find ARG    Search the current subtree for structs with the name ARG"
+          "  help        Print this message"
+          "  info        Show information about current context"
+          "  jump        Revert to last saved position"
+          "  save        Save the current context as jump target"
+          "  quit        Exit the interpreter"
+          )
+    "\n")))
 
 ;; Print a context.
 (define (print-context ctx)
@@ -347,8 +360,10 @@
   (cond [(empty? splt)             #f]
         [(empty? (cdr splt))       #f]
         [(empty? (cdr (cdr splt))) (car (cdr splt))]
-        [else                      (print-warn (format "Ignoring extra arguments: '~a'" (cdr (cdr splt))))
+        [else                      (print-warn (format IGNORING (cdr (cdr splt))))
                                    (car (cdr splt))]))
+
+(define IGNORING "Ignoring extra arguments: '~a'")
 
 ;; -----------------------------------------------------------------------------
 ;; --- testing
@@ -356,112 +371,112 @@
 (module+ test
   (require rackunit
            compiler/zo-structs)
-
+  
   ;; Hijack the print statements
   (define-values (in out) (make-pipe))
   (current-output-port out)
-
+  
   ;; --- API
   ;; -- invalid args for init. read-line makes sure some message was printed.
-  (check-equal? (init '())                 (void))
+  (check-equal? (init #())                 (void))
   (check-pred read-line in)
-  (check-equal? (init '(two args))         (void))
+  (check-equal? (init #(two args))         (void))
   (check-pred read-line in)
-  (check-equal? (init '(more than 2 args)) (void))
+  (check-equal? (init #(more than 2 args)) (void))
   (check-pred read-line in)
-
+  
   ;; --- command predicates
   (check-pred alias? "alst")
   (check-pred alias? "a")
   (check-pred alias? "alias")
   (check-pred alias? "aliases")
-
+  
   (check-false (alias? "alias ARG"))
   (check-false (alias? "ALIAS"))
   (check-false (alias? "help"))
   (check-false (alias? ""))
-
+  
   (check-pred back? "back")
   (check-pred back? "b")
   (check-pred back? "up")
   (check-pred back? "../")
   (check-pred back? "cd ../")
-
+  
   (check-false (back? "back ARG"))
   (check-false (back? "BACK"))
   (check-false (back? "help"))
   (check-false (back? ""))
-
+  
   ;; -- DIVE command requires a single argument (doesn't fail for multiple arguments)
   (check-pred dive? "dive ARG")
   (check-pred dive? "d ARG")
   (check-pred dive? "cd ARG")
   (check-pred dive? "next ARG")
   (check-pred dive? "step ARG1 ARG2 ARG3")
-
+  
   (check-false (dive? "dive"))
   (check-false (dive? "d"))
   (check-false (dive? "quit"))
   (check-false (dive? "a mistake"))
-
+  
   ;; -- FIND command takes one argument, just like DIVE
   (check-pred find? "find ARG")
   (check-pred find? "f ARG1 ARG2 ARG3")
   (check-pred find? "query ")
   (check-pred find? "search branch")
   (check-pred find? "look up")
-
+  
   (check-false (find? "find"))
   (check-false (find? "back"))
   (check-false (find? "hello world"))
-
+  
   (check-pred help? "help")
   (check-pred help? "h")
   (check-pred help? "--help")
   (check-pred help? "-help")
-
+  
   (check-false (help? 'help))
   (check-false (help? "help me"))
   (check-false (help? "lost"))
   (check-false (help? "stuck, please help"))
-
+  
   (check-pred info? "info")
   (check-pred info? "i")
   (check-pred info? "print")
   (check-pred info? "show")
-
+  
   (check-false (info? "println"))
   (check-false (info? "help"))
   (check-false (info? "display"))
   (check-false (info? "write to out"))
-
+  
   (check-pred jump? "jump")
   (check-pred jump? "j")
   (check-pred jump? "warp")
   (check-pred jump? "top")
-
+  
   (check-false (jump? "jump a"))
   (check-false (jump? "w"))
-
+  
   (check-pred save? "save")
   (check-pred save? "mark")
-
+  
   (check-false (save? "lasd"))
   (check-false (save? "step"))
   (check-false (save? ""))
   (check-false (save? "save z"))
-
+  
   (check-pred quit? "q")
   (check-pred quit? "quit")
   (check-pred quit? "exit")
-
+  
   (check-false (quit? "leave"))
   (check-false (quit? "(quit)"))
   (check-false (quit? "(exit)"))
   (check-false (quit? "get me out of here"))
-
+  
   ;; --- command implementations
-
+  
   ;; -- dive end-to-end
   ;; Invalid command
   (let ([ctx '()] [hist '()] [arg "dive "])
@@ -469,20 +484,20 @@
       (begin (check-equal? ctx ctx*)
              (check-equal? hist hist*))))
   (check-pred read-line in)
-
+  
   ;; List out-of-bounds
   (let ([ctx '((a) (b))] [hist '((c) (d))] [arg  "dive 2"])
     (let-values ([(ctx* hist*) (dive ctx hist arg)])
       (begin (check-equal? ctx ctx*)
              (check-equal? hist hist*))))
   (check-pred read-line in)
-
+  
   ;; List, in-bounds
   (let ([ctx '((a) (b))] [hist '((c) (d))] [arg "dive 0"])
     (let-values ([(ctx* hist*) (dive ctx hist arg)])
       (begin (check-equal? ctx*  (car ctx))
              (check-equal? hist* (cons ctx hist) ))))
-
+  
   ;; List, search results. Ignores current history
   (let ([ctx  (list (result (zo) '()))]
         [hist '((c) (d))]
@@ -490,7 +505,7 @@
     (let-values ([(ctx* hist*) (dive ctx hist arg)])
       (begin (check-equal? ctx*  (result-zo (car ctx)))
              (check-equal? hist* '()))))
-
+  
   ;; List, search results. Ignores current history, overwrites with search result history
   (let ([ctx  (list (result (zo) '(a a a)))]
         [hist '((c) (d))]
@@ -498,7 +513,7 @@
     (let-values ([(ctx* hist*) (dive ctx hist arg)])
       (begin (check-equal? ctx*  (result-zo (car ctx)))
              (check-equal? hist* (result-path (car ctx))))))
-
+  
   ;; zo, valid field
   (let* ([z (wrap)]
          [ctx (wrapped #f (list z z z) 'tainted)]
@@ -507,35 +522,35 @@
     (let-values ([(ctx* hist*) (dive ctx hist arg)])
       (begin (check-equal? ctx*  (list z z z))
              (check-equal? hist* (cons ctx hist) ))))
-
+  
   ;; zo, invalid field
   (let ([ctx (wrapped #f '() 'tainted)] [hist '()] [arg "dive datum"])
     (let-values ([(ctx* hist*) (dive ctx hist arg)])
       (begin (check-equal? ctx*  ctx)
              (check-equal? hist* hist))))
   (check-pred read-line in)
-
+  
   ;; -- dive list
   ;; Valid list access
   (let ([ctx '(a b c)] [hist '(d)] [arg "2"])
     (let-values ([(ctx* hist*) (dive-list ctx hist arg)])
       (begin (check-equal? ctx*  (caddr ctx))
              (check-equal? hist* (cons ctx hist)))))
-
+  
   ;; Invalid, index is not an integer
   (let ([ctx '(a)] [hist '()] [arg "x"])
     (let-values ([(ctx* hist*) (dive-list ctx hist arg)])
       (begin (check-equal? ctx*  ctx)
              (check-equal? hist* hist))))
   (check-pred read-line in)
-
+  
   ;; Invalid, index is not in bounds
   (let ([ctx '(a b c)] [hist '(d)] [arg "3"])
     (let-values ([(ctx* hist*) (dive-list ctx hist arg)])
       (begin (check-equal? ctx*  ctx)
              (check-equal? hist* hist))))
   (check-pred read-line in)
-
+  
   ;; Search results, hist overwritten
   (let ([ctx (list (result (zo) '(a)) 
                    (result (expr) '(b)) 
@@ -546,8 +561,9 @@
     (let-values ([(ctx* hist*) (dive-list ctx hist arg)])
       (begin (check-equal? ctx*  (result-zo (cadddr ctx)))
              (check-equal? hist* (result-path (cadddr ctx))))))
-
-  ;; -- dive zo (I'm creating these zo structs arbitrarily, using the contracts in 'zo-lib/compiler/zo-structs.rkt')
+  
+  ;; -- dive zo (I'm creating these zo structs arbitrarily, 
+  ;; using the contracts in 'zo-lib/compiler/zo-structs.rkt')
   ;; Valid, field is a zo
   (let* ([z (localref #f 0 #f #f #f)]
          [ctx (branch #t z #t)]
@@ -556,7 +572,7 @@
     (let-values ([(ctx* hist*) (dive-zo ctx hist arg)])
       (begin (check-equal? ctx*  z)
              (check-equal? hist* (cons ctx hist)))))
-
+  
   ;; Valid, field is a list of zo
   (let* ([z (toplevel 999 1 #t #t)]
          [ctx (def-values (list z z 'arbitrary-symbol) #f)]
@@ -565,7 +581,7 @@
     (let-values ([(ctx* hist*) (dive-zo ctx hist arg)])
       (begin (check-equal? ctx*  (list z z))
              (check-equal? hist* (cons ctx hist)))))
-
+  
   ;; Invalid, field is not a zo
   (let* ([z (localref #f 0 #f #f #f)]
          [ctx (branch #t z #t)]
@@ -575,7 +591,7 @@
       (begin (check-equal? ctx*  ctx)
              (check-equal? hist* hist))))
   (check-pred read-line in)
-
+  
   ;; Invalid, field is a list that does not contain any zo
   (let* ([z (toplevel 999 1 #t #t)]
          [ctx (def-values (list z z 'arbitrary-symbol) #f)]
@@ -585,7 +601,7 @@
       (begin (check-equal? ctx*  ctx)
              (check-equal? hist* hist))))
   (check-pred read-line in)
-
+  
   ;; Invalid, field does not exist
   (let* ([z (localref #f 0 #f #f #f)]
          [ctx (branch #t z #t)]
@@ -595,7 +611,7 @@
       (begin (check-equal? ctx*  ctx)
              (check-equal? hist* hist))))
   (check-pred read-line in)
-
+  
   ;; -- find
   ;; Success, search 1 level down
   (let* ([z (wrap-mark 42)]
@@ -611,7 +627,7 @@
   (check-pred read-line in)
   (check-pred read-line in)
   (check-pred read-line in)
-
+  
   ;; Failure, search 1 level down
   (let* ([z (wrap-mark 42)]
          [ctx (wrapped #f (list z z z) 'tainted)]
@@ -623,7 +639,7 @@
              (check-equal? hist* hist)
              (check-equal? pre-hist* pre-hist))))
   (check-pred read-line in)
-
+  
   ;; Success, deeper search. Note that the top struct is not in the results
   (let* ([ctx  (branch #t #t (branch #t #t (branch #t #t (branch #t #t #t))))]
          [raw "find branch"]
@@ -638,7 +654,7 @@
   (check-pred read-line in)
   (check-pred read-line in)
   (check-pred read-line in)
-
+  
   ;; Success, deeper search.
   (let* ([z (beg0 '())]
          [ctx  (branch #t #t (branch #t #t (branch #t #t (branch #t z #t))))]
@@ -646,17 +662,18 @@
          [hist '(asa)]
          [pre-hist '(b c s)])
     (let-values ([(ctx* hist* pre-hist*) (find raw ctx hist pre-hist)])
-      (begin (check-equal? (length ctx*) 1)
-             (check-equal? (result-zo (car ctx*)) (branch-then (branch-else (branch-else (branch-else ctx)))))
-             (check-equal? (result-path (car ctx*)) (list (branch-else (branch-else (branch-else ctx)))
-                                                          (branch-else (branch-else ctx))
-                                                          (branch-else ctx)))
-             (check-equal? hist* '())
-             (check-equal? pre-hist* (cons (cons ctx* (cons ctx hist)) pre-hist)))))
+      (check-equal? (length ctx*) 1)
+      (check-equal? (result-zo (car ctx*)) 
+                    (branch-then (branch-else (branch-else (branch-else ctx)))))
+      (check-equal? (result-path (car ctx*)) (list (branch-else (branch-else (branch-else ctx)))
+                                                   (branch-else (branch-else ctx))
+                                                   (branch-else ctx)))
+      (check-equal? hist* '())
+      (check-equal? pre-hist* (cons (cons ctx* (cons ctx hist)) pre-hist))))
   (check-pred read-line in)
   (check-pred read-line in)
   (check-pred read-line in)
-
+  
   ;; -- back
   ;; - Failure, cannot go back
   (let* ([ctx      'a]
@@ -667,7 +684,7 @@
              (check-equal? hist* hist)
              (check-equal? pre-hist* pre-hist))))
   (check-pred read-line in)
-
+  
   ;; - Success, use hist to go back
   (let* ([ctx      'a]
          [hist     '(b)]
@@ -676,7 +693,7 @@
       (begin (check-equal? ctx* 'b)
              (check-equal? hist* '())
              (check-equal? pre-hist* pre-hist))))
-
+  
   ;; - Success, use hist to go back (Do not change pre-hist)
   (let* ([ctx      'a]
          [hist     '(b c)]
@@ -685,7 +702,7 @@
       (begin (check-equal? ctx* 'b)
              (check-equal? hist* (cdr hist))
              (check-equal? pre-hist* pre-hist))))
-
+  
   ;; - Success, use pre-hist to go back
   (let* ([ctx      'z]
          [hist     '()]
@@ -706,7 +723,7 @@
              (check-equal? hist* hist)
              (check-equal? pre-hist* pre-hist))))
   (check-pred read-line in)
-
+  
   ;; - Success! Has pre-hist
   (let* ([ctx      'z]
          [hist     '()]
@@ -715,7 +732,7 @@
       (begin (check-equal? ctx* 'a)
              (check-equal? hist* (cdar pre-hist))
              (check-equal? pre-hist* (cdr pre-hist)))))
-
+  
   ;; - Success, clobber old hist
   (let* ([ctx      'z]
          [hist     '(l o l)]
@@ -724,7 +741,7 @@
       (begin (check-equal? ctx* 'a)
              (check-equal? hist* (cdar pre-hist))
              (check-equal? pre-hist* (cdr pre-hist)))))
-
+  
   ;; -- save
   ;; - Always succeeds, just move hist to the pre-hist
   (let* ([ctx      'z]
@@ -734,7 +751,7 @@
       (begin (check-equal? ctx* 'z)
              (check-equal? hist* '())
              (check-equal? pre-hist* (cons (cons ctx hist) pre-hist)))))
-
+  
   (let* ([ctx      'z]
          [hist     '()]
          [pre-hist '()])
@@ -742,7 +759,7 @@
       (begin (check-equal? ctx* 'z)
              (check-equal? hist* hist)
              (check-equal? pre-hist* (cons (list ctx) pre-hist)))))
-
+  
   (let* ([ctx      'z]
          [hist     '()]
          [pre-hist '(yolo)])
@@ -750,18 +767,18 @@
       (begin (check-equal? ctx* 'z)
              (check-equal? hist* hist)
              (check-equal? pre-hist* '((z) yolo)))))
-
+  
   ;; --- history manipulation
   (check-equal? (push '() 'x) '(x))
   (check-equal? (push '() '()) '(()))
-
+  
   (let-values ([(hd tl) (pop '(a b c))])
     (begin (check-equal? hd 'a)
            (check-equal? tl '(b c))))
   (let-values ([(hd tl) (pop '(()))])
     (begin (check-equal? hd '())
            (check-equal? tl '())))
-
+  
   ;; --- printing
   (print-alias)
   (check-pred read-line in)
@@ -778,7 +795,7 @@
   
   (print-history '())
   (check-pred read-line in)
-
+  
   (print-help)
   (check-pred read-line in)
   (check-pred read-line in)
@@ -790,42 +807,42 @@
   (check-pred read-line in)
   (check-pred read-line in)
   (check-pred read-line in)
-
+  
   (print-context '())
   (check-pred read-line in)
-
+  
   (print-context (beg0 '()))
   (check-pred read-line in)
   (check-pred read-line in)
-
+  
   (print-context (list (result (beg0 '()) '())))
   (check-pred read-line in)
-
+  
   (print-unknown "")
   (check-pred read-line in)
-
+  
   (print-goodbye)
   (check-pred read-line in)
   (check-pred read-line in)
-
+  
   (print-debug "")
   (check-pred read-line in)
-
+  
   (print-welcome)
   (check-pred read-line in)
-
+  
   (print-prompt) (displayln "")
   (check-pred read-line in)
-
+  
   (print-info "")
   (check-pred read-line in)
-
+  
   (print-warn "")
   (check-pred read-line in)
-
+  
   (print-error "")
   (check-pred read-line in)
-
+  
   (print-usage)
   (check-pred read-line in)
   
@@ -834,21 +851,21 @@
   (let* ([arg "hey jude"]
          [res "jude"])
     (check-equal? (split-snd arg) res))
-
+  
   ;; Success, but prints warning about extra arguments
   (let* ([arg "hel lo world"]
          [res "lo"])
     (check-equal? (split-snd arg) res))
   (check-pred read-line in)
-
+  
   ;; Failure, no whitespace
   (let* ([arg "yolo"]
          [res #f])
     (check-equal? (split-snd arg) res))
-
+  
   ;; Failure, no characters
   (let* ([arg ""]
          [res #f])
     (check-equal? (split-snd arg) res))
-
-) ;; --- end testing
+  
+  ) ;; --- end testing

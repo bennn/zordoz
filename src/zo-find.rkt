@@ -4,6 +4,7 @@
 ;; Explores the current struct's fields recursively for a exact string match.
 
 (provide
+ ;; (-> zo? string? (listof result?))
  ;; Search a struct recursively for member zo-structs matching a string.
  zo-find
  ;; Search result: a zo-struct and the path to reach it
@@ -19,17 +20,14 @@
 
 ;; --- API functions
 
-(define-struct result (zo path))
+(struct result (zo path) #:transparent)
 
 ;; Searches a zo-struct `z` recursively for member zo-structs matching the `s`.
 ;; Search terminates after at most `#:limit` recursive calls.
 ;; Return a list of 'result' structs
 (define (zo-find z str #:limit [lim #f])
-  ;; (-> zo? string? (listof result?))
-  (apply append
-         (let-values ([(_ children) (parse-zo z)])
-           (for/list ([z* children])
-             (zo-find-aux z* '() str 1 lim '())))))
+  (define-values (_ children) (parse-zo z))
+  (apply append (for/list ([z* children]) (zo-find-aux z* '() str 1 lim '()))))
 
 ;; --- private functions
 
@@ -52,7 +50,7 @@
                        (for/list ([z* children])
                          (zo-find-aux z* (cons z hist) str (add1 i) lim seen*)))]))
   (if (and (string=? str title) (not (member z seen)))
-      (cons (make-result z hist) results)
+      (cons (result z hist) results)
       results))
 
 ;; Return the name of the zo `z` and a list of its child zo structs.
@@ -81,26 +79,34 @@
 ;; --- testing
 
 (module+ test
-  (require rackunit
-           compiler/zo-structs)
-
+  (require rackunit compiler/zo-structs)
+  
+  (define-syntax-rule
+    (test-something msg (zo-find-extras ...) selector selector2 selector3 ...)
+    (let* ([z   (branch #t #t (branch #t #t (branch #t #t (branch #t #t #t))))]
+         [arg "branch"]
+         [res (zo-find z arg zo-find-extras ...)])
+    (check-equal? (length res) 3 msg)
+    (check-equal? (result-zo (selector res)) (selector3 (selector2 z)) msg)
+    (check-equal? (result-path (selector res)) '())) msg)
+  
   ;; --- API
   ;; Success, one search path
   (let* ([z   (branch #t #t (branch #t #t (branch #t #t (branch #t #t #t))))]
          [arg "branch"]
          [res (zo-find z arg)])
-    (begin (check-equal? (length res) 3)
-           (check-equal? (result-zo (car res))   (branch-else z))
-           (check-equal? (result-path (car res)) '())))
-
+    (check-equal? (length res) 3)
+    (check-equal? (result-zo (car res))   (branch-else z))
+    (check-equal? (result-path (car res)) '()))
+  
   ;; Success, #:limit-ed results
   (let* ([z   (branch #t #t (branch #t #t (branch #t #t (branch #t #t #t))))]
          [arg "branch"]
          [res (zo-find z arg #:limit 2)])
-    (begin (check-equal? (length res) 2)
-           (check-equal? (result-zo (cadr res)) (branch-else (branch-else z)))
-           (check-equal? (result-path (cadr res)) (list (branch-else z)))))
-
+    (check-equal? (length res) 2)
+    (check-equal? (result-zo (cadr res)) (branch-else (branch-else z)))
+    (check-equal? (result-path (cadr res)) (list (branch-else z))))
+  
   ;; This test was problematic in REPL. Should succeed
   (let* ([tgt (wrap-mark 42)]
          [z (wrapped #f (list tgt tgt tgt) 'tainted)]
@@ -108,19 +114,19 @@
          [res (zo-find z arg)])
     (begin (check-equal? (length res) 3)
            (check-equal? (result-zo (car res)) tgt)))
-
+  
   ;; Fail, no results
   (let* ([z (primval 8)]
          [arg "apply-values"]
          [res (zo-find z arg)])
     (check-equal? res '()))
-
+  
   ;; Fail, search excludes root
   (let* ([z (primval 8)]
          [arg "primval"]
          [res (zo-find z arg)])
     (check-equal? res '()))
-
+  
   ;; --- private
   ;; -- find-aux
   ;; Success, search INCLUDES root (empty history)
@@ -130,7 +136,7 @@
     (begin (check-equal? (length res) 1)
            (check-equal? (result-zo (car res)) z)
            (check-equal? (result-path (car res)) '())))
-
+  
   ;; Success, search INCLUDES root (make sure history is passed in result)
   (let* ([z (primval 8)]
          [arg "primval"]
@@ -138,21 +144,21 @@
          [res (zo-find-aux z hist arg 1 10 '())])
     (begin (check-equal? (result-zo (car res)) z)
            (check-equal? (result-path (car res)) hist)))
-
+  
   ;; Failure, search at limit (remember, find-aux searches the head)
   (let* ([z (branch #t #t (primval 8))]
          [arg "primval"]
          [hist '()]
          [res (zo-find-aux z hist arg 9 9 '())])
     (check-equal? res '()))
-
+  
   ;; Failure, search past limit
   (let* ([z (branch #t #t (primval 8))]
          [arg "primval"]
          [hist '()]
          [res (zo-find-aux z hist arg 9 1 '())])
     (check-equal? res '()))
-
+  
   ;; Success, searching a few branches
   (let* ([tgt (inline-variant (branch #f #f #f) (branch #f #f #f))]
          [z   (with-cont-mark (let-one (boxenv 7 #f) (localref #t 1 #t #t #f) #f #t)
@@ -164,7 +170,7 @@
     (begin (check-equal? (length res) 1)
            (check-equal? (result-zo (car res)) tgt)
            (check-equal? (result-path (car res)) (cons (with-cont-mark-val z) (cons z hist)))))
-
+  
   ;; Success, find multiple results
   (let* ([tgt (topsyntax 1 2 3)]
          [z   (application (beg0 (list (beg0 (list tgt))))
@@ -180,7 +186,7 @@
            (check-equal? (result-path (car res)) (cons (car (beg0-seq (application-rator z)))
                                                        (cons (application-rator z)
                                                              (cons z hist))))))
-
+  
   ;; Failure, thing is already seen
   (let* ([z (closure (lam 'N '() 0 '() #f '#() '() #f 0 #f) 'C)]
          [arg "lam"]
@@ -193,34 +199,34 @@
          [res (zo-find-aux z '() arg 1 10 '())])
     (begin (check-equal? (length res) 1)
            (check-equal? (result-zo (car res)) (closure-code z))))
-
+  
   ;; Checking that we don't add already-seen things
   (let* ([z (closure (lam 'N '() 0 '() #f '#() '() #f 0 #f) 'C)]
          [arg "closure"]
          [res (zo-find-aux z '() arg 1 10 (list z))])
     (begin (check-equal? (length res) 0)))
-
+  
   ;; -- parse-zo
   ;; Simple zo, no interesting fields
   (let ([z (topsyntax 1 2 3)])
     (let-values ([(title children) (parse-zo z)])
       (begin (check-equal? title "topsyntax")
              (check-equal? (length children) 0))))
-
+  
   ;; Three interesting fields
   (let ([z (branch (branch #t #t #t) (branch #t #t #f) (branch #t #f #f))])
     (let-values ([(title children) (parse-zo z)])
       (begin (check-equal? title             "branch")
              (check-equal? (length children) 3)
              (check-equal? (car children)    (branch #t #t #t)))))
-
+  
   ;; 2 of 3 fields are interesting
   (let ([z (branch #f (branch #t #t #f) (branch #t #f #f))])
     (let-values ([(title children) (parse-zo z)])
       (begin (check-equal? title             "branch")
              (check-equal? (length children) 2)
              (check-equal? (car children)    (branch #t #t #f)))))
-
+  
   ;; Nested children are not returned
   (let* ([tgt (beg0 (list (beg0 '())))]
          [z (apply-values tgt
@@ -229,7 +235,7 @@
       (begin (check-equal? title            "apply-values")
              (check-equal? (length children) 2)
              (check-equal? (car children)    tgt))))
-
+  
   ;; -- get-children
   ;; Two valid fields, only 1 result
   (let* ([tgt  (toplevel 1 1 #t #f)]
@@ -238,7 +244,7 @@
          [res  (get-children z args)])
     (begin (check-equal? (length res) 1)
            (check-equal? (car res) tgt)))
-
+  
   ;; Two fields, 2 results
   (let* ([tgt  (lam 'name '() 0 '() #f '#() '() #f 0 #f)]
          [z    (inline-variant tgt (let-rec '() #f))]
@@ -246,7 +252,7 @@
          [res  (get-children z args)])
     (begin (check-equal? (length res) 2)
            (check-pred (lambda (x) (memq tgt res)) '())))
-
+  
   ;; Only search 1 of 2 possible fields
   (let* ([tgt  (lam 'name '() 0 '() #f '#() '() #f 0 #f)]
          [z    (inline-variant tgt (let-rec '() #f))]
@@ -254,23 +260,23 @@
          [res  (get-children z args)])
     (begin (check-equal? (length res) 1)
            (check-equal? (car res) tgt)))
-
+  
   ;; Failure, search no valid fields
   (let* ([tgt  (lam 'name '() 0 '() #f '#() '() #f 0 #f)]
          [z    (inline-variant tgt (let-rec '() #f))]
          [args '()]
          [res  (get-children z args)])
     (check-equal? (length res) 0))
-
+  
   (let* ([tgt  (lam 'name '() 0 '() #f '#() '() #f 0 #f)]
          [z    (inline-variant tgt (let-rec '() #f))]
          [args (list "outline" "NOTHING")]
          [res  (get-children z args)])
     (check-equal? (length res) 0))
-
+  
   ;; Failure, no fields are zo
   (let* ([z    (let-void 777 #f 'NOTHING)]
          [args (list "count" "boxes?" "body" "something" "anything" "zo")]
          [res  (get-children z args)])
     (check-equal? (length res) 0))
-)
+  )
