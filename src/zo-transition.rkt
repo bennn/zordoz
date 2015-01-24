@@ -46,80 +46,86 @@
 
 (define try-transition
   (make-table
-   [compilation-top? compilation-top->]
-   [prefix? prefix->]
-   [global-bucket? global-bucket->]
-   [module-variable? module-variable->]
-   [stx? stx->]
-   [form? form->]
-   [wrapped? wrapped->]
-   [wrap? wrap->]
-   [free-id-info? free-id-info->]
-   [all-from-module? all-from-module->]
-   [module-binding? module-binding->]
-   [nominal-path? nominal-path->]
-   [provided? provided->]))
+   #:action ->
+   compilation-top
+   prefix
+   global-bucket
+   module-variable
+   stx
+   form
+   wrapped
+   wrap
+   free-id-info
+   all-from-module
+   module-binding
+   nominal-path
+   provided))
 
 (define form->
   (make-table
-    [def-values? def-values->]
-    [def-syntaxes? def-syntaxes->]
-    [seq-for-syntax? seq-for-syntax->]
-    [req? req->]
-    [seq? seq->]
-    [splice? splice->]
-    [inline-variant? inline-variant->]
-    [mod? mod->]
-    [provided? provided->]
-    [expr? expr->]))
+   #:action ->
+   def-values
+   def-syntaxes
+   seq-for-syntax
+   req
+   seq
+   splice
+   inline-variant
+   mod
+   provided
+   expr))
 
 (define expr->
   (make-table
-    [lam? lam->]
-    [closure? closure->]
-    [case-lam? case-lam->]
-    [let-one? let-one->]
-    [let-void? let-void->]
-    [install-value? install-value->]
-    [let-rec? let-rec->]
-    [boxenv? boxenv->]
-    [localref? localref->]
-    [toplevel? toplevel->]
-    [topsyntax? topsyntax->]
-    [application? application->]
-    [branch? branch->]
-    [with-cont-mark? with-cont-mark->]
-    [beg0? beg0->]
-    [varref? varref->]
-    [assign? assign->]
-    [apply-values? apply-values->]
-    [primval? primval->]))
+   #:action ->
+   lam
+   closure
+   case-lam
+   let-one
+   let-void
+   install-value
+   let-rec
+   boxenv
+   localref
+   toplevel
+   topsyntax
+   application
+   branch
+   with-cont-mark
+   beg0
+   varref
+   assign
+   apply-values
+   primval))
 
 (define wrap->
   (make-table
-    [top-level-rename? top-level-rename->]
-    [mark-barrier? mark-barrier->]
-    [lexical-rename? lexical-rename->]
-    [phase-shift? phase-shift->]
-    [module-rename? module-rename->]
-    [wrap-mark? wrap-mark->]
-    [prune? prune->]))
+   #:action ->
+   top-level-rename
+   mark-barrier
+   lexical-rename
+   phase-shift
+   module-rename
+   wrap-mark
+   prune))
 
 (define module-binding->
   (make-table
-  [simple-module-binding? simple-module-binding->]
-  [phased-module-binding? phased-module-binding->]
-  [exported-nominal-module-binding? exported-nominal-module-binding->]
-  [nominal-module-binding? nominal-module-binding->]
-  [exported-module-binding? exported-module-binding->]))
+   #:action ->
+   simple-module-binding
+   phased-module-binding
+   exported-nominal-module-binding
+   nominal-module-binding
+   exported-module-binding))
 
 (define nominal-path->
   (make-table
-   [simple-nominal-path? simple-nominal-path->]
-   [imported-nominal-path? imported-nominal-path->]
-   [phased-nominal-path? phased-nominal-path->]))
+   #:action ->
+   simple-nominal-path
+   imported-nominal-path
+   phased-nominal-path))
 
-;; -- getters
+;; --- getters
 
 (define (compilation-top-> z field-name)
   ;; (-> compilation-top? string? (or/c (listof zo?) zo? #f))
