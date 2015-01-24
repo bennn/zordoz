@@ -32,8 +32,8 @@
 (define (init args)
   ;; (-> (listof string?) void?)
   (match args
-    [(list fname) (init-from-filename fname)]
-    [_            (print-usage)]))
+    [(vector fname) (init-from-filename fname)]
+    [_              (print-usage)]))
 
 ;; --- REPL
 
