@@ -40,9 +40,11 @@
 
 (require compiler/zo-structs
          racket/contract
+         racket/match
          (only-in racket/list   empty?)
          (only-in racket/string string-join)
-         (for-syntax racket/base racket/syntax))
+         (for-syntax racket/base racket/syntax)
+         (only-in "dispatch-table.rkt" make-table))
 
 ;; -----------------------------------------------------------------------------
 
@@ -52,21 +54,10 @@
 (define/contract
   (zo->spec z)
   (->i ([z zo?]) () [res (z) (and/c spec/c (specof z))])
-  (cond [(compilation-top? z) (compilation-top->spec  z)]
-        [(prefix?          z) (prefix->spec           z)]
-        [(global-bucket?   z) (global-bucket->spec    z)]
-        [(module-variable? z) (module-variable->spec  z)]
-        [(stx?             z) (stx->spec              z)]
-        [(form?            z) (form->spec             z)]
-        [(expr?            z) (expr->spec             z)]
-        [(wrapped?         z) (wrapped->spec          z)]
-        [(wrap?            z) (wrap->spec             z)]
-        [(free-id-info?    z) (free-id-info->spec     z)]
-        [(all-from-module? z) (all-from-module->spec  z)]
-        [(module-binding?  z) (module-binding->spec   z)]
-        [(nominal-path?    z) (nominal-path->spec     z)]
-        [(provided?        z) (provided->spec         z)]
-        [else (error (format "[zo->spec] Unknown zo '~a'" z))]))
+  (define z* (try-spec z))
+  (if z*
+      z*
+      (error (format "Cannot format unknown struct ~e" z))))
 
 ;; Convert any zo struct to a string.
 ;; First builds a spec, then forces the thunks in that spec to build a string.
@@ -85,6 +76,90 @@
     [(_)       (raise-syntax-error #f "[lcons] Expected two arguments.")]
     [(_ _)     (raise-syntax-error #f "[lcons] Expected two arguments.")]
     [(_ hd tl) #'(cons hd (lambda () tl))]))
+
+;; --- dispatch tables
+
+(define try-spec
+  (make-table
+   #:action ->spec
+   compilation-top
+   prefix
+   global-bucket
+   module-variable
+   stx
+   form
+   expr
+   wrapped
+   wrap
+   free-id-info
+   all-from-module
+   module-binding
+   nominal-path
+   provided))
+
+(define form->spec
+  (make-table
+   #:action ->spec
+   def-values
+   def-syntaxes
+   seq-for-syntax
+   req
+   seq
+   splice
+   inline-variant
+   mod
+   provided
+   expr))
+
+(define expr->spec
+  (make-table
+   #:action ->spec
+   lam
+   closure
+   case-lam
+   let-one
+   let-void
+   install-value
+   let-rec
+   boxenv
+   localref
+   toplevel
+   topsyntax
+   application
+   branch
+   with-cont-mark
+   beg0
+   varref
+   assign
+   apply-values
+   primval))
+
+(define wrap->spec
+  (make-table
+   #:action ->spec
+   top-level-rename
+   mark-barrier
+   lexical-rename
+   phase-shift
+   module-rename
+   wrap-mark
+   prune))
+
+(define module-binding->spec
+  (make-table
+   #:action ->spec
+   simple-module-binding
+   phased-module-binding
+   exported-nominal-module-binding
+   nominal-module-binding
+   exported-module-binding))
+
+(define nominal-path->spec
+  (make-table
+   #:action ->spec
+   simple-nominal-path
+   imported-nominal-path
+   phased-nominal-path))
 
 ;; --- private functions
 
@@ -118,6 +193,11 @@
 (define/contract
   (module-variable->spec z)
   (-> module-variable? spec/c)
+  (define (constantness->spec cs)
+    (cond [(eq? #f cs)          "#f"]
+          [(symbol? cs)         (symbol->string         cs)]
+          [(function-shape? cs) (function-shape->spec cs)]
+          [(struct-shape? cs)   (struct-shape->spec   cs)]))
   (list "module-variable"
         (lcons "modidx"       (module-path-index->string (module-variable-modidx z)))
         (lcons "sym"          (symbol->string            (module-variable-sym z)))
@@ -125,59 +205,11 @@
         (lcons "phase"        (number->string            (module-variable-phase z)))
         (lcons "constantness" (constantness->spec      (module-variable-constantness z)))))
 
-;; Helper for `module-variable->spec`.
-(define/contract
-  (constantness->spec cs)
-  (-> (or/c #f 'constant 'fixed function-shape? struct-shape?) string?)
-  (cond [(eq? #f cs)          "#f"]
-        [(symbol? cs)         (symbol->string         cs)]
-        [(function-shape? cs) (function-shape->spec cs)]
-        [(struct-shape? cs)   (struct-shape->spec   cs)]))
-
 (define/contract
   (stx->spec z)
   (-> stx? spec/c)
   (list "stx"
         (lcons "encoded" (wrapped->spec (stx-encoded z)))))
-
-(define/contract
-  (form->spec z)
-  (-> form? spec/c)
-  (cond [(def-values?     z) (def-values->spec     z)]
-        [(def-syntaxes?   z) (def-syntaxes->spec   z)]
-        [(seq-for-syntax? z) (seq-for-syntax->spec z)]
-        [(req?            z) (req->spec            z)]
-        [(seq?            z) (seq->spec            z)]
-        [(splice?         z) (splice->spec         z)]
-        [(inline-variant? z) (inline-variant->spec z)]
-        [(mod?            z) (mod->spec            z)]
-        [(provided?       z) (provided->spec       z)]
-        [(expr?           z) (expr->spec           z)]
-        [else (error (format "[form->spec] Unknown form '~a'" z))]))
-
-(define/contract
-  (expr->spec z)
-  (-> expr? spec/c)
-  (cond [(lam?            z) (lam->spec            z)]
-        [(closure?        z) (closure->spec        z)]
-        [(case-lam?       z) (case-lam->spec       z)]
-        [(let-one?        z) (let-one->spec        z)]
-        [(let-void?       z) (let-void->spec       z)]
-        [(install-value?  z) (install-value->spec  z)]
-        [(let-rec?        z) (let-rec->spec        z)]
-        [(boxenv?         z) (boxenv->spec         z)]
-        [(localref?       z) (localref->spec       z)]
-        [(toplevel?       z) (toplevel->spec       z)]
-        [(topsyntax?      z) (topsyntax->spec      z)]
-        [(application?    z) (application->spec    z)]
-        [(branch?         z) (branch->spec         z)]
-        [(with-cont-mark? z) (with-cont-mark->spec z)]
-        [(beg0?           z) (beg0->spec           z)]
-        [(varref?         z) (varref->spec         z)]
-        [(assign?         z) (assign->spec         z)]
-        [(apply-values?   z) (apply-values->spec   z)]
-        [(primval?        z) (primval->spec        z)]
-        [else (error (format "[expr->spec] Unknown expr '~a'" z))]))
 
 (define/contract
   (wrapped->spec z)
@@ -187,17 +219,10 @@
         (lcons "wraps"         (listof-zo->string wrap->spec (wrapped-wraps z)))
         (lcons "tamper-status" (symbol->string                 (wrapped-tamper-status z)))))
 
-(define/contract
-  (wrap->spec z)
-  (-> wrap? spec/c)
-  (cond [(top-level-rename? z) (top-level-rename->spec z)]
-        [(mark-barrier?     z) (mark-barrier->spec     z)]
-        [(lexical-rename?   z) (lexical-rename->spec   z)]
-        [(phase-shift?      z) (phase-shift->spec      z)]
-        [(module-rename?    z) (module-rename->spec    z)]
-        [(wrap-mark?        z) (wrap-mark->spec        z)]
-        [(prune?            z) (prune->spec            z)]
-        [else (error (format "[wrap->spec] Unknown wrap '~a'" z))]))
+;; Helper for `free-id-info` and `all-from-module`
+(define (phase->spec ph)
+  (cond [(number? ph) (number->string ph)]
+        [(eq? #f ph)  (boolean->string ph)]))
 
 (define/contract
   (free-id-info->spec z)
@@ -211,13 +236,6 @@
         (lcons "phase1"                 (phase->spec             (free-id-info-phase1 z)))
         (lcons "phase2"                 (phase->spec             (free-id-info-phase2 z)))
         (lcons "use-current-inspector?" (boolean->string           (free-id-info-use-current-inspector? z)))))
-
-;; Helper for `free-id-info->spec`.
-(define/contract
-  (phase->spec ph)
-  (-> (or/c exact-integer? #f) string?)
-  (cond [(number? ph) (number->string ph)]
-        [else "#f"]))
 
 (define/contract
   (all-from-module->spec z)
@@ -241,24 +259,6 @@
         (lcons "exceptions" (exception->spec         (all-from-module-exceptions z)))
         (lcons "prefix"    (prefix->spec            (all-from-module-prefix z)))
         (lcons "context"   (context->spec           (all-from-module-context z)))))
-
-(define/contract
-  (module-binding->spec z)
-  (-> module-binding? spec/c)
-  (cond [(simple-module-binding?           z) (simple-module-binding->spec           z)]
-        [(phased-module-binding?           z) (phased-module-binding->spec           z)]
-        [(exported-nominal-module-binding? z) (exported-nominal-module-binding->spec z)]
-        [(nominal-module-binding?          z) (nominal-module-binding->spec          z)]
-        [(exported-module-binding?         z) (exported-module-binding->spec         z)]
-        [else (error (format "[module-binding->spec] Unknown '~a'" z))]))
-
-(define/contract
-  (nominal-path->spec z)
-  (-> nominal-path? spec/c)
-  (cond [(simple-nominal-path?   z) (simple-nominal-path->spec   z)]
-        [(imported-nominal-path? z) (imported-nominal-path->spec z)]
-        [(phased-nominal-path?   z) (phased-nominal-path->spec   z)]
-        [else (error (format "[nominal-path] Unknown '~a'" z))]))
 
 ;; --- form
 
@@ -329,51 +329,63 @@
         (list->string  symbol->string nm)))
   (define (unexported->spec ux)
     (define (elem->spec e)
-      (format-list #:sep " "
-                   (list (number->string              (car e))
-                         (list->string symbol->string (cadr e))
-                         (list->string symbol->string (caddr e)))))
+      (format-list
+       #:sep " "
+       (list (number->string              (car e))
+             (list->string symbol->string (cadr e))
+             (list->string symbol->string (caddr e)))))
     (list->string elem->spec ux))
   (define (lang-info->spec li)
     (if (eq? #f li)
         "#f"
-        (format-list #:sep " "
-                     (list (module-path->spec (vector-ref li 0))
-                           (symbol->string      (vector-ref li 1))
-                           (any->string         (vector-ref li 2))))))
+        (format-list
+         #:sep " "
+         (list (module-path->spec (vector-ref li 0))
+               (symbol->string      (vector-ref li 1))
+               (any->string         (vector-ref li 2))))))
   (define;/contract
     (provides->spec pds)
     ;(-> (listof (list/c (or/c exact-integer? #f) (listof provided?) (listof provided?))) string?)
     (define (elem->spec e)
-      (format-list #:sep " "
-                   (list (if (number? (car e))
-                             (number->string (car e))
-                             "#f")
-                         (listof-zo->string provided->spec (cadr e))
-                         (listof-zo->string provided->spec (caddr e)))))
+      (format-list
+       #:sep " "
+       (list (if (number? (car e))
+                 (number->string (car e))
+                 "#f")
+             (listof-zo->string provided->spec (cadr e))
+             (listof-zo->string provided->spec (caddr e)))))
     (list->string elem->spec pds))
   (define;/contract
     (requires->spec rqs)
     ;(-> (listof (cons/c (or/c exact-integer? #f) (listof module-path-index?))) string?)
     (define (elem->spec e)
-      (format-list #:sep " "
-                   (list (if (number? (car e))
-                             (number->string (car e))
-                             "#f")
-                         (list->string module-path-index->string (cdr e)))))
+      (format-list
+       #:sep " "
+       (list (if (number? (car e))
+                 (number->string (car e))
+                 "#f")
+             (list->string module-path-index->string (cdr e)))))
     (list->string elem->spec rqs))
   (define;/contract
     (syntax-bodies->spec sbs)
     ;(-> (listof (cons/c exact-positive-integer? (listof (or/c def-syntaxes? seq-for-syntax?)))) string?)
     (define (ds-or-sfs->spec d)
       (cond [(def-syntaxes?   d) (format-spec #f (def-syntaxes->spec d))]
-            [(seq-for-syntax? d) (format-spec #f (seq-for-syntax->spec d))]
-            [else (error "[mod-syntax-bodies->spec] Unexpected arg")]))
+            [(seq-for-syntax? d) (format-spec #f (seq-for-syntax->spec d))]))
     (define (elem->spec e)
-      (format-list #:sep " "
-                   (list (number->string                 (car e))
-                         (list->string ds-or-sfs->spec (cdr e)))))
+      (format-list
+       #:sep " "
+       (list (number->string                 (car e))
+             (list->string ds-or-sfs->spec (cdr e)))))
     (list->string elem->spec sbs))
+  (define (internal-context->string ic)
+    (match ic
+      [(? stx? ic)
+       (stx->spec ic)]
+      [(? vector? ic)
+       (listof-zo->string stx->spec (vector->list ic))]
+      [(? boolean? ic)
+       (boolean->string ic)]))
   (list "mod"
         (lcons "name"             (name->spec               (mod-name z)))
         (lcons "srcname"          (symbol->string             (mod-srcname z)))
@@ -387,10 +399,7 @@
         (lcons "max-let-depth"    (number->string             (mod-max-let-depth z)))
         (lcons "dummy"            (toplevel->spec           (mod-dummy z)))
         (lcons "lang-info"        (lang-info->spec          (mod-lang-info z)))
-        (lcons "internal-context" (let ([ic (mod-internal-context z)])
-                                    (cond [(stx? ic)    (stx->spec                   ic)]
-                                          [(vector? ic) (listof-zo->string stx->spec (vector->list ic))]
-                                          [else         (boolean->string               ic)])))
+        (lcons "internal-context" (internal-context->string (mod-internal-context z)))
         (lcons "flags"            (list->string   symbol->string (mod-flags z)))
         (lcons "pre-submodules"   (listof-zo->string mod->spec (mod-pre-submodules z)))
         (lcons "post-submodules"  (listof-zo->string mod->spec (mod-post-submodules z)))))
@@ -412,6 +421,11 @@
 
 ;; --- expr
 
+;; Helper for `lam` and `case-lam`.
+(define (lam-name->spec nm)
+  (cond [(vector? nm) (any->string nm)]
+        [else         (symbol->string nm)]))
+
 (define/contract
   (lam->spec z)
   (-> lam? spec/c)
@@ -421,23 +435,16 @@
     (cond [(eq? #f tm) "#f"]
           [else (format-list #:sep " " (for/list ([n tm]) (number->string n)))]))
   (list "lam"
-        (lcons "name"          (lam-name->spec            (lam-name z)))
+        (lcons "name"          (lam-name->spec                  (lam-name z)))
         (lcons "flags"         (list->string symbol->string (lam-flags z)))
         (lcons "num-params"    (number->string              (lam-num-params z)))
         (lcons "param-types"   (list->string symbol->string (lam-param-types z)))
         (lcons "rest?"         (boolean->string             (lam-rest? z)))
-        (lcons "closure-map"   (closure-map->spec         (lam-closure-map z)))
+        (lcons "closure-map"   (closure-map->spec           (lam-closure-map z)))
         (lcons "closure-types" (list->string symbol->string (lam-closure-types z)))
-        (lcons "toplevel-map"  (toplevel-map->spec        (lam-toplevel-map z)))
+        (lcons "toplevel-map"  (toplevel-map->spec          (lam-toplevel-map z)))
         (lcons "max-let-depth" (number->string              (lam-max-let-depth z)))
         (lcons "body"          (expr-seq-any->string        (lam-body z)))))
-
-;; Helper for `lam->spec`. Formats the 'name' field.
-(define/contract
-  (lam-name->spec nm)
-  (-> (or/c symbol? vector?) string?)
-  (cond [(vector? nm) (any->string nm)]
-        [else         (symbol->string nm)]))
 
 (define/contract
   (closure->spec z)
@@ -555,12 +562,12 @@
   (varref->spec z)
   (-> varref? spec/c)
   (list "varref"
-        (lcons "toplevel" (let ([tl (varref-toplevel z)])
-                            (cond [(eq? tl #t)    "#t"]
-                                  [(toplevel? tl) (toplevel->spec tl)])))
-        (lcons "dummy"    (let ([dm (varref-dummy z)])
-                            (cond [(eq? dm #f)    "#f"]
-                                  [(toplevel? dm) (toplevel->spec dm)])))))
+        (lcons "toplevel" (match (varref-toplevel z)
+                            [(? toplevel? tl) (toplevel->spec tl)]
+                            [#t    "#t"]))
+        (lcons "dummy"    (match (varref-dummy z)
+                            [(? toplevel? dm) (toplevel->spec dm)]
+                            [#f "#f"]))))
 
 (define/contract
   (assign->spec z)
@@ -932,12 +939,6 @@
   (require rackunit
            compiler/zo-structs)
 
-  ;; --- API functions
-  ;; TODO
-  ;; zo->spec
-  ;; zo->string
-
-  ;; --- private
   ; Helper: force lazy tails so we can compare them.
   (define (force-spec sp)
     (cons (car sp) (for/list ([xy (cdr sp)]) (cons (car xy)
@@ -945,6 +946,23 @@
                                                      (if (string? tl)
                                                          tl
                                                          (format-spec #f tl)))))))
+
+  ;; --- API functions
+  ;; zo->spec
+  (check-exn exn:fail? (lambda () (zo->spec (zo))))
+  (check-equal? (force-spec (zo->spec (branch #t #f #t)))
+                (list "branch"
+                      (cons "test" "#t")
+                      (cons "then" "#f")
+                      (cons "else" "#t")))
+
+  ;; zo->string
+  (check-exn exn:fail? (lambda () (zo->string (zo))))
+  (check-equal? (zo->string (toplevel 1 1 #t #t)) "<struct:toplevel>\n  depth  : 1\n  pos    : 1\n  const? : #t\n  ready? : #t")
+  (check-equal? (zo->string #:deep? #t (toplevel 1 1 #t #t)) "<struct:toplevel>\n  depth  : 1\n  pos    : 1\n  const? : #t\n  ready? : #t")
+  (check-equal? (zo->string #:deep? #f (toplevel 1 1 #t #t)) "<struct:toplevel>")
+
+  ;; --- private
 
   ;; compilation-top->spec
   (let* ([px (prefix 0 '() '())]
@@ -998,11 +1016,11 @@
 
   ;; form->spec (see below)
   (let* ([z (form)])
-    (check-exn exn:fail? (lambda () (form->spec z))))
+    (check-equal? (form->spec z) #f))
 
   ;; expr->spec (see below)
   (let* ([z (expr)])
-    (check-exn exn:fail? (lambda () (expr->spec z))))
+    (check-equal? (expr->spec z) #f))
 
   ;; wrapped->spec
   (let* ([wps (list (prune 'A) (prune 'B) (prune 'C))]
@@ -1015,7 +1033,7 @@
 
   ;; wrap->spec (see below)
   (let* ([z (wrap)])
-    (check-exn exn:fail? (lambda () (wrap->spec z))))
+    (check-equal? (wrap->spec z) #f))
   
   ;; free-id-info->spec
   (let* ([mpi (module-path-index-join #f #f)]
@@ -1045,11 +1063,11 @@
 
   ;; module-binding->spec (see below)
   (let* ([z (module-binding)])
-    (check-exn exn:fail? (lambda () (module-binding->spec z))))
+    (check-equal? (module-binding->spec z) #f))
   
   ;; nominal-path->spec (see below)
   (let* ([z (nominal-path)])
-    (check-exn exn:fail? (lambda () (nominal-path->spec z))))
+    (check-equal? (nominal-path->spec z) #f))
 
   ;; def-values->spec
   (let* ([ids (list (toplevel 1 2 #t #f))]
@@ -1362,12 +1380,12 @@
          [alist (list (cons 'A 'B)
                       (cons 'C (cons 'D fii))
                       (cons 'F (cons 'G (cons 'H 'I))))]
-         [z (lexical-rename #f #f alist)])
-    (check-equal? (force-spec (lexical-rename->spec z))
-                  (cons "lexical-rename"
-                        (list (cons "has-free-id-renames?" "#f")
-                              (cons "bool2" "#f")
-                              (cons "alist" "[(A . B) (C . (D . (free-id-info (path0 . #<procedure:...rc/zo-string.rkt:87:26>) (symbol0 . #<procedure:...rc/zo-string.rkt:87:26>) (path1 . #<procedure:...rc/zo-string.rkt:87:26>) (symbol1 . #<procedure:...rc/zo-string.rkt:87:26>) (phase0 . #<procedure:...rc/zo-string.rkt:87:26>) (phase1 . #<procedure:...rc/zo-string.rkt:87:26>) (phase2 . #<procedure:...rc/zo-string.rkt:87:26>) (use-current-inspector? . #<procedure:...rc/zo-string.rkt:87:26>)))) (F . (G . (H . I)))]")))))
+         [z (lexical-rename #f #f alist)]
+         [res (force-spec (lexical-rename->spec z))])
+    (check-equal? (car res) "lexical-rename")
+    (check-equal? (cadr res) (cons "has-free-id-renames?" "#f"))
+    (check-equal? (caddr res) (cons "bool2" "#f"))
+    (check-equal? (car (cadddr res)) "alist"))
 
   ;; phase-shift->spec
   (let ([z (phase-shift #f #f #f #f)])
