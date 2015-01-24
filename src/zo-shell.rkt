@@ -4,6 +4,7 @@
 ;; (Use `raco make` to generate bytecode)
 
 (provide
+ ;; (-> (vectorof string?) void?)
  ;; Start a REPL using command-line arguments
  init)
 
@@ -14,6 +15,8 @@
          (only-in "zo-transition.rkt" transition)
          racket/match)
 
+;; -----------------------------------------------------------------------------
+
 ;; --- constants & contracts
 
 (define DEBUG   #f) ;when set, print extra debugging information
@@ -22,8 +25,6 @@
 ;; (define nat? natural-number/c)
 ;; (define context? (or/c zo? (listof zo?) (listof result?)))
 ;; (define history? (listof context?))
-
-;; -----------------------------------------------------------------------------
 
 ;; --- API functions
 
@@ -41,42 +42,31 @@
 (define (init-from-filename name)
   ;; (-> string? void?)
   (print-info (format "Loading bytecode file '~a'..." name))
-  (define port (open-input-file name))
-  (print-info "Parsing bytecode...")
-  (define ctx  (zo-parse port))
-  (print-info "Parsing complete!")
-  (init-repl ctx))
-
-;; Print a welcoming message, initialize REPL history, enter the loop.
-;; Outside functions should call this method instead of `repl` directly.
-(define (init-repl ctx)
-  ;; (-> context? void?)
-  (print-welcome)
-  (repl ctx '() '()))
+  (with-input-from-file name
+    (lambda ()
+      (print-info "Parsing bytecode...")
+      (define ctx  (zo-parse))
+      (print-info "Parsing complete!")
+      (print-welcome)
+      (repl ctx '() '()))))
 
 ;; The REPL loop. Process a command using context `ctx` and history `hist`.
 (define (repl ctx hist pre-hist)
   ;; (-> context? history? void?)
   (when DEBUG (print-history hist))
   (print-prompt)
-  (define raw (read-line))
   ;; 2015-01-12: Command parsing is currently very simple.
-  (match raw
-    [(? alias?) (print-alias)
-                (repl ctx hist pre-hist)]
-    [(? back?)  (call-with-values (lambda () (back raw ctx hist pre-hist)) repl)]
-    [(? dive?)  (let-values ([(ctx* hist*) (dive ctx hist raw)])
-                  (repl ctx* hist* pre-hist))]
-    [(? find?)  (call-with-values (lambda () (find raw ctx hist pre-hist)) repl)]
-    [(? help?)  (print-help)
-                (repl ctx hist pre-hist)]
-    [(? info?)  (print-context ctx)
-                (repl ctx hist pre-hist)]
-    [(? jump?)  (call-with-values (lambda () (jump raw ctx hist pre-hist)) repl)]
-    [(? save?)  (call-with-values (lambda () (save raw ctx hist pre-hist)) repl)]
-    [(? quit?)  (print-goodbye)]
-    [_          (print-unknown raw)
-                (repl ctx hist pre-hist)]))
+  (match (read-line)
+    [(? alias? raw) (print-alias) (repl ctx hist pre-hist)]
+    [(? back? raw)  (call-with-values (lambda () (back raw ctx hist pre-hist)) repl)]
+    [(? dive? raw)  (call-with-values (lambda () (dive raw ctx hist pre-hist)) repl)]
+    [(? find? raw)  (call-with-values (lambda () (find raw ctx hist pre-hist)) repl)]
+    [(? help? raw)  (print-help) (repl ctx hist pre-hist)]
+    [(? info? raw)  (print-context ctx) (repl ctx hist pre-hist)]
+    [(? jump? raw)  (call-with-values (lambda () (jump raw ctx hist pre-hist)) repl)]
+    [(? save? raw)  (call-with-values (lambda () (save raw ctx hist pre-hist)) repl)]
+    [(? quit? raw)  (print-goodbye)]
+    [raw            (print-unknown raw) (repl ctx hist pre-hist)]))
 
 ;; --- command predicates
 
@@ -149,30 +139,51 @@
 
 ;; --- command implementations
 
+;; 2015-01-23: Warn about possible-unexpected behavior
+(define BACK-WARNING
+  (string-append
+   "BACK removing most recent 'save' mark. "
+   "Be sure to save if you want to continue exploring search result."))
+  
 ;; Step back to a previous context, if any, and reduce the history.
 ;; Try popping from `hist`, fall back to list-of-histories `pre-hist`.
 (define (back raw ctx hist pre-hist)
   (match (list hist pre-hist)
-    [(list '() '()) (print-unknown raw)
-                    (values ctx hist pre-hist)]
-    [(list '() _)   (let-values ([(hist* pre-hist*) (pop pre-hist)])
-                      (displayln "BACK removing most recent 'save' mark. Be sure to save if you want to continue exploring search result.")
-                      (back raw ctx hist* pre-hist*))]
-    [_              (let-values ([(ctx* hist*) (pop hist)])
-                      (values ctx* hist* pre-hist))]))
+    [(list '() '())
+     ;; Nothing to pop from
+     (print-unknown raw)
+     (values ctx hist pre-hist)]
+    [(list '() _)
+     ;; Pop from pre-history
+     (displayln BACK-WARNING)
+     (define-values (hist* pre-hist*) (pop pre-hist))
+     (back raw ctx hist* pre-hist*)]
+    [_
+     (define-values (ctx* hist*) (pop hist))
+     (values ctx* hist* pre-hist)]))
 
 ;; Search context `ctx` for a new context matching string `raw`.
 ;; Push `ctx` onto the stack `hist` on success.
-;; If `ctx` is a zo struct, use `raw` to search for a field with `transition`.
-;; If `ctx` is a list, parse `raw` for an integer index into the list.
-(define (dive ctx hist raw)
-  ;; (-> context? history? string? (values context? history?))
+(define (dive raw ctx hist pre-hist)
+  ;; (-> string? context? history? (listof history?) (values context? history? (listof history?)))
   (define arg (split-snd raw))
-  (cond [(not arg)   (print-unknown raw)
-                     (values ctx hist)]
-        [(list? ctx) (dive-list ctx hist arg)]
-        [(zo?   ctx) (dive-zo   ctx hist arg)]
-        [else        (error (format "Invalid context '~a'" ctx))]))
+  (define-values (ctx* hist*)
+    (cond
+     [(not arg)
+      ;; Failed to parse argument,
+      (print-unknown raw)
+      (values ctx hist)]
+     [(list? ctx)
+      ;; Context is a list, try accessing by index
+      (dive-list ctx hist arg)]
+     [(zo?   ctx)
+      ;; Context is a zo, try looking up field
+      (dive-zo   ctx hist arg)]
+     [else
+      ;; Should never happen! REPL controls the context.
+      (error (format "Invalid context '~a'" ctx))]))
+  ;; Return pre-hist unchanged
+  (values ctx* hist* pre-hist))
 
 ;; Parse the string `arg` to an integer n.
 ;; If n is within the bounds of the list `ctx`,
@@ -181,15 +192,17 @@
 (define (dive-list ctx hist arg)
   ;; (-> (listof (or/c zo? result?)) history? string? (values context? history?))
   (define index (string->number arg))
-  (cond [(or (not index)
-             (< index 0)
-             (>= index (length ctx))) (print-unknown (format "dive ~a" arg))
-                                      (values ctx hist)]
-        [else (define res (list-ref ctx index))
-              ;; If list elements are search results,
-              ;; current `hist` can be safely ignored.
-              (cond [(result? res) (values (result-zo res) (result-path res))]
-                    [else          (values res             (push hist ctx))])]))
+  (cond [(or (not index) (< index 0) (>= index (length ctx)))
+         ;; Index out of bounds, or not a number. Cannot dive.
+         (print-unknown (format "dive ~a" arg))
+         (values ctx hist)]
+        [else
+         ;; Select from list, 
+         (define res (list-ref ctx index))
+         ;; If list elements are search results, current `hist` can be safely ignored.
+         (if (result? res)
+             (values (result-zo res) (result-path res))
+             (values res             (push hist ctx)))]))
 
 ;; Use the string `field` to access a field in the zo struct `ctx`.
 ;; If the field exists and denotes another zo struct, return that
@@ -197,40 +210,51 @@
 ;; Otherwise, return `ctx` and `hist` unchanged.
 (define (dive-zo ctx hist field)
   ;; (-> zo? history? string? (values context? history?))
-  (let-values ([(ctx* success?) (transition ctx field)])
-    (cond [success? (values ctx* (push hist ctx))]
-          [else     (print-unknown (format "dive ~a" field))
-                    (values ctx hist)])))
+  (define-values (ctx* success?) (transition ctx field))
+  (cond
+   [success?
+    (values ctx* (push hist ctx))]
+   [else
+    (print-unknown (format "dive ~a" field))
+    (values ctx hist)]))
 
 ;; Parse argument, then search for & save results.
 (define (find raw ctx hist pre-hist)
   (define arg (split-snd raw))
-  (cond [(and arg (zo? ctx)) (define results (zo-find ctx arg))
-                             (printf "FIND returned ~a results\n" (length results))
-                             (match results
-                               ['() (values ctx hist pre-hist)]
-                               ;; Success! Show the results and save them, to allow jumps
-                               [_   (print-context results)
-                                    (printf "FIND automatically saving context\n")
-                                    (save "" results (push hist ctx) pre-hist)])]
-        [else      (print-unknown raw)
-                   (values ctx hist pre-hist)]))
+  (cond [(and arg (zo? ctx))
+         (define results (zo-find ctx arg))
+         (printf "FIND returned ~a results\n" (length results))
+         (match results
+           ['()
+            ;; No results, don't make a save mark
+            (values ctx hist pre-hist)]
+           [_
+            ;; Success! Show the results and save them, to allow jumps
+            (printf "FIND automatically saving context\n")
+            (print-context results)
+            (save "" results (push hist ctx) pre-hist)])]
+        [else
+         (print-unknown raw)
+         (values ctx hist pre-hist)]))
 
 
 ;; Jump back to a previously-saved location, if any.
 (define (jump raw ctx hist pre-hist)
   (match pre-hist
-    ['() (print-unknown raw)
-         (values ctx hist pre-hist)]
-    [_   (let-values ([(hist* pre-hist*) (pop pre-hist)])
-           (back raw ctx hist* pre-hist*))]))
+    ['()
+     ;; Nothing to jump to
+     (print-unknown raw)
+     (values ctx hist pre-hist)]
+    [_
+     (define-values (hist* pre-hist*) (pop pre-hist))
+     (back raw ctx hist* pre-hist*)]))
 
 ;; Save the current context and history to the pre-history
 ;; For now, erases current history. 
 (define (save raw ctx hist pre-hist)
   (values ctx '() (push pre-hist (push hist ctx))))
 
-;; --- history
+;; --- history manipulation
 
 ;; Add the context `ctx` to the stack `hist`.
 (define (push hist ctx)
@@ -268,30 +292,36 @@
 ;; Print a help message for the REPL.
 (define (print-help)
   ;; (-> void?)
-  (displayln (string-join (list "At your service. Available commands:"
-                                "  alst        Print command aliases"
-                                "  back        Move up to the previous context"
-                                "  dive ARG    Step into struct field ARG"
-                                "  find ARG    Search the current subtree for structs with the name ARG"
-                                "  help        Print this message"
-                                "  info        Show information about current context"
-                                "  jump        Revert to last saved position"
-                                "  save        Save the current context as jump target"
-                                "  quit        Exit the interpreter"
-                                )
-                          "\n")))
+  (displayln
+   (string-join
+    (list "At your service. Available commands:"
+          "  alst        Print command aliases"
+          "  back        Move up to the previous context"
+          "  dive ARG    Step into struct field ARG"
+          "  find ARG    Search the current subtree for structs with the name ARG"
+          "  help        Print this message"
+          "  info        Show information about current context"
+          "  jump        Revert to last saved position"
+          "  save        Save the current context as jump target"
+          "  quit        Exit the interpreter"
+          )
+    "\n")))
 
 ;; Print a context.
 (define (print-context ctx)
   ;; (-> context? void?)
-  (cond [(zo?   ctx) (displayln (zo->string ctx))]
-        [(list? ctx) (printf "~a[~a]\n"
-                             (for/list ([x ctx])
-                               ;; If we have a list of search results, extract & print the zo
-                               (let ([z (if (result? x) (result-zo x) x)])
-                                 (zo->string z #:deep? #f)))
-                             (length ctx))]
-        [else        (error (format "Unknown context '~a'"  ctx))]))
+  (match ctx
+    [(? zo?)
+     (displayln (zo->string ctx))]
+    ['()
+     (displayln "'()")]
+    [(cons x _)
+     (define z (if (result? x) (result-zo x) x))
+     (printf "~a[~a]\n"
+             (zo->string z #:deep? #f)
+             (length ctx))]
+    [_
+     (error (format "Unknown context '~a'"  ctx))]))
 
 ;; Print an error message (after receiving an undefined/invalid command).
 (define (print-unknown raw)
@@ -339,11 +369,10 @@
   (displayln "Usage: zo-shell FILE.zo"))
 
 ;; --- parsing
-;; TODO replace these functions with a command line library
 
-;; Split the string [raw] by whitespace and
+;; Split the string `raw` by whitespace and
 ;; return the second element of the split, if any.
-;; Otherwise return [#f].
+;; Otherwise return `#f`.
 (define (split-snd raw)
   ;; (-> string? (or/c #f string?))
   (define splt (string-split raw))
@@ -467,56 +496,77 @@
 
   ;; -- dive end-to-end
   ;; Invalid command
-  (let ([ctx '()] [hist '()] [arg "dive "])
-    (let-values ([(ctx* hist*) (dive ctx hist arg)])
-      (begin (check-equal? ctx ctx*)
-             (check-equal? hist hist*))))
-  (check-pred read-line in)
+  (let ([ctx '()]
+        [hist '()]
+        [arg "dive "]
+        [pre-hist '(a aa)])
+    (define-values (ctx* hist* pre*) (dive arg ctx hist pre-hist))
+    (check-equal? ctx ctx*)
+    (check-equal? hist hist*)
+    (check-equal? pre-hist pre*)
+    (check-pred read-line in))
 
   ;; List out-of-bounds
-  (let ([ctx '((a) (b))] [hist '((c) (d))] [arg  "dive 2"])
-    (let-values ([(ctx* hist*) (dive ctx hist arg)])
-      (begin (check-equal? ctx ctx*)
-             (check-equal? hist hist*))))
-  (check-pred read-line in)
+  (let ([ctx '((a) (b))]
+        [hist '((c) (d))]
+        [arg  "dive 2"]
+        [pre-hist '(x y z)])
+    (define-values (ctx* hist* pre*) (dive arg ctx hist pre-hist))
+    (check-equal? ctx ctx*)
+    (check-equal? hist hist*)
+    (check-equal? pre-hist pre*)
+    (check-pred read-line in))
 
   ;; List, in-bounds
-  (let ([ctx '((a) (b))] [hist '((c) (d))] [arg "dive 0"])
-    (let-values ([(ctx* hist*) (dive ctx hist arg)])
-      (begin (check-equal? ctx*  (car ctx))
-             (check-equal? hist* (cons ctx hist) ))))
+  (let ([ctx '((a) (b))]
+        [hist '((c) (d))]
+        [arg "dive 0"]
+        [pre-hist '('())])
+    (define-values (ctx* hist* pre*) (dive arg ctx hist pre-hist))
+    (check-equal? ctx*  (car ctx))
+    (check-equal? hist* (cons ctx hist)))
 
   ;; List, search results. Ignores current history
   (let ([ctx  (list (result (zo) '()))]
         [hist '((c) (d))]
+        [pre-hist '(blah)]
         [arg "dive 0"])
-    (let-values ([(ctx* hist*) (dive ctx hist arg)])
-      (begin (check-equal? ctx*  (result-zo (car ctx)))
-             (check-equal? hist* '()))))
+    (define-values (ctx* hist* pre*) (dive arg ctx hist pre-hist))
+    (check-equal? ctx*  (result-zo (car ctx)))
+    (check-equal? pre-hist pre*)
+    (check-equal? hist* '()))
 
   ;; List, search results. Ignores current history, overwrites with search result history
   (let ([ctx  (list (result (zo) '(a a a)))]
         [hist '((c) (d))]
-        [arg "dive 0"])
-    (let-values ([(ctx* hist*) (dive ctx hist arg)])
-      (begin (check-equal? ctx*  (result-zo (car ctx)))
-             (check-equal? hist* (result-path (car ctx))))))
+        [arg "dive 0"]
+        [pre-hist '(a 78)])
+    (define-values (ctx* hist* pre*) (dive arg ctx hist pre-hist))
+    (check-equal? ctx*  (result-zo (car ctx)))
+    (check-equal? hist* (result-path (car ctx)))
+    (check-equal? pre-hist pre*))
 
   ;; zo, valid field
   (let* ([z (wrap)]
          [ctx (wrapped #f (list z z z) 'tainted)]
          [hist '()]
+         [pre-hist '(7 7 7)]
          [arg "dive wraps"])
-    (let-values ([(ctx* hist*) (dive ctx hist arg)])
-      (begin (check-equal? ctx*  (list z z z))
-             (check-equal? hist* (cons ctx hist) ))))
+    (define-values (ctx* hist* pre*) (dive arg ctx hist pre-hist))
+    (check-equal? ctx*  (list z z z))
+    (check-equal? hist* (cons ctx hist))
+    (check-equal? pre-hist pre*))
 
   ;; zo, invalid field
-  (let ([ctx (wrapped #f '() 'tainted)] [hist '()] [arg "dive datum"])
-    (let-values ([(ctx* hist*) (dive ctx hist arg)])
-      (begin (check-equal? ctx*  ctx)
-             (check-equal? hist* hist))))
-  (check-pred read-line in)
+  (let ([ctx (wrapped #f '() 'tainted)]
+        [hist '()]
+        [pre-hist '(a b x)]
+        [arg "dive datum"])
+    (define-values (ctx* hist* pre*) (dive arg ctx hist pre-hist))
+    (check-equal? ctx*  ctx)
+    (check-equal? hist* hist)
+    (check-equal? pre* pre-hist)
+    (check-pred read-line in))
 
   ;; -- dive list
   ;; Valid list access
@@ -550,7 +600,8 @@
       (begin (check-equal? ctx*  (result-zo (cadddr ctx)))
              (check-equal? hist* (result-path (cadddr ctx))))))
 
-  ;; -- dive zo (I'm creating these zo structs arbitrarily, using the contracts in 'zo-lib/compiler/zo-structs.rkt')
+  ;; -- dive zo (I'm creating these zo structs arbitrarily,
+  ;;             using the contracts in 'zo-lib/compiler/zo-structs.rkt')
   ;; Valid, field is a zo
   (let* ([z (localref #f 0 #f #f #f)]
          [ctx (branch #t z #t)]
@@ -650,10 +701,12 @@
          [pre-hist '(b c s)])
     (let-values ([(ctx* hist* pre-hist*) (find raw ctx hist pre-hist)])
       (begin (check-equal? (length ctx*) 1)
-             (check-equal? (result-zo (car ctx*)) (branch-then (branch-else (branch-else (branch-else ctx)))))
-             (check-equal? (result-path (car ctx*)) (list (branch-else (branch-else (branch-else ctx)))
-                                                          (branch-else (branch-else ctx))
-                                                          (branch-else ctx)))
+             (check-equal? (result-zo (car ctx*))
+                           (branch-then (branch-else (branch-else (branch-else ctx)))))
+             (check-equal? (result-path (car ctx*))
+                           (list (branch-else (branch-else (branch-else ctx)))
+                                 (branch-else (branch-else ctx))
+                                 (branch-else ctx)))
              (check-equal? hist* '())
              (check-equal? pre-hist* (cons (cons ctx* (cons ctx hist)) pre-hist)))))
   (check-pred read-line in)
