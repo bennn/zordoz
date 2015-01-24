@@ -13,7 +13,8 @@
 
 (require compiler/zo-structs
          racket/match
-         (only-in racket/list empty? empty))
+         (only-in racket/list empty? empty)
+         (only-in "dispatch-table.rkt" make-table))
 
 ;; -----------------------------------------------------------------------------
 
@@ -30,37 +31,103 @@
 ;;   On failure, the returned zo struct is `z`.
 (define (transition z field-name)
   ;; (-> zo? string? (values (or/c zo? (listof zo?)) boolean))
-  (define nxt ;; Try to get next struct or list
-    (match z
-      [(? compilation-top?)   (compilation-top-> z field-name)]
-      [(? prefix?)            (prefix->          z field-name)]
-      [(? global-bucket?)     (global-bucket->   z field-name)]
-      [(? module-variable? z) (module-variable-> z field-name)]
-      [(? stx?)               (stx->             z field-name)]
-      [(? form?)              (form->            z field-name)]
-      [(? wrapped?)           (wrapped->         z field-name)]
-      [(? wrap?)              (wrap->            z field-name)]
-      [(? free-id-info?)      (free-id-info->    z field-name)]
-      [(? all-from-module?)   (all-from-module-> z field-name)]
-      [(? module-binding?)    (module-binding->  z field-name)]
-      [(? nominal-path?)      (nominal-path->    z field-name)]
-      [(? provided?)          (provided->        z field-name)]
-      [_ (error               (format "[transition] Unknown struct '~a'" z))]))
   ;; Check if transition failed or returned a list without any zo, pack result values.
-  (match nxt
-    [(? zo?)   (values nxt #t)]
-    [(? list?) (match (filter zo? nxt)
-                 ['() (values z #f)]
-                 [zs  (values zs #t)])]
-    [_ (values z #f)]))
+  (match (try-transition z field-name)
+    [(? zo? nxt)
+     (values nxt #t)]
+    [(? list? nxt)
+     (match (filter zo? nxt)
+       ['() (values z #f)]
+       [zs  (values zs #t)])]
+    [_
+     (values z #f)]))
 
-;; --- private getters
+;; --- dispatch
+
+(define try-transition
+  (make-table
+   [compilation-top? compilation-top->]
+   [prefix? prefix->]
+   [global-bucket? global-bucket->]
+   [module-variable? module-variable->]
+   [stx? stx->]
+   [form? form->]
+   [wrapped? wrapped->]
+   [wrap? wrap->]
+   [free-id-info? free-id-info->]
+   [all-from-module? all-from-module->]
+   [module-binding? module-binding->]
+   [nominal-path? nominal-path->]
+   [provided? provided->]))
+
+(define form->
+  (make-table
+    [def-values? def-values->]
+    [def-syntaxes? def-syntaxes->]
+    [seq-for-syntax? seq-for-syntax->]
+    [req? req->]
+    [seq? seq->]
+    [splice? splice->]
+    [inline-variant? inline-variant->]
+    [mod? mod->]
+    [provided? provided->]
+    [expr? expr->]))
+
+(define expr->
+  (make-table
+    [lam? lam->]
+    [closure? closure->]
+    [case-lam? case-lam->]
+    [let-one? let-one->]
+    [let-void? let-void->]
+    [install-value? install-value->]
+    [let-rec? let-rec->]
+    [boxenv? boxenv->]
+    [localref? localref->]
+    [toplevel? toplevel->]
+    [topsyntax? topsyntax->]
+    [application? application->]
+    [branch? branch->]
+    [with-cont-mark? with-cont-mark->]
+    [beg0? beg0->]
+    [varref? varref->]
+    [assign? assign->]
+    [apply-values? apply-values->]
+    [primval? primval->]))
+
+(define wrap->
+  (make-table
+    [top-level-rename? top-level-rename->]
+    [mark-barrier? mark-barrier->]
+    [lexical-rename? lexical-rename->]
+    [phase-shift? phase-shift->]
+    [module-rename? module-rename->]
+    [wrap-mark? wrap-mark->]
+    [prune? prune->]))
+
+(define module-binding->
+  (make-table
+  [simple-module-binding? simple-module-binding->]
+  [phased-module-binding? phased-module-binding->]
+  [exported-nominal-module-binding? exported-nominal-module-binding->]
+  [nominal-module-binding? nominal-module-binding->]
+  [exported-module-binding? exported-module-binding->]))
+
+(define nominal-path->
+  (make-table
+   [simple-nominal-path? simple-nominal-path->]
+   [imported-nominal-path? imported-nominal-path->]
+   [phased-nominal-path? phased-nominal-path->]))
+
+;; -- getters
 
 (define (compilation-top-> z field-name)
   ;; (-> compilation-top? string? (or/c (listof zo?) zo? #f))
   (match field-name
-    ["prefix" (compilation-top-prefix z)]
-    ["code"   (compilation-top-code   z)]
+    ["prefix"
+     (compilation-top-prefix z)]
+    ["code"
+     (compilation-top-code   z)]
     [_ #f]))
 
 (define (prefix-> z field-name)
@@ -68,8 +135,10 @@
   (define (gb-or-mv? tl)
     (or (global-bucket? tl) (module-variable? tl)))
   (match field-name
-    ["toplevels" (filter gb-or-mv? (prefix-toplevels z))]
-    ["stxs"      (prefix-stxs z)]
+    ["toplevels"
+     (filter gb-or-mv? (prefix-toplevels z))]
+    ["stxs"
+     (prefix-stxs z)]
     [_ #f]))
 
 (define (global-bucket-> z field-name)
@@ -83,64 +152,15 @@
 (define (stx-> z field-name)
   ;; (-> stx? string? (or/c (listof zo?) zo? #f))
   (match field-name
-    ["encoded" (stx-encoded z)]
+    ["encoded"
+     (stx-encoded z)]
     [_  #f]))
-
-(define (form-> z field-name)
-  ;; (-> form? string? (or/c (listof zo?) zo? #f))
-  (match z
-    [(? def-values?)         (def-values->     z field-name)]
-        [(? def-syntaxes?)   (def-syntaxes->   z field-name)]
-        [(? seq-for-syntax?) (seq-for-syntax-> z field-name)]
-        [(? req?)            (req->            z field-name)]
-        [(? seq?)            (seq->            z field-name)]
-        [(? splice?)         (splice->         z field-name)]
-        [(? inline-variant?) (inline-variant-> z field-name)]
-        [(? mod?)            (mod->            z field-name)]
-        [(? provided?)       (provided->       z field-name)]
-        [(? expr?)           (expr->           z field-name)]
-        [_ #f]))
-
-(define (expr-> z field-name)
-  ;; (-> expr? string? (or/c (listof zo?) zo? #f))
-  (match z
-    [(? lam?)            (lam->            z field-name)]
-    [(? closure?)        (closure->        z field-name)]
-    [(? case-lam?)       (case-lam->       z field-name)]
-    [(? let-one?)        (let-one->        z field-name)]
-    [(? let-void?)       (let-void->       z field-name)]
-    [(? install-value?)  (install-value->  z field-name)]
-    [(? let-rec?)        (let-rec->        z field-name)]
-    [(? boxenv?)         (boxenv->         z field-name)]
-    [(? localref?)       (localref->       z field-name)]
-    [(? toplevel?)       (toplevel->       z field-name)]
-    [(? topsyntax?)      (topsyntax->      z field-name)]
-    [(? application?)    (application->    z field-name)]
-    [(? branch?)         (branch->         z field-name)]
-    [(? with-cont-mark?) (with-cont-mark-> z field-name)]
-    [(? beg0?)           (beg0->           z field-name)]
-    [(? varref?)         (varref->         z field-name)]
-    [(? assign?)         (assign->         z field-name)]
-    [(? apply-values?)   (apply-values->   z field-name)]
-    [(? primval?)        (primval->        z field-name)]
-    [_ #f]))
 
 (define (wrapped-> z field-name)
   ;; (-> wrapped? string? (or/c (listof zo?) zo? #f))
   (match field-name
-    ["wraps" (wrapped-wraps z)]
-    [_ #f]))
-
-(define (wrap-> z field-name)
-  ;; (-> wrap? string? (or/c (listof zo?) zo? #f))
-  (match z
-    [(? top-level-rename?) (top-level-rename-> z field-name)]
-    [(? mark-barrier?)     (mark-barrier->     z field-name)]
-    [(? lexical-rename?)   (lexical-rename->   z field-name)]
-    [(? phase-shift?)      (phase-shift->      z field-name)]
-    [(? module-rename?)    (module-rename->    z field-name)]
-    [(? wrap-mark?)        (wrap-mark->        z field-name)]
-    [(? prune?)            (prune->            z field-name)]
+    ["wraps"
+     (wrapped-wraps z)]
     [_ #f]))
 
 (define (free-id-info-> z field-name)
@@ -151,82 +171,80 @@
  ;; (-> all-from-module? string? (or/c (listof zo?) zo? #f))
   #f)
 
-(define (module-binding-> z field-name)
-  ;; (-> module-binding? string? (or/c (listof zo?) zo? #f))
-  (match z
-  [(? simple-module-binding?)           (simple-module-binding->           z field-name)]
-  [(? phased-module-binding?)           (phased-module-binding->           z field-name)]
-  [(? exported-nominal-module-binding?) (exported-nominal-module-binding-> z field-name)]
-  [(? nominal-module-binding?)          (nominal-module-binding->          z field-name)]
-  [(? exported-module-binding?)         (exported-module-binding->         z field-name)]
-  [_ #f]))
-
-(define (nominal-path-> z field-name)
-  ;; (-> nominal-path? string? (or/c (listof zo?) zo? #f))
-  (match z
-    [(? simple-nominal-path?)   (simple-nominal-path->   z field-name)]
-    [(? imported-nominal-path?) (imported-nominal-path-> z field-name)]
-    [(? phased-nominal-path?)   (phased-nominal-path->   z field-name)]
-    [_ #f]))
-
 ;; --- form
 
 (define (def-values-> z field-name)
   ;; (-> def-values? string? (or/c (listof zo?) zo? #f))
   (match field-name
-  ["ids" (def-values-ids z)]
-  ["rhs" (match (def-values-rhs z)
-           [(or (? expr? rhs) (? seq? rhs) (? inline-variant? rhs)) rhs]
-           [_ #f])]
+    ["ids"
+     (def-values-ids z)]
+    ["rhs"
+     (match (def-values-rhs z)
+       [(or (? expr? rhs) (? seq? rhs) (? inline-variant? rhs))
+        rhs]
+       [_ #f])]
   [_ #f]))
 
 (define (def-syntaxes-> z field-name)
   ;; (-> def-syntaxes? string? (or/c (listof zo?) zo? #f))
   (match field-name
-    ["ids"   (filter toplevel? (def-syntaxes-ids z))]
-    ["rhs"   (match (def-syntaxes-rhs z)
-               [(or (? expr? rhs) (? seq? rhs)) rhs]
-               [_ #f])]
-    ["prefix" (def-syntaxes-prefix z)]
-    ["dummy"  (match (def-syntaxes-dummy z)
-                [(? toplevel? dm) dm]
-                [_ #f])]
+    ["ids"
+     (filter toplevel? (def-syntaxes-ids z))]
+    ["rhs"
+     (match (def-syntaxes-rhs z)
+       [(or (? expr? rhs) (? seq? rhs)) rhs]
+       [_ #f])]
+    ["prefix"
+     (def-syntaxes-prefix z)]
+    ["dummy"
+     (match (def-syntaxes-dummy z)
+       [(? toplevel? dm) dm]
+       [_ #f])]
     [_ #f]))
 
 (define (seq-for-syntax-> z field-name)
   ;; (-> seq-for-syntax? string? (or/c (listof zo?) zo? #f))
   (match field-name
-    ["forms"  (filter form? (seq-for-syntax-forms z))]
-    ["prefix" (seq-for-syntax-prefix z)]
-    ["dummy"  (match (seq-for-syntax-dummy z)
-                [(? toplevel? dm) dm]
-                [_ #f])]
+    ["forms"
+     (filter form? (seq-for-syntax-forms z))]
+    ["prefix"
+     (seq-for-syntax-prefix z)]
+    ["dummy"
+     (match (seq-for-syntax-dummy z)
+       [(? toplevel? dm) dm]
+       [_ #f])]
     [_ #f]))
 
 (define (req-> z field-name)
   ;; (-> req? string? (or/c (listof zo?) zo? #f))
   (match field-name
-    ["reqs" (req-reqs z)]
-    ["dummy" (req-dummy z)]
+    ["reqs"
+     (req-reqs z)]
+    ["dummy"
+     (req-dummy z)]
     [_ #f]))
 
 (define (seq-> z field-name)
   ;; (-> seq? string? (or/c (listof zo?) zo? #f))
   (match field-name
-    ["forms" (filter form? (seq-forms z))]
+    ["forms"
+     (filter form? (seq-forms z))]
     [_ #f]))
 
 (define (splice-> z field-name)
   ;; (-> splice? string? (or/c (listof zo?) zo? #f))
   (match field-name
-    ["forms" (filter form? (splice-forms z))]
+    ["forms"
+     (filter form? (splice-forms z))]
     [_ #f]))
 
 (define (inline-variant-> z field-name)
   ;; (-> inline-variant? string? (or/c (listof zo?) zo? #f))
   (match field-name
-    ["direct" (inline-variant-direct z)]
-    ["inline" (inline-variant-inline z)]
+    ["direct"
+     (inline-variant-direct z)]
+    ["inline"
+     (inline-variant-inline z)]
     [_ #f]))
 
 (define (mod-> z field-name)
@@ -243,17 +261,25 @@
           [else (append (cdar sxs)
                         (get-syntaxes (cdr sxs)))]))
   (match field-name
-    ["prefix"           (mod-prefix z)]
-    ["provides"         (get-provided (mod-provides z))]
-    ["body"             (filter form? (mod-body z))]
-    ["syntax-bodies"    (get-syntaxes (mod-syntax-bodies z))]
-    ["dummy"            (mod-dummy z)]
-    ["internal-context" (match (mod-internal-context z)
-                          [(? stx? ic) ic]
-                          [(? vector? ic) (vector->list ic)]
-                          [_ #f])]
-    ["pre-submodules"   (mod-pre-submodules z)]
-    ["post-submodules"  (mod-post-submodules z)]
+    ["prefix"
+     (mod-prefix z)]
+    ["provides"
+     (get-provided (mod-provides z))]
+    ["body"
+     (filter form? (mod-body z))]
+    ["syntax-bodies"
+     (get-syntaxes (mod-syntax-bodies z))]
+    ["dummy"
+     (mod-dummy z)]
+    ["internal-context"
+     (match (mod-internal-context z)
+       [(? stx? ic) ic]
+       [(? vector? ic) (vector->list ic)]
+       [_ #f])]
+    ["pre-submodules"
+     (mod-pre-submodules z)]
+    ["post-submodules"
+     (mod-post-submodules z)]
     [_ #f]))
 
 (define (provided-> z field-name)
@@ -265,68 +291,79 @@
 (define (lam-> z field-name)
   ;; (-> lam? string? (or/c (listof zo?) zo? #f))
   (match field-name
-  ["body" (match (lam-body z)
-            [(? expr-or-seq? bd) bd]
-            [_x #f])]
-  [_ #f]))
+    ["body"
+     (match (lam-body z)
+       [(? expr-or-seq? bd) bd]
+       [_x #f])]
+    [_ #f]))
 
 (define (closure-> z field-name)
   ;; (-> closure? string? (or/c (listof zo?) zo? #f))
   (match field-name
-    ["code" (closure-code z)]
+    ["code"
+     (closure-code z)]
     [_ #f]))
 
 (define (case-lam-> z field-name)
   ;; (-> case-lam? string? (or/c (listof zo?) zo? #f))
   (match field-name
-    ["clauses" (case-lam-clauses z)]
+    ["clauses"
+     (case-lam-clauses z)]
     [_ #f]))
 
 (define (let-one-> z field-name)
   ;; (-> let-one? string? (or/c (listof zo?) zo? #f))
   (match field-name
-    ["rhs"  (match (let-one-rhs z)
-              [(? expr-or-seq? rhs) rhs]
-              [_ #f])]
-    ["body" (match (let-one-body z)
-              [(? expr-or-seq? body) body]
-              [_ #f])]
+    ["rhs"
+     (match (let-one-rhs z)
+       [(? expr-or-seq? rhs) rhs]
+       [_ #f])]
+    ["body"
+     (match (let-one-body z)
+       [(? expr-or-seq? body) body]
+       [_ #f])]
     [_ #f]))
 
 (define (let-void-> z field-name)
   ;; (-> let-void? string? (or/c (listof zo?) zo? #f))
   (match field-name
-    ["body" (match (let-void-body z)
-              [(? expr-or-seq? body) body]
-              [_ #f])]
+    ["body"
+     (match (let-void-body z)
+       [(? expr-or-seq? body) body]
+       [_ #f])]
     [_ #f]))
 
 (define (install-value-> z field-name)
   ;; (-> install-value? string? (or/c (listof zo?) zo? #f))
   (match field-name
-    ["rhs"  (match (install-value-rhs z)
-              [(? expr-or-seq? rhs) rhs]
-              [_ #f])]
-    ["body" (match (install-value-body z)
-              [(? expr-or-seq? body) body]
-              [_ #f])]
+    ["rhs"
+     (match (install-value-rhs z)
+       [(? expr-or-seq? rhs) rhs]
+       [_ #f])]
+    ["body"
+     (match (install-value-body z)
+       [(? expr-or-seq? body) body]
+       [_ #f])]
     [_ #f]))
 
 (define (let-rec-> z field-name)
   ;; (-> let-rec? string? (or/c (listof zo?) zo? #f))
   (match field-name
-    ["procs" (let-rec-procs z)]
-    ["body"  (match (let-rec-body z)
-               [(? expr-or-seq? body) body]
-               [_ #f])]
+    ["procs"
+     (let-rec-procs z)]
+    ["body"
+     (match (let-rec-body z)
+       [(? expr-or-seq? body) body]
+       [_ #f])]
     [_ #f]))
 
 (define (boxenv-> z field-name)
   ;; (-> boxenv? string? (or/c (listof zo?) zo? #f))
   (match field-name
-    ["body" (match (boxenv-body z)
-              [(? expr-or-seq? body) body]
-              [_ #f])]
+    ["body"
+     (match (boxenv-body z)
+       [(? expr-or-seq? body) body]
+       [_ #f])]
     [_ #f]))
 
 (define (localref-> z field-name)
@@ -343,70 +380,89 @@
 
 (define (application-> z field-name)
   ;; (-> application? string? (or/c (listof zo?) zo? #f))
-  (cond [(string=? field-name "rator") (define rator (application-rator z))
-                                       (cond [(expr-or-seq? rator) rator]
-                                             [else #f])]
-        [(string=? field-name "rands") (filter expr-or-seq? (application-rands z))]
-        [else #f]))
+  (match field-name
+    ["rator"
+     (match (application-rator z)
+       [(? expr-or-seq? rator) rator]
+       [_ #f])]
+    ["rands"
+     (filter expr-or-seq? (application-rands z))]
+    [_ #f]))
 
 (define (branch-> z field-name)
   ;; (-> branch? string? (or/c (listof zo?) zo? #f))
-  (cond [(string=? field-name "test") (define test (branch-test z))
-                                       (cond [(expr-or-seq? test) test]
-                                             [else #f])]
-        [(string=? field-name "then") (define then (branch-then z))
-                                      (cond [(expr-or-seq? then) then]
-                                            [else #f])]
-        [(string=? field-name "else") (define el (branch-else z))
-                                      (cond [(expr-or-seq? el) el]
-                                            [else #f])]
-        [else #f]))
+  (match field-name
+    ["test"
+     (match (branch-test z)
+       [(? expr-or-seq? test) test]
+       [_ #f])]
+    ["then"
+     (match (branch-then z)
+       [(? expr-or-seq? then) then]
+       [_ #f])]
+    ["else"
+     (match (branch-else z)
+       [(? expr-or-seq? el) el]
+       [_ #f])]
+    [_ #f]))
 
 (define (with-cont-mark-> z field-name)
   ;; (-> with-cont-mark? string? (or/c (listof zo?) zo? #f))
-  (cond [(string=? field-name "key")  (define key  (with-cont-mark-key z))
-                                      (cond [(expr-or-seq? key)  key]
-                                            [else #f])]
-        [(string=? field-name "val")  (define val  (with-cont-mark-val z))
-                                      (cond [(expr-or-seq? val)  val]
-                                            [else #f])]
-        [(string=? field-name "body") (define body (with-cont-mark-body z))
-                                      (cond [(expr-or-seq? body) body]
-                                            [else #f])]
-        [else #f]))
+  (match field-name
+    ["key"
+     (match (with-cont-mark-key z)
+       [(? expr-or-seq? key)  key]
+       [_ #f])]
+    ["val"
+     (match (with-cont-mark-val z)
+       [(? expr-or-seq? val) val]
+       [_ #f])]
+    ["body"
+     (match (with-cont-mark-body z)
+       [(? expr-or-seq? body) body]
+       [_ #f])]
+    [_ #f]))
 
 (define (beg0-> z field-name)
   ;; (-> beg0? string? (or/c (listof zo?) zo? #f))
-  (cond [(string=? field-name "seq") (filter expr-or-seq? (beg0-seq z))]
-        [else #f]))
+  (match field-name
+    ["seq" (filter expr-or-seq? (beg0-seq z))]
+    [_ #f]))
 
 (define (varref-> z field-name)
   ;; (-> varref? string? (or/c (listof zo?) zo? #f))
-  (cond [(string=? field-name "toplevel") (define tl (varref-toplevel z))
-                                          (cond [(toplevel? tl) tl]
-                                                [else #f])]
-        [(string=? field-name "dummy")    (define dm (varref-dummy z))
-                                          (cond [(toplevel? dm) dm]
-                                                [else #f])]
-        [else #f]))
+  (match field-name
+    ["toplevel"
+     (match (varref-toplevel z)
+       [(? toplevel? tl) tl]
+       [_ #f])]
+    ["dummy"
+     (match (varref-dummy z)
+       [(? toplevel? dm) dm]
+       [_ #f])]
+    [_ #f]))
 
 (define (assign-> z field-name)
   ;; (-> assign? string? (or/c (listof zo?) zo? #f))
-  (cond [(string=? field-name "id")  (assign-id z)]
-        [(string=? field-name "rhs") (define rhs (assign-rhs z))
-                                     (cond [(expr-or-seq? rhs) rhs]
-                                           [else #f])]
-        [else #f]))
+  (match field-name
+    ["id" (assign-id z)]
+    ["rhs" (match (assign-rhs z)
+             [(? expr-or-seq? rhs) rhs]
+             [_ #f])]
+    [_ #f]))
 
 (define (apply-values-> z field-name)
   ;; (-> apply-values? string? (or/c (listof zo?) zo? #f))
-  (cond [(string=? field-name "proc")      (define proc      (apply-values-proc z))
-                                           (cond [(expr-or-seq? proc) proc]
-                                                 [else #f])]
-        [(string=? field-name "args-expr") (define args-expr (apply-values-args-expr z))
-                                           (cond [(expr-or-seq? args-expr) args-expr]
-                                                 [else #f])]
-        [else #f]))
+  (match field-name
+    ["proc"
+     (match (apply-values-proc z)
+       [(? expr-or-seq? proc) proc]
+       [_ #f])]
+    ["args-expr"
+     (match (apply-values-args-expr z)
+       [(? expr-or-seq? args-expr) args-expr]
+       [_ #f])]
+    [_ #f]))
 
 (define (primval-> z field-name)
   ;; (-> primval? string? (or/c (listof zo?) zo? #f))
@@ -430,8 +486,10 @@
                #:when (and (pair? (cdr blah))
                            (free-id-info? (cddr blah))))
       (cddr blah)))
-  (cond [(string=? field-name "alist") (get-free-id-info (lexical-rename-alist z))]
-        [else #f]))
+  (match field-name
+    ["alist"
+     (get-free-id-info (lexical-rename-alist z))]
+    [_ #f]))
   
 (define (phase-shift-> z field-name)
   ;; (-> phase-shift? string? (or/c (listof zo?) zo? #f))
@@ -439,9 +497,10 @@
 
 (define (module-rename-> z field-name)
   ;; (-> module-rename? string? (or/c (listof zo?) zo? #f))
-  (cond [(string=? field-name "unmarshals") (module-rename-unmarshals z)]
-        [(string=? field-name "renames")    (for/list ([mbpair (module-rename-renames z)]) (cdr mbpair))]
-        [else #f]))
+  (match field-name
+    ["unmarshals" (module-rename-unmarshals z)]
+    ["renames"    (for/list ([mbpair (module-rename-renames z)]) (cdr mbpair))]
+    [_ #f]))
 
 (define (wrap-mark-> z field-name)
   ;; (-> wrap-mark? string? (or/c (listof zo?) zo? #f))
@@ -459,18 +518,21 @@
 
 (define (phased-module-binding-> z field-name)
   ;; (-> phased-module-binding? string? (or/c (listof zo?) zo? #f))
-  (cond [(string=? field-name "nominal-path") (phased-module-binding-nominal-path z)]
-        [else #f]))
+  (match field-name
+    ["nominal-path" (phased-module-binding-nominal-path z)]
+    [_ #f]))
 
 (define (exported-nominal-module-binding-> z field-name)
   ;; (-> exported-nominal-module-binding? string? (or/c (listof zo?) zo? #f))
-  (cond [(string=? field-name "nominal-path") (exported-nominal-module-binding-nominal-path z)]
-        [else #f]))
+  (match field-name
+    ["nominal-path" (exported-nominal-module-binding-nominal-path z)]
+    [_ #f]))
 
 (define (nominal-module-binding-> z field-name)
   ;; (-> nominal-module-binding? string? (or/c (listof zo?) zo? #f))
-  (cond [(string=? field-name "nominal-path") (nominal-module-binding-nominal-path z)]
-        [else #f]))
+  (match field-name
+    ["nominal-path" (nominal-module-binding-nominal-path z)]
+    [_ #f]))
 
 (define (exported-module-binding-> z field-name)
   ;; (-> exported-module-binding? string? (or/c (listof zo?) zo? #f))
