@@ -1,23 +1,28 @@
 #lang racket/base
 
-;; Macro abstracting dispatch tables:
-;; - accept an argument,
-;; - check it against some predicates,
-;; - if a predicate matches, call an associated function
+;; Macro abstracting dispatch tables for zo structs.
+;; Given an action and a list of struct names, create a cond
+;; table checking predicates (build from each name) and
+;; applying actions (derived by combining the action and the names)
 
 (provide
- ;; Create a dispatch table from a predicate, action, and arguments.
+ ;; Create a dispatch table from an action and list of names
  make-table)
 
-(require (for-syntax racket/base racket/syntax))
+(require (for-syntax racket/base syntax/parse racket/syntax))
 
 ;; --------------------------------------------------------------------------------
 
-;; Create a dispatch table from a set of predicates and actions
-(define-syntax-rule
-  (make-table [pred action] ...)
-  (lambda (z . args)
-    (cond
-     [(pred z) (apply action (cons z args))]
-     ...
-     [else #f])))
+;; Create a dispatch table from an action and 
+(define-syntax (make-table stx)
+  (syntax-parse stx
+    [(_ (~seq #:action act) ids:id ...)
+     #:with (ids? ...) #`(#,@(for/list ([i (syntax->list #'(ids ...))])
+                              (format-id stx "~a?" i)))
+     #:with (ids* ...) #`(#,@(for/list ([i (syntax->list #'(ids ...))])
+                              (format-id stx "~a~a" i #'act)))
+     #'(λ (z . a)
+         (cond
+           [(ids? z) (apply ids* (cons z a))]
+           ...
+           [else #f]))]))
