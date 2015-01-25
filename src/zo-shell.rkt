@@ -36,16 +36,76 @@
     [(vector fname) (init-from-filename fname)]
     [_              (print-usage)]))
 
+;; --- Commands (could go in their own file)
+
+(struct command (name       ;; String
+                 num-args   ;; Natural
+                 aliases    ;; Listof String
+                 help-msg)) ;; String
+(define ALST (command "alst"
+                      0
+                      (list "a" "alias" "aliases")
+                      "Print command aliases"))
+(define BACK (command "back"
+                      0
+                      (list "b" "up" "u" ".." "../" "cd .." "cd ../")
+                      "Move up to the previous context"))
+(define DIVE (command "dive"
+                      1
+                      (list "d" "cd" "next" "step")
+                      "Step into struct field ARG"))
+(define FIND (command "find"
+                      1
+                      (list "f" "query" "search" "look")
+                      "Search the current subtree for structs with the name ARG"))
+(define HELP (command "help"
+                      0
+                      (list "h" "-h" "--h" "-help" "--help")
+                      "Print this message"))
+(define INFO (command "info"
+                      0
+                      (list "i" "ls" "print" "p" "show")
+                      "Show information about current context"))
+(define JUMP (command "jump"
+                      0
+                      (list "j" "warp" "top")
+                      "Revert to last saved position"))
+(define SAVE (command "save"
+                      0
+                      (list "mark")
+                      "Save the current context as jump target"))
+(define QUIT (command "quit"
+                      0
+                      (list "q" "exit" "leave" "bye")
+                      "Exit the interpreter"))
+(define COMMANDS
+  (list ALST BACK DIVE FIND HELP INFO JUMP SAVE QUIT))
+
+(define ((cmd? c) str)
+  (define splt (string-split str))
+  (or
+   ;; Special cases
+   (and (string=? "back" (command-name c))
+        (member str (list "cd .." "cd ../")))
+   ;; Everything else
+   (and
+    ;; Has the right number of arguments
+    (= (sub1 (length splt))
+       (command-num-args c))
+    ;; First word matches command name (or an alias)
+    (or (string=? (car splt) (command-name c))
+        (member   (car splt) (command-aliases c))))))
+
 ;; --- REPL
 
 ;; Start REPL from a filename
 (define (init-from-filename name)
   ;; (-> string? void?)
   (print-info (format "Loading bytecode file '~a'..." name))
-  (with-input-from-file name
-    (lambda ()
+  (call-with-input-file name
+    (lambda (port)
       (print-info "Parsing bytecode...")
-      (define ctx  (zo-parse))
+      (define ctx  (zo-parse port))
       (print-info "Parsing complete!")
       (print-welcome)
       (repl ctx '() '()))))
@@ -55,87 +115,27 @@
   ;; (-> context? history? void?)
   (when DEBUG (print-history hist))
   (print-prompt)
-  ;; 2015-01-12: Command parsing is currently very simple.
   (match (read-line)
-    [(? alias? raw) (print-alias) (repl ctx hist pre-hist)]
-    [(? back? raw)  (call-with-values (lambda () (back raw ctx hist pre-hist)) repl)]
-    [(? dive? raw)  (call-with-values (lambda () (dive raw ctx hist pre-hist)) repl)]
-    [(? find? raw)  (call-with-values (lambda () (find raw ctx hist pre-hist)) repl)]
-    [(? help? raw)  (print-help) (repl ctx hist pre-hist)]
-    [(? info? raw)  (print-context ctx) (repl ctx hist pre-hist)]
-    [(? jump? raw)  (call-with-values (lambda () (jump raw ctx hist pre-hist)) repl)]
-    [(? save? raw)  (call-with-values (lambda () (save raw ctx hist pre-hist)) repl)]
-    [(? quit? raw)  (print-goodbye)]
-    [raw            (print-unknown raw) (repl ctx hist pre-hist)]))
-
-;; --- command predicates
-
-;; ALIAS
-;; No arguments
-(define alst-cmds (list "alst" "a" "alias" "aliases"))
-(define (alias? raw)
-  (member raw alst-cmds))
-
-;; BACK
-;; Takes no arguments
-(define back-cmds (list "back" "b" "up" "u" ".." "../" "cd .." "cd ../"))
-(define (back? raw)
-  ;; (-> string? boolean?)
-  (member raw back-cmds))
-
-;; DIVE ARG
-;; Takes one argument, a string denoting the field to enter.
-(define dive-cmds (list "dive" "d" "cd" "next" "step"))
-(define (dive? raw)
-  ;; (-> string? boolean?)
-  (define hd (if (memq #\space (string->list raw))
-                 (car (string-split raw))
-                 ""))
-  (member hd dive-cmds))
-
-;; FIND ARG
-;; Takes one argument, a string denoting the struct name to search for.
-(define find-cmds (list "find" "f" "query" "search" "look"))
-(define (find? raw)
-  ;; (-> string? boolean?)
-  (define hd (if (memq #\space (string->list raw))
-                 (car (string-split raw))
-                 ""))
-  (member hd find-cmds))
-
-;; HELP
-;; Takes no arguments
-(define help-cmds (list "help" "h" "-h" "--h" "-help" "--help"))
-(define (help? raw)
-  ;; (-> string? boolean?)
-  (member raw help-cmds))
-
-;; INFO
-;; Takes no arguments
-(define info-cmds (list "info" "i" "ls" "print" "p" "show"))
-(define (info? raw)
-  ;; (-> string? boolean?)
-  (member raw info-cmds))
-
-;; JUMP
-;; No args
-(define jump-cmds (list "jump" "j" "warp" "top"))
-(define (jump? raw)
-  (member raw jump-cmds))
-
-;; SAVE
-;; No args
-(define save-cmds (list "save" "mark"))
-(define (save? raw)
-  ;; (-> string boolean?)
-  (member raw save-cmds))
-
-;; QUIT
-;; Takes no arguments
-(define quit-cmds (list "quit" "q" "exit"))
-(define (quit? raw)
-  ;; (-> string? boolean?)
-  (member raw quit-cmds))
+    [(? (cmd? ALST) raw)
+     (print-alias) (repl ctx hist pre-hist)]
+    [(? (cmd? BACK) raw)
+     (call-with-values (lambda () (back raw ctx hist pre-hist)) repl)]
+    [(? (cmd? DIVE) raw)
+     (call-with-values (lambda () (dive raw ctx hist pre-hist)) repl)]
+    [(? (cmd? FIND) raw)
+     (call-with-values (lambda () (find raw ctx hist pre-hist)) repl)]
+    [(? (cmd? HELP) raw)
+     (print-help) (repl ctx hist pre-hist)]
+    [(? (cmd? INFO) raw)
+     (print-context ctx) (repl ctx hist pre-hist)]
+    [(? (cmd? JUMP) raw)
+     (call-with-values (lambda () (jump raw ctx hist pre-hist)) repl)]
+    [(? (cmd? SAVE) raw)
+     (call-with-values (lambda () (save raw ctx hist pre-hist)) repl)]
+    [(? (cmd? QUIT) raw)
+     (print-goodbye)]
+    [raw
+     (print-unknown raw) (repl ctx hist pre-hist)]))
 
 ;; --- command implementations
 
@@ -272,17 +272,14 @@
 
 (define (print-alias)
   ;; (-> void?)
-  (displayln (string-join (list "At your service. Command aliases:"
-                                (format "  alst        ~a" (string-join alst-cmds))
-                                (format "  back        ~a" (string-join back-cmds))
-                                (format "  dive        ~a" (string-join dive-cmds))
-                                (format "  find        ~a" (string-join find-cmds))
-                                (format "  help        ~a" (string-join help-cmds))
-                                (format "  info        ~a" (string-join info-cmds))
-                                (format "  jump        ~a" (string-join jump-cmds))
-                                (format "  save        ~a" (string-join save-cmds))
-                                (format "  quit        ~a" (string-join quit-cmds)))
-                          "\n")))
+  (displayln "At your service. Command aliases:")
+  (displayln
+   (string-join
+    (for/list ([cmd COMMANDS])
+      (format "  ~a        ~a"
+              (command-name cmd)
+              (string-join (command-aliases cmd))))
+   "\n")))
 
 ;; Print a history object.
 (define (print-history hist)
@@ -292,19 +289,14 @@
 ;; Print a help message for the REPL.
 (define (print-help)
   ;; (-> void?)
+  (displayln "At your service. Available commands:")
   (displayln
    (string-join
-    (list "At your service. Available commands:"
-          "  alst        Print command aliases"
-          "  back        Move up to the previous context"
-          "  dive ARG    Step into struct field ARG"
-          "  find ARG    Search the current subtree for structs with the name ARG"
-          "  help        Print this message"
-          "  info        Show information about current context"
-          "  jump        Revert to last saved position"
-          "  save        Save the current context as jump target"
-          "  quit        Exit the interpreter"
-          )
+    (for/list ([cmd COMMANDS])
+      (format "  ~a~a    ~a"
+              (command-name cmd)
+              (if (= 1 (command-num-args cmd)) " ARG" "    ") ;; hack
+              (command-help-msg cmd)))
     "\n")))
 
 ;; Print a context.
@@ -403,94 +395,94 @@
   (check-pred read-line in)
 
   ;; --- command predicates
-  (check-pred alias? "alst")
-  (check-pred alias? "a")
-  (check-pred alias? "alias")
-  (check-pred alias? "aliases")
+  (check-pred (cmd? ALST) "alst")
+  (check-pred (cmd? ALST) "a")
+  (check-pred (cmd? ALST) "alias")
+  (check-pred (cmd? ALST) "aliases")
 
-  (check-false (alias? "alias ARG"))
-  (check-false (alias? "ALIAS"))
-  (check-false (alias? "help"))
-  (check-false (alias? ""))
+  (check-false ((cmd? ALST) "alias ARG"))
+  (check-false ((cmd? ALST) "ALIAS"))
+  (check-false ((cmd? ALST) "help"))
+  (check-false ((cmd? ALST) ""))
 
-  (check-pred back? "back")
-  (check-pred back? "b")
-  (check-pred back? "up")
-  (check-pred back? "../")
-  (check-pred back? "cd ../")
+  (check-pred (cmd? BACK) "back")
+  (check-pred (cmd? BACK) "b")
+  (check-pred (cmd? BACK) "up")
+  (check-pred (cmd? BACK) "../")
+  (check-pred (cmd? BACK) "cd ../")
 
-  (check-false (back? "back ARG"))
-  (check-false (back? "BACK"))
-  (check-false (back? "help"))
-  (check-false (back? ""))
+  (check-false ((cmd? BACK) "back ARG"))
+  (check-false ((cmd? BACK) "BACK"))
+  (check-false ((cmd? BACK) "help"))
+  (check-false ((cmd? BACK) ""))
 
   ;; -- DIVE command requires a single argument (doesn't fail for multiple arguments)
-  (check-pred dive? "dive ARG")
-  (check-pred dive? "d ARG")
-  (check-pred dive? "cd ARG")
-  (check-pred dive? "next ARG")
-  (check-pred dive? "step ARG1 ARG2 ARG3")
+  (check-pred (cmd? DIVE) "dive ARG")
+  (check-pred (cmd? DIVE) "d ARG")
+  (check-pred (cmd? DIVE) "cd ARG")
+  (check-pred (cmd? DIVE) "next ARG")
 
-  (check-false (dive? "dive"))
-  (check-false (dive? "d"))
-  (check-false (dive? "quit"))
-  (check-false (dive? "a mistake"))
+  (check-false ((cmd? DIVE) "step ARG1 ARG2 ARG3"))
+  (check-false ((cmd? DIVE) "dive"))
+  (check-false ((cmd? DIVE) "d"))
+  (check-false ((cmd? DIVE) "quit"))
+  (check-false ((cmd? DIVE) "a mistake"))
 
   ;; -- FIND command takes one argument, just like DIVE
-  (check-pred find? "find ARG")
-  (check-pred find? "f ARG1 ARG2 ARG3")
-  (check-pred find? "query ")
-  (check-pred find? "search branch")
-  (check-pred find? "look up")
+  (check-pred (cmd? FIND) "find ARG")
+  (check-pred (cmd? FIND) "search branch")
+  (check-pred (cmd? FIND) "look up")
 
-  (check-false (find? "find"))
-  (check-false (find? "back"))
-  (check-false (find? "hello world"))
+  (check-false ((cmd? FIND) "query "))
+  (check-false ((cmd? FIND) "f ARG1 ARG2 ARG3"))
+  (check-false ((cmd? FIND) "find"))
+  (check-false ((cmd? FIND) "back"))
+  (check-false ((cmd? FIND) "hello world"))
 
-  (check-pred help? "help")
-  (check-pred help? "h")
-  (check-pred help? "--help")
-  (check-pred help? "-help")
+  (check-pred (cmd? HELP) "help")
+  (check-pred (cmd? HELP) "h")
+  (check-pred (cmd? HELP) "--help")
+  (check-pred (cmd? HELP) "-help")
 
-  (check-false (help? 'help))
-  (check-false (help? "help me"))
-  (check-false (help? "lost"))
-  (check-false (help? "stuck, please help"))
+  (check-false ((cmd? HELP) "ohgosh"))
+  (check-false ((cmd? HELP) "help me"))
+  (check-false ((cmd? HELP) "lost"))
+  (check-false ((cmd? HELP) "stuck, please help"))
 
-  (check-pred info? "info")
-  (check-pred info? "i")
-  (check-pred info? "print")
-  (check-pred info? "show")
+  (check-pred (cmd? INFO) "info")
+  (check-pred (cmd? INFO) "i")
+  (check-pred (cmd? INFO) "print")
+  (check-pred (cmd? INFO) "show")
 
-  (check-false (info? "println"))
-  (check-false (info? "help"))
-  (check-false (info? "display"))
-  (check-false (info? "write to out"))
+  (check-false ((cmd? INFO) "println"))
+  (check-false ((cmd? INFO) "help"))
+  (check-false ((cmd? INFO) "display"))
+  (check-false ((cmd? INFO) "write to out"))
 
-  (check-pred jump? "jump")
-  (check-pred jump? "j")
-  (check-pred jump? "warp")
-  (check-pred jump? "top")
+  (check-pred (cmd? JUMP) "jump")
+  (check-pred (cmd? JUMP) "j")
+  (check-pred (cmd? JUMP) "warp")
+  (check-pred (cmd? JUMP) "top")
 
-  (check-false (jump? "jump a"))
-  (check-false (jump? "w"))
+  (check-false ((cmd? JUMP) "jump a"))
+  (check-false ((cmd? JUMP) "w"))
 
-  (check-pred save? "save")
-  (check-pred save? "mark")
+  (check-pred (cmd? SAVE) "save")
+  (check-pred (cmd? SAVE) "mark")
 
-  (check-false (save? "lasd"))
-  (check-false (save? "step"))
-  (check-false (save? ""))
-  (check-false (save? "save z"))
+  (check-false ((cmd? SAVE) "lasd"))
+  (check-false ((cmd? SAVE) "step"))
+  (check-false ((cmd? SAVE) ""))
+  (check-false ((cmd? SAVE) "save z"))
 
-  (check-pred quit? "q")
-  (check-pred quit? "quit")
-  (check-pred quit? "exit")
+  (check-pred (cmd? QUIT) "q")
+  (check-pred (cmd? QUIT) "quit")
+  (check-pred (cmd? QUIT) "exit")
+  (check-pred (cmd? QUIT) "leave")
 
-  (check-false (quit? "leave"))
-  (check-false (quit? "(quit)"))
-  (check-false (quit? "(exit)"))
-  (check-false (quit? "get me out of here"))
+  (check-false ((cmd? QUIT) "(quit)"))
+  (check-false ((cmd? QUIT) "(exit)"))
+  (check-false ((cmd? QUIT) "get me out of here"))
 
   ;; --- command implementations
 
