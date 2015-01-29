@@ -13,13 +13,16 @@
 ;; http://docs.racket-lang.org/raco/decompile.html
 
 (provide
+ ;; (->* (zo?) (#:deep? boolean?) string?)
  ;; Return a string representation of a zo struct
  zo->string
+ ;; (->i ([z zo?]) () [res (z) (and/c spec/c (specof z))])
  ;; Return a list-of-strings representation of a zo struct.
  ;; The structure of the list mirrors the structure of the original zo struct.
  zo->spec
- ;; Contract for conversion functions.
- spec/c)
+ ;; Contracts for conversion functions.
+ spec/c
+ specof)
 
 ;; --- string specifications
 
@@ -175,10 +178,14 @@
   (prefix->spec z)
   (-> prefix? spec/c)
   (define (tl->spec tl)
-    (cond [(module-variable? tl) (format-spec #f (module-variable->spec tl))]
-          [(global-bucket?   tl) (format-spec #f (global-bucket->spec tl))]
-          [(eq? #f tl)           "#f"]
-          [else (symbol->string tl)]))
+    (match tl
+      [(? module-variable?)
+       (format-spec #f (module-variable->spec tl))]
+      [(? global-bucket?)
+       (format-spec #f (global-bucket->spec tl))]
+      [(? symbol?)
+       (symbol->string tl)]
+      [#f "#f"]))
   (list "prefix"
         (lcons "num-lifts" (number->string                (prefix-num-lifts z)))
         (lcons "toplevels" (list->string      tl->spec  (prefix-toplevels z)))
@@ -240,8 +247,6 @@
 (define/contract
   (all-from-module->spec z)
   (-> all-from-module? spec/c)
-  (define (exception->spec ex)
-    (list->string symbol->string ex))
   (define (prefix->spec px)
     (if (symbol? px)
         (symbol->string px)
@@ -256,7 +261,7 @@
         (lcons "path"      (module-path-index->string (all-from-module-path z)))
         (lcons "phase"     (phase->spec             (all-from-module-phase z)))
         (lcons "src-phase" (phase->spec             (all-from-module-src-phase z)))
-        (lcons "exceptions" (exception->spec         (all-from-module-exceptions z)))
+        (lcons "exceptions" (list->string symbol->string (all-from-module-exceptions z)))
         (lcons "prefix"    (prefix->spec            (all-from-module-prefix z)))
         (lcons "context"   (context->spec           (all-from-module-context z)))))
 
@@ -275,9 +280,11 @@
   (def-syntaxes->spec z)
   (-> def-syntaxes? spec/c)
   (define (toplevel-or-symbol->string tl)
-    (if (toplevel? tl)
-        (format-spec #f (toplevel->spec tl))
-        (symbol->string tl)))
+    (match tl
+      [(? toplevel?)
+       (format-spec #f (toplevel->spec tl))]
+      [(? symbol?)
+       (symbol->string tl)]))
   (list "def-syntaxes"
         (lcons "ids"           (list->string toplevel-or-symbol->string (def-syntaxes-ids z)))
         (lcons "rhs"           (expr-seq-any->string                    (def-syntaxes-rhs z)))
@@ -324,9 +331,11 @@
   (mod->spec z)
   (-> mod? spec/c)
   (define (name->spec nm)
-    (if (symbol? nm)
-        (symbol->string nm)
-        (list->string  symbol->string nm)))
+    (match nm
+      [(? list?)
+       (list->string  symbol->string nm)]
+      [(? symbol?)
+       (symbol->string nm)]))
   (define (unexported->spec ux)
     (define (elem->spec e)
       (format-list
@@ -336,13 +345,14 @@
              (list->string symbol->string (caddr e)))))
     (list->string elem->spec ux))
   (define (lang-info->spec li)
-    (if (eq? #f li)
-        "#f"
+    (match li
+      [(vector mp sym any)
         (format-list
          #:sep " "
-         (list (module-path->spec (vector-ref li 0))
-               (symbol->string      (vector-ref li 1))
-               (any->string         (vector-ref li 2))))))
+         (list (module-path->spec mp)
+               (symbol->string    sym)
+               (any->string       any)))]
+      [#f "#f"]))
   (define;/contract
     (provides->spec pds)
     ;(-> (listof (list/c (or/c exact-integer? #f) (listof provided?) (listof provided?))) string?)
@@ -423,8 +433,13 @@
 
 ;; Helper for `lam` and `case-lam`.
 (define (lam-name->spec nm)
-  (cond [(vector? nm) (any->string nm)]
-        [else         (symbol->string nm)]))
+  (match nm
+    [(? vector?)
+     (any->string nm)]
+    [(? empty?)
+     "()"]
+    [(? symbol?)
+     (symbol->string nm)]))
 
 (define/contract
   (lam->spec z)
@@ -664,7 +679,7 @@
   (prune->spec z)
   (-> prune? spec/c)
   (list "prune"
-        (lcons "sym" (symbol->string (prune-sym z)))))
+        (lcons "sym" (any->string (prune-sym z)))))
 
 ;; --- module-binding
 

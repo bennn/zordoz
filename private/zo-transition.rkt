@@ -8,8 +8,9 @@
 ;; for a type of zo struct.
 
 (provide
+ ;; (-> zo? string? (values (or/c zo? (listof zo?)) boolean?))
  ;; Access "structName-fieldName myStruct" at runtime.
- transition)
+ zo-transition)
 
 (require compiler/zo-structs
          racket/match
@@ -29,8 +30,8 @@
 ;;   value stored in the field denoted by `field-name`
 ;; - Second is a boolean indicating success or failure.
 ;;   On failure, the returned zo struct is `z`.
-(define (transition z field-name)
-  ;; (-> zo? string? (values (or/c zo? (listof zo?)) boolean))
+(define (zo-transition z field-name)
+  ;; (-> zo? string? (values (or/c zo? (listof zo?)) boolean?))
   ;; Check if transition failed or returned a list without any zo, pack result values.
   (match (try-transition z field-name)
     [(? zo? nxt)
@@ -707,7 +708,7 @@
            (check-equal? (seq-for-syntax-> z "") #f)
            (check-equal? (seq-for-syntax-> z* "forms") '())
            ;; empty list filtered at toplevel
-           (let-values ([(ctx* pass?) (transition z* "forms")])
+           (let-values ([(ctx* pass?) (zo-transition z* "forms")])
              (begin (check-equal? ctx* z*)
                     (check-false pass?)))))
 
@@ -726,7 +727,7 @@
     (begin (check-equal? (seq-> z "forms") fms)
            (check-equal? (seq-> z "") #f)
            (check-equal? (seq-> z* "forms") '())
-           (let-values ([(ctx* pass?) (transition z* "forms")])
+           (let-values ([(ctx* pass?) (zo-transition z* "forms")])
              (begin (check-equal? ctx* z*)
                     (check-false pass?)))))
 
@@ -738,7 +739,7 @@
     (begin (check-equal? (splice-> z "forms") fms)
            (check-equal? (splice-> z "") #f)
            (check-equal? (splice-> z* "forms") '())
-           (let-values ([(ctx* pass?) (transition z* "forms")])
+           (let-values ([(ctx* pass?) (zo-transition z* "forms")])
              (begin (check-equal? ctx* z*)
                     (check-false pass?)))))
     

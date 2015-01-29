@@ -12,7 +12,7 @@
          (only-in racket/string string-split string-join)
          (only-in "zo-find.rkt" zo-find result result? result-zo result-path)
          (only-in "zo-string.rkt" zo->string)
-         (only-in "zo-transition.rkt" transition)
+         (only-in "zo-transition.rkt" zo-transition)
          racket/match)
 
 ;; -----------------------------------------------------------------------------
@@ -212,7 +212,7 @@
 ;; Otherwise, return `ctx` and `hist` unchanged.
 (define (dive-zo ctx hist field)
   ;; (-> zo? history? string? (values context? history?))
-  (define-values (ctx* success?) (transition ctx field))
+  (define-values (ctx* success?) (zo-transition ctx field))
   (cond
    [success?
     (values ctx* (push hist ctx))]
