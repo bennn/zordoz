@@ -16,7 +16,7 @@ The REPL accepts the following commands:
 
 - `alst` prints all command aliases; for example, the repl treats the words 'alst' and 'aliases' the same way
 - `back` goes back to the previous context
-- `dive ARG` changes context. For any `<struct:val>` printed by `info`, you can `dive val`. Also, you can `dive i` if `info` prints a list with at least `i` elements.
+- `dive ARG` changes context to a new zo struct or list (other dives are not permitted)
 - `find ARG` searches for matches to `ARG` and, if successful, changes context to the list of results
 - `help` prints information about these commands
 - `info` prints data about the current context
