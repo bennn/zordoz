@@ -1,0 +1,73 @@
+#lang scribble/manual
+
+@title{Overview}
+
+@local-table-of-contents[]
+
+
+@section{Quickstart}
+
+The main entry point is @tt{zordoz.rkt}.
+If you have a bytecode file ready, run
+
+@racketblock[racket zordoz.rkt FILE.zo]
+
+and you're started.
+Type @tt{help} at the REPL to see available commands.
+
+@racketblock[
+zo> help
+At your service. Available commands:
+  alst        Print command aliases
+  back        Move up to the previous context
+  dive ARG    Step into struct field ARG
+  find ARG    Search the current subtree for structs with the name ARG
+  help        Print this message
+  info        Show information about current context
+  jump        Revert to last saved position
+  save        Save the current context as jump target
+  quit        Exit the interpreter
+]
+
+
+@section{Building}
+
+The included Makefile runs @tt{raco make zordoz.rkt} to generate an executable.
+The Makefile additionally renames this executable to @tt{zordoz}, so you can run:
+
+@racketblock[./zordoz FILE.zo]
+
+If you installed via @tt{raco}, then the command @tt{raco zordoz FILE.zo} should work just as well.
+
+
+@section{Testing}
+
+Each source file contains a @tt{module+ test} with unit tests.
+Run them all with:
+
+@racketblock[make test]
+
+or individually using:
+
+@racketblock[raco test FILE.rkt]
+
+
+@section{Manifesto}
+
+The goal of this project is to help explore Racket bytecode in any useful way.
+
+Racket offers a de-compilation @hyperlink["http://docs.racket-lang.org/raco/decompile.html"]{API}, however the structs it produces are still dense reading.
+This project takes a de-compiled @hyperlink["http://docs.racket-lang.org/raco/decompile.html#%28def._%28%28lib._compiler%2Fzo-parse..rkt%29._zo-parse%29%29"]{zo struct} and offers:
+
+@itemlist[
+
+    @item{A string representation of the struct, with name and fields clearly labeled.}
+
+    @item{Step-by-step exploration of the struct's fields.}
+
+    @item{A simple search interface for finding structs nested within the current.}
+
+]
+
+We hope to add more features, especially a tool for comparing two bytecode files.
+@hyperlink["https://github.com/bennn/zordoz/issues"]{Feedback} and suggestions appreciated!

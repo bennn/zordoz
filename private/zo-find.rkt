@@ -13,7 +13,7 @@
 (require (only-in racket/list empty?)
          (only-in racket/string string-split string-trim)
          (only-in compiler/zo-structs zo?)
-         (only-in "zo-transition.rkt" transition)
+         (only-in "zo-transition.rkt" zo-transition)
          (only-in "zo-string.rkt" zo->spec spec/c)
          racket/match)
 
@@ -77,7 +77,7 @@
   (match strs
     ['() '()]
     [(cons hd tl)
-     (define-values (r success?) (transition z hd))
+     (define-values (r success?) (zo-transition z hd))
      (cond [(not success?) (get-children z tl)]
            [(list? r)      (append (filter zo? r) (get-children z tl))]
            [(zo?   r)      (cons r (get-children z tl))])]))
