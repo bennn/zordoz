@@ -35,8 +35,12 @@
 (define (init args)
   ;; (-> (listof string?) void?)
   (match args
-    [(vector fname) (init-from-filename fname)]
-    [_              (print-usage)]))
+    ['#()
+     (print-usage)]
+    [(vector fname)
+     (init-from-filename fname)]
+    [(vector fname args ...)
+     (find-all fname args)]))
 
 ;; --- Commands (could go in their own file)
 
@@ -362,7 +366,20 @@
 (define (print-usage)
   (displayln "Usage: zo-shell FILE.zo"))
 
-;; --- parsing
+;; --- misc
+
+(define (find-all name args)
+  ;; (-> string? (vectorof string?) void)
+  (print-info (format "Loading bytecode file '~a'..." name))
+  (call-with-input-file name
+    (lambda (port)
+      (print-info "Parsing bytecode...")
+      (define ctx (zo-parse port))
+      (print-info "Parsing complete! Searching...")
+      (for ([arg (in-list args)])
+        (printf "FIND '~a' : " arg)
+        (printf "~a results\n" (length (zo-find ctx arg))))
+      (displayln "All done!"))))
 
 ;; Split the string `raw` by whitespace and
 ;; return the second element of the split, if any.
