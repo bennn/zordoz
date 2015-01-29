@@ -33,10 +33,10 @@ Check the [guide](http://bennn.github.io/zordoz) for a summary.
 Background
 ----------
 
-Racket bytecode is stored in files with a `.zo` extension [1](http://docs.racket-lang.org/raco/make.html).
+Racket bytecode is stored in files with a `.zo` [extension](http://docs.racket-lang.org/raco/make.html).
 This tool makes it easier to explore the bytecode representation of a file, whether or not you have access to the file's source code.
 
-Given a `.zo` file, we decompile the bytecode into a struct (aka, a "zo-struct") using Racket's built-in decompilation API [2](http://docs.racket-lang.org/raco/decompile.html).
+Given a `.zo` file, we decompile the bytecode into a struct (aka, a "zo-struct") using Racket's built-in [decompilation API](http://docs.racket-lang.org/raco/decompile.html).
 The REPL loads this struct as its initial _context_ and begins accepting commands, making it easy to visualize and explore Racket bytecode.
 
 Example
