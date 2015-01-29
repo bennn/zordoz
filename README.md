@@ -25,7 +25,7 @@ The REPL accepts the following commands:
 - `quit` exits the interpreter
 
 To run tests, execute `make test`.
-Each module in the `src/` folder contains a module `test+` containing unit tests.
+Each module in the `private/` folder contains a module `test+` containing unit tests.
 
 The functions implementing the `dive`, `find`, and `info` commands are available outside the REPL.
 Check the [guide](http://bennn.github.io/zordoz) for a summary.
@@ -60,7 +60,7 @@ ZORDOZ offers a more readable presentation.
 Below is a sample interactive session with the same small file (interspersed with commentary):
 
 ```
-> racket main.rkt compiled/test_rkt.zo 
+> racket zordoz.rkt compiled/test_rkt.zo 
 INFO: Loading bytecode file 'compiled/test_rkt.zo'...
 INFO: Parsing bytecode...
 INFO: Parsing complete!
