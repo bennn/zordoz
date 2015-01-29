@@ -19,9 +19,11 @@
 
 ;; --- constants & contracts
 
-(define DEBUG   #f) ;when set, print extra debugging information
-(define VERSION 0.6) ;for aesthetic purposes
-(define VNAME   "outlands") ;also aesthetic
+;; when set, print extra debugging information
+(define DEBUG   #f)
+;; For aesthetic purposes
+(define VERSION 1.0) 
+(define VNAME   "vortex")
 ;; (define nat? natural-number/c)
 ;; (define context? (or/c zo? (listof zo?) (listof result?)))
 ;; (define history? (listof context?))
