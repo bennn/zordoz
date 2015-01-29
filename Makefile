@@ -1,9 +1,8 @@
 all:
-	raco exe main.rkt
-	mv main zordoz
+	raco exe zordoz.rkt
 
 test:
-	raco test src/zo-find.rkt
-	raco test src/zo-shell.rkt
-	raco test src/zo-string.rkt
-	raco test src/zo-transition.rkt
+	raco test private/zo-find.rkt
+	raco test private/zo-shell.rkt
+	raco test private/zo-string.rkt
+	raco test private/zo-transition.rkt
