@@ -406,11 +406,8 @@
 
   ;; --- API
   ;; -- invalid args for init. read-line makes sure some message was printed.
-  (check-equal? (init '())                 (void))
-  (check-pred read-line in)
-  (check-equal? (init '(two args))         (void))
-  (check-pred read-line in)
-  (check-equal? (init '(more than 2 args)) (void))
+  ;; -- TODO more init tests
+  (check-equal? (init '#())                 (void))
   (check-pred read-line in)
 
   ;; --- command predicates
