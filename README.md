@@ -30,6 +30,16 @@ Each module in the `private/` folder contains a module `test+` containing unit t
 The functions implementing the `dive`, `find`, and `info` commands are available outside the REPL.
 Check the [guide](http://bennn.github.io/zordoz) for a summary.
 
+### Quick Search
+
+Alternatively, passing the names of AST nodes on the command line immediately counts their occurrences in the source:
+```
+$ ./zordoz file.zo branch lam closure
+```
+Will count and print the number of times the zo structs [branch](http://docs.racket-lang.org/raco/decompile.html#%28def._%28%28lib._compiler%2Fzo-structs..rkt%29._branch%29%29) [lam](http://docs.racket-lang.org/raco/decompile.html#%28def._%28%28lib._compiler%2Fzo-structs..rkt%29._lam%29%29) and [closure](http://docs.racket-lang.org/raco/decompile.html#%28def._%28%28lib._compiler%2Fzo-structs..rkt%29._closure%29%29) appear.
+(This may take a while, depending on the size of the bytecode file.)
+See the [decompilation guide](http://docs.racket-lang.org/raco/decompile.html#%28mod-path._compiler%2Fzo-structs%29) for a list of all zo struct names.
+
 Background
 ----------
 
