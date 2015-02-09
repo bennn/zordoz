@@ -184,7 +184,7 @@
   ;; (-> def-values? string? (or/c (listof zo?) zo? #f))
   (match field-name
     ["ids"
-     (def-values-ids z)]
+     (filter toplevel? (def-values-ids z))]
     ["rhs"
      (match (def-values-rhs z)
        [(or (? expr? rhs) (? seq? rhs) (? inline-variant? rhs))

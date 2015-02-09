@@ -8,6 +8,8 @@
 @section{Quickstart}
 
 The main entry point is @tt{zordoz.rkt}.
+
+@subsection{Explorer}
 If you have a bytecode file ready, run
 
 @racketblock[racket zordoz.rkt FILE.zo]
@@ -29,6 +31,21 @@ At your service. Available commands:
   quit        Exit the interpreter
 ]
 
+@subsection{Quick Search}
+To search a bytecode file for occurrences of a certain zo struct, run
+@racketblock[racket zordoz.rkt FILE.zo STRUCT-NAME ...]
+
+the number of occurrences of each struct will be printed to the console.
+For example:
+@racketblock[
+$ racket zordoz.rkt private/compiled/zo-string_rkt.zo branch lam
+INFO: Loading bytecode file 'private/compiled/zo-string_rkt.zo'...
+INFO: Parsing bytecode...
+INFO: Parsing complete! Searching...
+FIND 'branch' : 427 results
+FIND 'lam' : 433 results
+All done! 
+]
 
 @section{Building}
 
@@ -52,7 +69,7 @@ or individually using:
 @racketblock[raco test FILE.rkt]
 
 
-@section{Manifesto}
+@section{Project Goals}
 
 The goal of this project is to help explore Racket bytecode in any useful way.
 

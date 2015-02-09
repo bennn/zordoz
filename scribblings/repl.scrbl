@@ -8,7 +8,11 @@ The REPL is a simple, interactive way to explore bytecode files.
 It is implemented in the file @tt{zo-shell.rkt}, which exports a single function:
 
 @defproc[(init [args (vectorof string?)]) void?]{
-  Accepts a @tt{vector} of command-line arguments, parses the first argument as a bytecode file, then starts a REPL session using the output of calling @hyperlink["http://docs.racket-lang.org/raco/decompile.html#%28def._%28%28lib._compiler%2Fzo-parse..rkt%29._zo-parse%29%29"]{zo-parse} on this file.
+  Accepts a @tt{vector} of command-line arguments.
+  @itemlist[
+    @item{If given exactly one argument, starts a REPL session using the output of calling @hyperlink["http://docs.racket-lang.org/raco/decompile.html#%28def._%28%28lib._compiler%2Fzo-parse..rkt%29._zo-parse%29%29"]{zo-parse} on this file.}
+    @item{If given more than one argument, parses the first argument as a bytecode file and the rest as strings. Searches the parsed bytecode file for structs matching the strings using @code{zo-find}.}
+  ]
 }
 
 This document is a users' guide for the REPL.
@@ -258,7 +262,7 @@ zo> info
   else : #f
 ]
 
-And if we doa @secref{jump}, we return to the search results.
+And if we do a @secref{jump}, we return to the search results.
 
 @racketblock[
 zo> jump
