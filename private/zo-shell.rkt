@@ -37,6 +37,8 @@
   (match args
     ['#()
      (print-usage)]
+    ;; Catch --help flag, and any others
+    [(? has-any-flags?) (print-usage)]
     [(vector fname)
      (init-from-filename fname)]
     [(vector fname args ...)
@@ -394,6 +396,14 @@
     [(list _ x ys ...) (print-warn (format "Ignoring extra arguments: '~a'" ys))
                        x]
     [_ #f]))
+
+;; True if the vector contains any command-line flags.
+;; All flags begin with a hyphen, -
+(define (has-any-flags? v)
+  ;; (-> (vectorof string) boolean?)
+  (for/or ([str (in-vector v)])
+    (and (< 0 (string-length str))
+         (eq? #\- (string-ref str 0)))))
 
 ;; -----------------------------------------------------------------------------
 ;; --- testing
@@ -894,7 +904,7 @@
 
   (print-usage)
   (check-pred read-line in)
-  
+
   ;; --- parsing
   ;; Success, has exactly one whitespace
   (let* ([arg "hey jude"]
@@ -916,5 +926,45 @@
   (let* ([arg ""]
          [res #f])
     (check-equal? (split-snd arg) res))
+
+  ;; -- has-any-flags?
+  (define-syntax-rule (has-any-flags-test arg res)
+    (check-equal? (has-any-flags? arg) res))
+
+  (has-any-flags-test
+    (vector "a" "b" "c")
+    #f)
+
+  (has-any-flags-test
+    (vector "" "b" "c")
+    #f)
+
+  (has-any-flags-test
+    (vector "file.zo")
+    #f)
+
+  (has-any-flags-test
+    (vector "file.zo" "arg1" "arg2" "arg3")
+    #f)
+
+  (has-any-flags-test
+    (vector "file.zo" "--help")
+    #t)
+
+  (has-any-flags-test
+    (vector "--help" "file.zo")
+    #t)
+
+  (has-any-flags-test
+    (vector "--help" "file.zo" "struct-name")
+    #t)
+
+  (has-any-flags-test
+    (vector "-file.zo")
+    #t)
+
+  (has-any-flags-test
+    (vector "file.zo" "struct1" "struct2" "-accident")
+    #t)
 
 ) ;; --- end testing
