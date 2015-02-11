@@ -363,8 +363,10 @@
   (printf "ERROR: ~a\n" str))
 
 ;; Print usage information.
+(define USAGE
+  "Usage: zo-shell FILE.zo [STRUCT-NAME ...]")
 (define (print-usage)
-  (displayln "Usage: zo-shell FILE.zo"))
+  (displayln USAGE))
 
 ;; --- misc
 

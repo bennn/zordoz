@@ -1,4 +1,3 @@
-
 #lang racket/base
 
 ;; Executing this file starts a new REPL session.
