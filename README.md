@@ -11,6 +11,8 @@ Usage
 
 Run `make` to create an executable called `zordoz`.
 You can run this executable by giving it a `.zo` bytecode file: `./zordoz FILE.zo`.
+(This repo may also be installed as a package: run `raco pkg install zordoz/`.
+The `/` is necessary.)
 
 The REPL accepts the following commands:
 

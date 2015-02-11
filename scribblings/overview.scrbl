@@ -54,7 +54,11 @@ The Makefile additionally renames this executable to @tt{zordoz}, so you can run
 
 @racketblock[./zordoz FILE.zo]
 
-If you installed via @tt{raco}, then the command @tt{raco zordoz FILE.zo} should work just as well.
+If you installed via @tt{raco}, then the command 
+
+@racketblock[raco zordoz FILE.zo]
+
+will be available.
 
 
 @section{Testing}
