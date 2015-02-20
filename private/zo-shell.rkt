@@ -33,7 +33,7 @@
 ;; Entry point to the REPL, expects command-line arguments passed as a list.
 ;; In the future, there may be more entry points.
 (define (init args)
-  ;; (-> (listof string?) void?)
+  ;; (-> (vectorof string?) void?)
   (match args
     ['#()
      (print-usage)]
@@ -90,6 +90,7 @@
   (list ALST BACK DIVE FIND HELP INFO JUMP SAVE QUIT))
 
 (define ((cmd? c) str)
+  ;; (-> command? (-> string? boolean?))
   (define splt (string-split str))
   (or
    ;; Special cases
@@ -124,6 +125,8 @@
   (when DEBUG (print-history hist))
   (print-prompt)
   (match (read-line)
+    [(? eof-object? _)
+     (error "EOF: you have penetrated me")]
     [(? (cmd? ALST) raw)
      (print-alias) (repl ctx hist pre-hist)]
     [(? (cmd? BACK) raw)

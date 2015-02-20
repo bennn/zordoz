@@ -134,7 +134,8 @@
     ["prefix"
      (compilation-top-prefix z)]
     ["code"
-     (compilation-top-code   z)]
+     (define res (compilation-top-code   z))
+     (if (form? res) res #f)]
     [_ #f]))
 
 (define (prefix-> z field-name)
@@ -301,7 +302,7 @@
     ["body"
      (match (lam-body z)
        [(? expr-or-seq? bd) bd]
-       [_x #f])]
+       [_ #f])]
     [_ #f]))
 
 (define (closure-> z field-name)

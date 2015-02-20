@@ -201,10 +201,10 @@
   (module-variable->spec z)
   (-> module-variable? spec/c)
   (define (constantness->spec cs)
-    (cond [(eq? #f cs)          "#f"]
-          [(symbol? cs)         (symbol->string         cs)]
+    (cond [(symbol? cs)         (symbol->string         cs)]
           [(function-shape? cs) (function-shape->spec cs)]
-          [(struct-shape? cs)   (struct-shape->spec   cs)]))
+          [(struct-shape? cs)   (struct-shape->spec   cs)]
+          [else                 "#f"]))
   (list "module-variable"
         (lcons "modidx"       (module-path-index->string (module-variable-modidx z)))
         (lcons "sym"          (symbol->string            (module-variable-sym z)))
@@ -229,7 +229,7 @@
 ;; Helper for `free-id-info` and `all-from-module`
 (define (phase->spec ph)
   (cond [(number? ph) (number->string ph)]
-        [(eq? #f ph)  (boolean->string ph)]))
+        [else         (boolean->string ph)]))
 
 (define/contract
   (free-id-info->spec z)
@@ -271,7 +271,7 @@
   (def-values->spec z)
   (-> def-values? spec/c)
   (list "def-values"
-        (lcons "ids" (listof-zo->string toplevel->spec (def-values-ids z)))
+        (lcons "ids" (list->string toplevel-or-symbol->string (def-values-ids z)))
         (lcons "rhs" (let ([rhs (def-values-rhs z)])
                        (cond [(inline-variant? rhs) (inline-variant->spec rhs)]
                              [else (expr-seq-any->string rhs)])))))
@@ -279,12 +279,6 @@
 (define/contract
   (def-syntaxes->spec z)
   (-> def-syntaxes? spec/c)
-  (define (toplevel-or-symbol->string tl)
-    (match tl
-      [(? toplevel?)
-       (format-spec #f (toplevel->spec tl))]
-      [(? symbol?)
-       (symbol->string tl)]))
   (list "def-syntaxes"
         (lcons "ids"           (list->string toplevel-or-symbol->string (def-syntaxes-ids z)))
         (lcons "rhs"           (expr-seq-any->string                    (def-syntaxes-rhs z)))
@@ -445,7 +439,7 @@
   (lam->spec z)
   (-> lam? spec/c)
   (define (closure-map->spec cm)
-    (list->string number->string (for/list ([n cm]) n)))
+    (list->string number->string (vector->list cm)))
   (define (toplevel-map->spec tm)
     (cond [(eq? #f tm) "#f"]
           [else (format-list #:sep " " (for/list ([n tm]) (number->string n)))]))
@@ -924,6 +918,15 @@
   (cond [(toplevel? tl) (format-spec #f (toplevel->spec tl))]
         [else           (any->string tl)]))
 
+(define/contract
+  (toplevel-or-symbol->string tl)
+  (-> (or/c toplevel? symbol?) string?)
+  (match tl
+    [(? toplevel?)
+     (format-spec #f (toplevel->spec tl))]
+    [(? symbol?)
+     (symbol->string tl)]))
+
 ;; --- misc
 
 ;; True if the string `str` starts with the string `prefix`.
@@ -1090,7 +1093,7 @@
          [z (def-values ids rhs)])
     (check-equal? (force-spec (def-values->spec z))
                   (cons "def-values"
-                        (list (cons "ids" "<struct:toplevel>[1]")
+                        (list (cons "ids" "[<struct:toplevel>]")
                               (cons "rhs" "<struct:beg0>")))))
 
   ;; def-syntaxes->
