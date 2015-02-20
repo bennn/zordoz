@@ -6,13 +6,28 @@ Zordoz
 
 This is an explorer for Racket .zo files.
 
+Install
+-------
+
+You have three options.
+
+1. Clone this repo, run `make` to generate an executable named `zordoz`.
+2. Clone this repo, run `raco pkg install zordoz/`.
+3. Run `raco pkg install zordoz`
+
+To run tests, execute `make test`.
+Each module in the `private/` folder contains a module `test+` containing unit tests.
+
 Usage
 -----
 
-Run `make` to create an executable called `zordoz`.
-You can run this executable by giving it a `.zo` bytecode file: `./zordoz FILE.zo`.
-(This repo may also be installed as a package: run `raco pkg install zordoz/`.
-The `/` is necessary.)
+### REPL
+
+Activate the REPL by running with a `.zo` file.
+Depending on how you installed, you can either:
+
+1. `./zordoz FILE.zo`
+2/3. `raco zordoz FILE.zo`
 
 The REPL accepts the following commands:
 
@@ -26,18 +41,18 @@ The REPL accepts the following commands:
 - `save` marks the current context as a target for `jump`
 - `quit` exits the interpreter
 
-To run tests, execute `make test`.
-Each module in the `private/` folder contains a module `test+` containing unit tests.
-
 The functions implementing the `dive`, `find`, and `info` commands are available outside the REPL.
 Check the [guide](http://bennn.github.io/zordoz) for a summary.
 
 ### Quick Search
 
-Alternatively, passing the names of AST nodes on the command line immediately counts their occurrences in the source:
+Passing the names of AST nodes on the command line immediately counts their occurrences in the source.
+For example, running:
+
 ```
-$ ./zordoz file.zo branch lam closure
+./zordoz FILE.zo branch lam closure
 ```
+
 Will count and print the number of times the zo structs [branch](http://docs.racket-lang.org/raco/decompile.html#%28def._%28%28lib._compiler%2Fzo-structs..rkt%29._branch%29%29) [lam](http://docs.racket-lang.org/raco/decompile.html#%28def._%28%28lib._compiler%2Fzo-structs..rkt%29._lam%29%29) and [closure](http://docs.racket-lang.org/raco/decompile.html#%28def._%28%28lib._compiler%2Fzo-structs..rkt%29._closure%29%29) appear.
 (This may take a while, depending on the size of the bytecode file.)
 See the [decompilation guide](http://docs.racket-lang.org/raco/decompile.html#%28mod-path._compiler%2Fzo-structs%29) for a list of all zo struct names.
