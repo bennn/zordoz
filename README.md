@@ -11,9 +11,10 @@ Install
 
 You have three options.
 
-1. Clone this repo, run `make` to generate an executable named `zordoz`.
-2. Clone this repo, run `raco pkg install zordoz/`.
-3. Run `raco pkg install zordoz`
+1. Clone this repo, run `make` to generate an executable named `zordoz`
+2. Run `raco pkg install zordoz`
+
+(You can also clone, then run `raco pkg install zordoz/`)
 
 To run tests, execute `make test`.
 Each module in the `private/` folder contains a module `test+` containing unit tests.
@@ -27,7 +28,7 @@ Activate the REPL by running with a `.zo` file.
 Depending on how you installed, you can either:
 
 1. `./zordoz FILE.zo`
-2/3. `raco zordoz FILE.zo`
+2. `raco zordoz FILE.zo`
 
 The REPL accepts the following commands:
 
