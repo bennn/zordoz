@@ -10,6 +10,7 @@
  make-table)
 
 (require (for-syntax racket/base syntax/parse racket/syntax))
+(require pgmp/exclusive-cond)
 
 ;; --------------------------------------------------------------------------------
 
@@ -22,7 +23,7 @@
      #:with (ids* ...) #`(#,@(for/list ([i (syntax->list #'(ids ...))])
                               (format-id stx "~a~a" i #'act)))
      #'(λ (z . a)
-         (cond
+         (exclusive-cond
            [(ids? z) (apply ids* (cons z a))]
            ...
            [else #f]))]))
