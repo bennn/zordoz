@@ -1,4 +1,4 @@
-all:
+exe:
 	raco exe zordoz.rkt
 
 test:
