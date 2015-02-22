@@ -166,17 +166,15 @@
 
 ;; --- private functions
 
-(define/contract
+(define
   (compilation-top->spec z)
-  (-> compilation-top? spec/c)
   (list "compilation-top"
         (lcons "max-let-depth" (number->string     (compilation-top-max-let-depth z)))
         (lcons "prefix"        (prefix->spec      (compilation-top-prefix z)))
         (lcons "code"          (form-or-any->string (compilation-top-code z)))))
 
-(define/contract
+(define
   (prefix->spec z)
-  (-> prefix? spec/c)
   (define (tl->spec tl)
     (match tl
       [(? module-variable?)
@@ -191,15 +189,13 @@
         (lcons "toplevels" (list->string      tl->spec  (prefix-toplevels z)))
         (lcons "stxs"      (listof-zo->string stx->spec (prefix-stxs z)))))
 
-(define/contract
+(define
   (global-bucket->spec  z)
-  (-> global-bucket? spec/c)
   (list "global-bucket"
         (lcons "name" (symbol->string (global-bucket-name z)))))
 
-(define/contract
+(define
   (module-variable->spec z)
-  (-> module-variable? spec/c)
   (define (constantness->spec cs)
     (cond [(symbol? cs)         (symbol->string         cs)]
           [(function-shape? cs) (function-shape->spec cs)]
@@ -212,15 +208,13 @@
         (lcons "phase"        (number->string            (module-variable-phase z)))
         (lcons "constantness" (constantness->spec      (module-variable-constantness z)))))
 
-(define/contract
+(define
   (stx->spec z)
-  (-> stx? spec/c)
   (list "stx"
         (lcons "encoded" (wrapped->spec (stx-encoded z)))))
 
-(define/contract
+(define
   (wrapped->spec z)
-  (-> wrapped? spec/c)
   (list "wrapped"
         (lcons "datum"         (any->string                    (wrapped-datum z)))
         (lcons "wraps"         (listof-zo->string wrap->spec (wrapped-wraps z)))
@@ -231,9 +225,8 @@
   (cond [(number? ph) (number->string ph)]
         [else         (boolean->string ph)]))
 
-(define/contract
+(define
   (free-id-info->spec z)
-  (-> free-id-info? spec/c)
   (list "free-id-info"
         (lcons "path0"                  (module-path-index->string (free-id-info-path0 z)))
         (lcons "symbol0"                (symbol->string            (free-id-info-symbol0 z)))
@@ -244,9 +237,8 @@
         (lcons "phase2"                 (phase->spec             (free-id-info-phase2 z)))
         (lcons "use-current-inspector?" (boolean->string           (free-id-info-use-current-inspector? z)))))
 
-(define/contract
+(define
   (all-from-module->spec z)
-  (-> all-from-module? spec/c)
   (define (prefix->spec px)
     (if (symbol? px)
         (symbol->string px)
@@ -267,18 +259,16 @@
 
 ;; --- form
 
-(define/contract
+(define
   (def-values->spec z)
-  (-> def-values? spec/c)
   (list "def-values"
         (lcons "ids" (list->string toplevel-or-symbol->string (def-values-ids z)))
         (lcons "rhs" (let ([rhs (def-values-rhs z)])
                        (cond [(inline-variant? rhs) (inline-variant->spec rhs)]
                              [else (expr-seq-any->string rhs)])))))
 
-(define/contract
+(define
   (def-syntaxes->spec z)
-  (-> def-syntaxes? spec/c)
   (list "def-syntaxes"
         (lcons "ids"           (list->string toplevel-or-symbol->string (def-syntaxes-ids z)))
         (lcons "rhs"           (expr-seq-any->string                    (def-syntaxes-rhs z)))
@@ -286,44 +276,38 @@
         (lcons "max-let-depth" (number->string                          (def-syntaxes-max-let-depth z)))
         (lcons "dummy"         (toplevel-or-any->string                 (def-syntaxes-dummy z)))))
 
-(define/contract
+(define
   (seq-for-syntax->spec z)
-  (-> seq-for-syntax? spec/c)
   (list "seq-for-syntax"
         (lcons "forms"         (listof-form-or-any->string (seq-for-syntax-forms z)))
         (lcons "prefix"        (prefix->spec             (seq-for-syntax-prefix z)))
         (lcons "max-let-depth" (number->string             (seq-for-syntax-max-let-depth z)))
         (lcons "dummy"         (toplevel-or-any->string    (seq-for-syntax-dummy z)))))
 
-(define/contract
+(define
   (req->spec z)
-  (-> req? spec/c)
   (list "req"
         (lcons "reqs"  (stx->spec      (req-reqs z)))
         (lcons "dummy" (toplevel->spec (req-dummy z)))))
 
-(define/contract
+(define
   (seq->spec z)
-  (-> seq? spec/c)
   (list "seq"
         (lcons "forms" (listof-form-or-any->string (seq-forms z)))))
 
-(define/contract
+(define
   (splice->spec z)
-  (-> splice? spec/c)
   (list "splice"
         (lcons "forms" (listof-form-or-any->string (splice-forms z)))))
 
-(define/contract
+(define
   (inline-variant->spec z)
-  (-> inline-variant? spec/c)
   (list "inline-variant"
         (lcons "direct" (expr->spec (inline-variant-direct z)))
         (lcons "inline" (expr->spec (inline-variant-inline z)))))
 
-(define/contract
+(define
   (mod->spec z)
-  (-> mod? spec/c)
   (define (name->spec nm)
     (match nm
       [(? list?)
@@ -408,9 +392,8 @@
         (lcons "pre-submodules"   (listof-zo->string mod->spec (mod-pre-submodules z)))
         (lcons "post-submodules"  (listof-zo->string mod->spec (mod-post-submodules z)))))
 
-(define/contract
+(define
   (provided->spec z)
-  (-> provided? spec/c)
   (define (mpi-or-f->string x)
     (if (eq? #f x)
         "#f"
@@ -435,9 +418,8 @@
     [(? symbol?)
      (symbol->string nm)]))
 
-(define/contract
+(define
   (lam->spec z)
-  (-> lam? spec/c)
   (define (closure-map->spec cm)
     (list->string number->string (vector->list cm)))
   (define (toplevel-map->spec tm)
@@ -455,40 +437,35 @@
         (lcons "max-let-depth" (number->string              (lam-max-let-depth z)))
         (lcons "body"          (expr-seq-any->string        (lam-body z)))))
 
-(define/contract
+(define
   (closure->spec z)
-  (-> closure? spec/c)
   (list "closure"
         (lcons "code"   (lam->spec    (closure-code z)))
         (lcons "gen-id" (symbol->string (closure-gen-id z)))))
 
-(define/contract
+(define
   (case-lam->spec z)
-  (-> case-lam? spec/c)
   (list "case-lam"
         (lcons "name"    (lam-name->spec              (case-lam-name z)))
         (lcons "clauses" (list->string (lambda (x) (format-spec #f (expr->spec x))) (case-lam-clauses z)))))
 
-(define/contract
+(define
   (let-one->spec z)
-  (-> let-one? spec/c)
   (list "let-one"
         (lcons "rhs"    (expr-seq-any->string (let-one-rhs  z)))
         (lcons "body"   (expr-seq-any->string (let-one-body z)))
         (lcons "type"   (symbol-or-f->spec  (let-one-type z)))
         (lcons "unused?" (boolean->string      (let-one-unused? z)))))
 
-(define/contract
+(define
   (let-void->spec z)
-  (-> let-void? spec/c)
   (list "let-void"
         (lcons "count" (number->string       (let-void-count z)))
         (lcons "boxes" (boolean->string      (let-void-boxes? z)))
         (lcons "body"  (expr-seq-any->string (let-void-body z)))))
 
-(define/contract
+(define
   (install-value->spec z)
-  (-> install-value? spec/c)
   (list "install-value"
         (lcons "count"  (number->string       (install-value-count z)))
         (lcons "pos"    (number->string       (install-value-pos z)))
@@ -496,23 +473,20 @@
         (lcons "rhs"    (expr-seq-any->string (install-value-rhs z)))
         (lcons "body"   (expr-seq-any->string (install-value-body z)))))
 
-(define/contract
+(define
   (let-rec->spec z)
-  (-> let-rec? spec/c)
   (list "let-rec"
         (lcons "procs" (listof-zo->string lam->spec (let-rec-procs z)))
         (lcons "body"  (expr-seq-any->string          (let-rec-body z)))))
 
-(define/contract
+(define
   (boxenv->spec z)
-  (-> boxenv? spec/c)
   (list "boxenv"
         (lcons "pos"  (number->string       (boxenv-pos z)))
         (lcons "body" (expr-seq-any->string (boxenv-body z)))))
 
-(define/contract
+(define
   (localref->spec z)
-  (-> localref? spec/c)
   (list "localref"
         (lcons "unbox?"        (boolean->string     (localref-unbox? z)))
         (lcons "pos"           (number->string      (localref-pos z)))
@@ -520,9 +494,8 @@
         (lcons "other-clears?" (boolean->string     (localref-other-clears? z)))
         (lcons "type"          (symbol-or-f->spec (localref-type z)))))
 
-(define/contract
+(define
   (toplevel->spec z)
-  (-> toplevel? spec/c)
   (list
         "toplevel"
         (lcons "depth"  (number->string  (toplevel-depth z)))
@@ -530,46 +503,40 @@
         (lcons "const?" (boolean->string (toplevel-const? z)))
         (lcons "ready?" (boolean->string (toplevel-ready? z)))))
 
-(define/contract
+(define
   (topsyntax->spec z)
-  (-> topsyntax? spec/c)
   (list "topsyntax"
         (lcons "depth" (number->string (topsyntax-depth z)))
         (lcons "pos"   (number->string (topsyntax-pos z)))
         (lcons "midpt" (number->string (topsyntax-midpt z)))))
 
-(define/contract
+(define
   (application->spec z)
-  (-> application? spec/c)
   (list "application"
         (lcons "rator" (expr-seq-any->string              (application-rator z)))
         (lcons "rands" (list->string expr-seq-any->string (application-rands z)))))
 
-(define/contract
+(define
   (branch->spec z)
-  (-> branch? spec/c)
   (list "branch"
         (lcons "test" (expr-seq-any->string (branch-test z)))
         (lcons "then" (expr-seq-any->string (branch-then z)))
         (lcons "else" (expr-seq-any->string (branch-else z)))))
 
-(define/contract
+(define
   (with-cont-mark->spec z)
-  (-> with-cont-mark? spec/c)
   (list "with-cont-mark"
         (lcons "key"  (expr-seq-any->string (with-cont-mark-key  z)))
         (lcons "val"  (expr-seq-any->string (with-cont-mark-val  z)))
         (lcons "body" (expr-seq-any->string (with-cont-mark-body z)))))
 
-(define/contract
+(define
   (beg0->spec z)
-  (-> beg0? spec/c)
   (list "beg0"
         (lcons "seq" (list->string expr-seq-any->string (beg0-seq z)))))
 
-(define/contract
+(define
   (varref->spec z)
-  (-> varref? spec/c)
   (list "varref"
         (lcons "toplevel" (match (varref-toplevel z)
                             [(? toplevel? tl) (toplevel->spec tl)]
@@ -578,47 +545,40 @@
                             [(? toplevel? dm) (toplevel->spec dm)]
                             [#f "#f"]))))
 
-(define/contract
+(define
   (assign->spec z)
-  (-> assign? spec/c)
   (list "assign"
         (lcons "id"        (toplevel->spec     (assign-id z)))
         (lcons "rhs"       (expr-seq-any->string (assign-rhs z)))
         (lcons "undef-ok?" (boolean->string      (assign-undef-ok? z)))))
 
-(define/contract
+(define
   (apply-values->spec z)
-  (-> apply-values? spec/c)
   (list "apply-values"
         (lcons "proc"      (expr-seq-any->string (apply-values-proc z)))
         (lcons "args-expr" (expr-seq-any->string (apply-values-args-expr z)))))
 
-(define/contract
+(define
   (primval->spec z)
-  (-> primval? spec/c)
   (list "primval"
         (lcons "id" (number->string (primval-id z)))))
 
 ;; --- wrap
 
-(define/contract
+(define
   (top-level-rename->spec z)
-  (-> top-level-rename? spec/c)
   (list "top-level-rename"
         (lcons "flag" (boolean->string (top-level-rename-flag z)))))
 
-(define/contract
+(define
   (mark-barrier->spec z)
-  (-> mark-barrier? spec/c)
   (list "mark-barrier"
         (lcons "value" (symbol->string (mark-barrier-value z)))))
 
-(define/contract
+(define
   (lexical-rename->spec z)
-  (-> lexical-rename? spec/c)
-  (define/contract
+  (define
     (lexical-rename-alist->string alst)
-    (-> (listof (cons/c symbol? (or/c symbol? (cons/c symbol? (or/c (cons/c symbol? (or/c symbol? #f)) free-id-info?))))) string?)
     (list->string (lambda (x) x)
                   (for/list ([a alst])
                     (format "(~a . ~a)"
@@ -634,9 +594,8 @@
         (lcons "bool2"                (boolean->string              (lexical-rename-bool2 z)))
         (lcons "alist"                (lexical-rename-alist->string (lexical-rename-alist z)))))
 
-(define/contract
+(define
   (phase-shift->spec z)
-  (-> phase-shift? spec/c)
   (define (mpi-or-f->string x)
     (if (module-path-index? x)
         (module-path-index->string x)
@@ -647,9 +606,8 @@
         (lcons "dest"      (mpi-or-f->string    (phase-shift-dest z)))
         (lcons "cancel-id" (number-or-f->string (phase-shift-cancel-id z)))))
 
-(define/contract
+(define
   (module-rename->spec z)
-  (-> module-rename? spec/c)
   (define (rename->string rm)
     (format "(~a ~a)"
             (symbol->string (car rm))
@@ -663,29 +621,25 @@
         (lcons "mark-renames" (any->string                             (module-rename-mark-renames z)))
         (lcons "plus-kern?"   (boolean->string                         (module-rename-plus-kern? z)))))
 
-(define/contract
+(define
   (wrap-mark->spec z)
-  (-> wrap-mark? spec/c)
   (list "wrap-mark"
         (lcons "val" (number->string (wrap-mark-val z)))))
 
-(define/contract
+(define
   (prune->spec z)
-  (-> prune? spec/c)
   (list "prune"
         (lcons "sym" (any->string (prune-sym z)))))
 
 ;; --- module-binding
 
-(define/contract
+(define
   (simple-module-binding->spec z)
-  (-> simple-module-binding? spec/c)
   (list "simple-module-binding"
         (lcons "path" (module-path-index->string (simple-module-binding-path z)))))
 
-(define/contract
+(define
   (phased-module-binding->spec z)
-  (-> phased-module-binding? spec/c)
   (list "phased-module-binding"
         (lcons "path"                (module-path-index->string (phased-module-binding-path z)))
         (lcons "phase"               (number->string            (phased-module-binding-phase z)))
@@ -693,47 +647,41 @@
         (lcons "nominal-path"        (nominal-path->spec      (phased-module-binding-nominal-path z)))
         (lcons "nominal-export-name" (any->string               (phased-module-binding-nominal-export-name z)))))
 
-(define/contract
+(define
   (exported-nominal-module-binding->spec z)
-  (-> exported-nominal-module-binding? spec/c)
   (list "exported-nominal-module-binding"
         (lcons "path"                (module-path-index->string (exported-nominal-module-binding-path z)))
         (lcons "export-name"         (any->string               (exported-nominal-module-binding-export-name z)))
         (lcons "nominal-path"        (nominal-path->spec      (exported-nominal-module-binding-nominal-path z)))
         (lcons "nominal-export-name" (any->string               (exported-nominal-module-binding-nominal-export-name z)))))
 
-(define/contract
+(define
   (nominal-module-binding->spec z)
-  (-> nominal-module-binding? spec/c)
   (list "nominal-module-binding"
         (lcons "path"         (module-path-index->string (nominal-module-binding-path z)))
         (lcons "nominal-path" (nominal-path->spec      (nominal-module-binding-nominal-path z)))))
 
-(define/contract
+(define
   (exported-module-binding->spec z)
-  (-> exported-module-binding? spec/c)
   (list "exported-module-binding"
         (lcons "path"        (module-path-index->string (exported-module-binding-path z)))
         (lcons "export-name" (any->string               (exported-module-binding-export-name z)))))
 
 ;; --- nominal-path
 
-(define/contract
+(define
   (simple-nominal-path->spec z)
-  (-> simple-nominal-path? spec/c)
   (list "simple-nominal-path"
         (lcons "value" (module-path-index->string (simple-nominal-path-value z)))))
 
-(define/contract
+(define
   (imported-nominal-path->spec z)
-  (-> imported-nominal-path? spec/c)
   (list "imported-nominal-path"
         (lcons "value"        (module-path-index->string (imported-nominal-path-value z)))
         (lcons "import-phase" (number->string            (imported-nominal-path-import-phase z)))))
 
-(define/contract
+(define
   (phased-nominal-path->spec z)
-  (-> phased-nominal-path? spec/c)
   (list "phased-nominal-path"
         (lcons "value"        (module-path-index->string (phased-nominal-path-value z)))
         (lcons "import-phase" (number-or-f->string       (phased-nominal-path-import-phase z)))
@@ -744,17 +692,15 @@
 ;; Shapes are not zo structs per se, but they are documented in the
 ;; decompile guide and do not seem to have a nice formatting method.
 
-(define/contract
+(define
   (function-shape->spec fs)
-  (-> function-shape? string?)
   (format-list #:sep " "
                (list "function-shape"
                      (format "arity : ~a"            (function-shape-arity fs))
                      (format "preserves-marks? : ~a" (function-shape-preserves-marks? fs)))))
 
-(define/contract
+(define
   (struct-shape->spec ss)
-  (-> struct-shape? string?)
   (cond [(struct-type-shape?  ss) (struct-type-shape->spec  ss)]
         [(constructor-shape?  ss) (constructor-shape->spec  ss)]
         [(predicate-shape?    ss) (predicate-shape->spec    ss)]
@@ -763,85 +709,73 @@
         [(struct-other-shape? ss) (struct-other-shape->spec ss)]
         [else (error (format "unknown struct shape ~a" ss))]))
 
-(define/contract
+(define
   (struct-type-shape->spec sts)
-  (-> struct-type-shape? string?)
   (format-list #:sep " "
                (list "struct-type-shape"
                      (format "field-count : ~a" (struct-type-shape-field-count sts)))))
 
-(define/contract
+(define
   (constructor-shape->spec cs)
-  (-> constructor-shape? string?)
   (format-list #:sep " "
                (list "constructor-shape"
                      (format "arity : ~a" (constructor-shape-arity cs)))))
 
-(define/contract
+(define
   (predicate-shape->spec ps)
-  (-> predicate-shape? string?)
   (format-list (list "predicate-shape")))
 
-(define/contract
+(define
   (accessor-shape->spec sts)
-  (-> accessor-shape? string?)
   (format-list #:sep " "
                (list "accessor-shape"
                      (format "field-count : ~a" (accessor-shape-field-count sts)))))
 
-(define/contract
+(define
   (mutator-shape->spec sts)
-  (-> mutator-shape? string?)
   (format-list #:sep " "
                (list "mutator-shape"
                      (format "field-count : ~a" (mutator-shape-field-count sts)))))
 
-(define/contract
+(define
   (struct-other-shape->spec ps)
-  (-> struct-other-shape? string?)
   (format-list (list "struct-other-shape")))
 
 ;; --- helpers
 
 ;; Turn any value into a string.
-(define/contract
+(define
   (any->string z)
-  (-> any/c string?)
   (format "~a" z))
 
 ;; Turn a boolean value into a string.
-(define/contract
+(define
   (boolean->string b)
-  (-> boolean? string?)
   (any->string b))
 
 ;; Turn an 'expr' struct or a 'seq' struct or any other value into a string.
-(define/contract
+(define
   (expr-seq-any->string z)
-  (-> (or/c expr? seq? any/c) string?)
   (cond [(expr? z) (format-spec #f (expr->spec z))]
         [(seq?  z) (format-spec #f (seq->spec z))]
         [else      (any->string z)]))
 
 ;; Turn a 'form' struct or anything else into a string.
-(define/contract
+(define
   (form-or-any->string fm)
-  (-> (or/c form? any/c) string?)
   (cond [(form? fm) (format-spec #f (form->spec fm))]
         [else       (any->string   fm)]))
 
 ;; Alternate syntax for `string-join` -- the `sep` argument appears as a label
 ;; and defaults to a newline character.
-(define/contract
+(define
   (format-list xs #:sep [sep "\n"])
-  (->* ((listof string?)) (#:sep string?) string?)
   (string-join xs sep))
 
 ;; Turn a spec into a string.
 ;; If `deep?` is false, only format the title (ignore the field names + thunks).
-(define/contract
+(define
   (format-spec deep? struct-spec)
-  (-> boolean? spec/c string?)
   (define fields (cdr struct-spec))
   (define title (format "<struct:~a>" (car struct-spec)))
   (define field-name-lengths
@@ -859,68 +793,59 @@
                            (format "  ~a : ~a" (pad (car fd) w) rest))))))
 
 ;; Turn a list into a string.
-(define/contract
+(define
   (list->string f xs)
-  (-> (-> any/c string?) (listof any/c) string?)
   (format "[~a]"
           (format-list #:sep " "
                        (for/list ([x xs]) (f x)))))
 
 ;; Turn a list of things that might be 'form' structs into a list of strings.
-(define/contract
+(define
   (listof-form-or-any->string xs)
-  (-> (listof (or/c form? any/c)) string?)
   (list->string form-or-any->string xs))
 
 ;; Turn a list of zo structs into a list of strings using the helper function
 ;; `z->spec`.
-(define/contract
+(define
   (listof-zo->string z->spec zs)
-  (-> (-> zo? spec/c) (listof zo?) string?)
   (cond [(empty? zs) "[]"]
         [else        (format "~a[~a]" (format-spec #f (z->spec (car zs))) (length zs))]))
 
 ;; Turn a module-path-index into a string
 ;; TODO I think we can do better than ~a
 ;; http://docs.racket-lang.org/reference/Module_Names_and_Loading.html
-(define/contract
+(define
   (module-path-index->string mpi)
-  (-> module-path-index? string?)
   (any->string mpi))
 
 ;; Turn a module path into a string
 ;; TODO can probably improve on ~a
-(define/contract
+(define
   (module-path->spec mp)
-  (-> module-path? string?)
   (any->string mp))
 
 ;; Turn a number or #f into a string.
-(define/contract
+(define
   (number-or-f->string nf)
-  (-> (or/c number? #f) string?)
   (if (eq? #f nf)
       "#f"
       (number->string nf)))
 
 ;; Turn a symbol or #f into a string.
-(define/contract
+(define
   (symbol-or-f->spec sf)
-  (-> (or/c symbol? #f) string?)
   (if (eq? #f sf)
       "#f"
       (symbol->string sf)))
 
 ;; Turn something that might be a 'toplevel' struct into a string.
-(define/contract
+(define
   (toplevel-or-any->string tl)
-  (-> (or/c toplevel? any/c) string?)
   (cond [(toplevel? tl) (format-spec #f (toplevel->spec tl))]
         [else           (any->string tl)]))
 
-(define/contract
+(define
   (toplevel-or-symbol->string tl)
-  (-> (or/c toplevel? symbol?) string?)
   (match tl
     [(? toplevel?)
      (format-spec #f (toplevel->spec tl))]
@@ -929,23 +854,10 @@
 
 ;; --- misc
 
-;; True if the string `str` starts with the string `prefix`.
-(define/contract
-  (starts-with str prefix)
-  (-> string? string? boolean?)
-  (and (<= (string-length prefix) (string-length str))
-       (string=? (substring str 0 (string-length prefix))
-                 prefix)))
-
 ;; If `str` has fewer than `w` characters,
 ;; append `(w - (len str))` characters to its right end.
-(define/contract
+(define
   (pad str w #:char [c #\space])
-  (->i ([str string?] [n natural-number/c])
-       (#:char [c char?])
-       [str* (str n)
-             (lambda (str*) (and (= n (string-length str*))
-                                 (starts-with str* str)))])
   (define l (string-length str))
   (cond [(< l w) (format "~a~a" str (make-string (- w l) c))]
         [else    str]))
@@ -1595,18 +1507,6 @@
   ; Only toplevel zo structs get pretty-printed
   (check-equal? (toplevel-or-any->string (branch #t #t (beg0 '()))) "#s((branch expr 0 form 0 zo 0) #t #t #s((beg0 expr 0 form 0 zo 0) ()))")
   (check-equal? (toplevel-or-any->string "help") "help")
-
-  ;; starts-with
-  ; passes
-  (check-true (starts-with "asdf" ""))
-  (check-true (starts-with "asdf" "a"))
-  (check-true (starts-with "asdf" "as"))
-  (check-true (starts-with "asdf" "asd"))
-  (check-true (starts-with "asdf" "asdf"))
-  ; fails
-  (check-false (starts-with "asdf" "s"))
-  (check-false (starts-with "asdf" "asdfg"))
-  (check-false (starts-with "asdf" "ass"))
 
   ;; pad
   (check-equal? (pad "str" 3) "str")
