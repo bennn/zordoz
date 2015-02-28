@@ -1,6 +1,7 @@
 #lang info
 (define collection "zordoz")
 (define deps '("base"
+               "compiler-lib"
                "rackunit-lib"
                "zo-lib"))
 (define build-deps '("scribble-lib" "racket-doc"))
