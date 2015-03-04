@@ -22,8 +22,8 @@
                               (format-id stx "~a?" i)))
      #:with (ids* ...) #`(#,@(for/list ([i (syntax->list #'(ids ...))])
                               (format-id stx "~a~a" i #'act)))
-     #'(λ (z . a)
-       (quasisyntax/loc stx
+     (quasisyntax/loc stx
+       (λ (z . a)
          (exclusive-cond
            [(ids? z) (apply ids* (cons z a))]
            ...

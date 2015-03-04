@@ -1,3 +1,6 @@
+cpu time: 1639343 real time: 1638983 gc time: 53603
+cpu time: 1648504 real time: 1648198 gc time: 48726
+
 Zordoz
 ======
 
