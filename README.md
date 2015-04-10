@@ -9,7 +9,7 @@ This is an explorer for Racket .zo files.
 Install
 -------
 
-You have three options.
+You have two options.
 
 1. Clone this repo, run `make` to generate an executable named `zordoz`
 2. Run `raco pkg install zordoz`
