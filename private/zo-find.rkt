@@ -106,14 +106,6 @@
            (check-equal? (result-zo (cadr res)) (branch-else (branch-else z)))
            (check-equal? (result-path (cadr res)) (list (branch-else z)))))
 
-  ;; This test was problematic in REPL. Should succeed
-  (let* ([tgt (wrap-mark 42)]
-         [z (wrapped #f (list tgt tgt tgt) 'tainted)]
-         [arg "wrap-mark"]
-         [res (zo-find z arg)])
-    (begin (check-equal? (length res) 3)
-           (check-equal? (result-zo (car res)) tgt)))
-
   ;; Fail, no results
   (let* ([z (primval 8)]
          [arg "apply-values"]

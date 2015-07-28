@@ -570,18 +570,18 @@
     (check-equal? pre-hist pre*))
 
   ;; zo, valid field
-  (let* ([z (wrap)]
-         [ctx (wrapped #f (list z z z) 'tainted)]
+  (let* ([z (wrap '() '() '())]
+         [ctx (stx-obj 0 z 'armed)]
          [hist '()]
          [pre-hist '(7 7 7)]
-         [arg "dive wraps"])
+         [arg "dive wrap"])
     (define-values (ctx* hist* pre*) (dive arg ctx hist pre-hist))
-    (check-equal? ctx*  (list z z z))
+    (check-equal? ctx*  z)
     (check-equal? hist* (cons ctx hist))
     (check-equal? pre-hist pre*))
 
   ;; zo, invalid field
-  (let ([ctx (wrapped #f '() 'tainted)]
+  (let ([ctx (stx-obj 0 (wrap '() '() '()) 'armed)]
         [hist '()]
         [pre-hist '(a b x)]
         [arg "dive datum"])
@@ -615,7 +615,7 @@
   ;; Search results, hist overwritten
   (let ([ctx (list (result (zo) '(a)) 
                    (result (expr) '(b)) 
-                   (result (wrap) '(c))
+                   (result (wrap '() '() '()) '(c))
                    (result (form) '(d)))]
         [hist '(e)]
         [arg "3"])
@@ -675,14 +675,15 @@
 
   ;; -- find
   ;; Success, search 1 level down
-  (let* ([z (wrap-mark 42)]
-         [ctx (wrapped #f (list z z z) 'tainted)]
-         [raw "find wrap-mark"]
+  (let* ([z (wrap '() '() '())]
+         [st (stx-obj 0 z 'clean)]
+         [ctx (stx st)]
+         [raw "find wrap"]
          [hist '(A)]
          [pre-hist '(a b)])
     (let-values ([(ctx* hist* pre-hist*) (find raw ctx hist pre-hist)])
       (begin (check-equal? (result-zo (car ctx*)) z)
-             (check-equal? (result-path (car ctx*)) '())
+             (check-equal? (result-path (car ctx*)) (list st))
              (check-equal? hist* '())
              (check-equal? pre-hist* (cons (cons ctx* (cons ctx hist)) pre-hist)))))
   (check-pred read-line in)
@@ -690,9 +691,10 @@
   (check-pred read-line in)
 
   ;; Failure, search 1 level down
-  (let* ([z (wrap-mark 42)]
-         [ctx (wrapped #f (list z z z) 'tainted)]
-         [raw "find mummy"]
+  (let* ([z (wrap '() '() '())]
+         [st (stx-obj 0 z 'clean)]
+         [ctx (stx st)]
+         [raw "find local-binding"]
          [hist '(A)]
          [pre-hist '(a b)])
     (let-values ([(ctx* hist* pre-hist*) (find raw ctx hist pre-hist)])

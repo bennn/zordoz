@@ -54,13 +54,14 @@
    module-variable
    stx
    form
-   wrapped
+   expr
+   stx-obj
    wrap
-   free-id-info
-   all-from-module
-   module-binding
-   nominal-path
-   provided))
+   module-shift
+   scope
+   multi-scope
+   binding
+   all-from-module))
 
 (define form->
   (make-table
@@ -99,32 +100,13 @@
    apply-values
    primval))
 
-(define wrap->
+(define binding->
   (make-table
    #:action ->
-   top-level-rename
-   mark-barrier
-   lexical-rename
-   phase-shift
-   module-rename
-   wrap-mark
-   prune))
-
-(define module-binding->
-  (make-table
-   #:action ->
-   simple-module-binding
-   phased-module-binding
-   exported-nominal-module-binding
-   nominal-module-binding
-   exported-module-binding))
-
-(define nominal-path->
-  (make-table
-   #:action ->
-   simple-nominal-path
-   imported-nominal-path
-   phased-nominal-path))
+   module-binding
+   decoded-module-binding
+   local-binding
+   free-id=?-binding))
 
 ;; --- getters
 
@@ -160,20 +142,9 @@
 (define (stx-> z field-name)
   ;; (-> stx? string? (or/c (listof zo?) zo? #f))
   (match field-name
-    ["encoded"
-     (stx-encoded z)]
+    ["content"
+     (stx-content z)]
     [_  #f]))
-
-(define (wrapped-> z field-name)
-  ;; (-> wrapped? string? (or/c (listof zo?) zo? #f))
-  (match field-name
-    ["wraps"
-     (wrapped-wraps z)]
-    [_ #f]))
-
-(define (free-id-info-> z field-name)
-  ;; (-> free-id-info? string? (or/c (listof zo?) zo? #f))
-  #f)
 
 (define (all-from-module-> z field-name)
  ;; (-> all-from-module? string? (or/c (listof zo?) zo? #f))
@@ -284,6 +255,7 @@
        [(? stx? ic) ic]
        [(? vector? ic) (vector->list ic)]
        [_ #f])]
+    ;; "binding-names" does have stx? inside, but they're within a hashtable
     ["pre-submodules"
      (mod-pre-submodules z)]
     ["post-submodules"
@@ -476,89 +448,81 @@
   ;; (-> primval? string? (or/c (listof zo?) zo? #f))
   #f)
 
+;; --- stx-obj
+
+(define
+  (stx-obj-> z field-name)
+  (match field-name
+    ["wrap"
+     (stx-obj-wrap z)]
+    [_ #f]))
+
 ;; --- wrap
 
-(define (top-level-rename-> z field-name)
-  ;; (-> top-level-rename? string? (or/c (listof zo?) zo? #f))
-  #f)
-
-(define (mark-barrier-> z field-name)
-  ;; (-> mark-barrier? string? (or/c (listof zo?) zo? #f))
-  #f)
-
-(define (lexical-rename-> z field-name)
-  ;; (-> lexical-rename? string? (or/c (listof zo?) zo? #f))
-  (define (get-free-id-info als)
-    ;; (-> (listof (cons/c symbol? (or/c symbol? (cons/c symbol? (or/c (cons/c symbol? (or/c symbol? #f)) free-id-info?))))) (listof free-id-info?))
-    (for/list ([blah als]
-               #:when (and (pair? (cdr blah))
-                           (free-id-info? (cddr blah))))
-      (cddr blah)))
+(define
+  (wrap-> z field-name)
   (match field-name
-    ["alist"
-     (get-free-id-info (lexical-rename-alist z))]
-    [_ #f]))
-  
-(define (phase-shift-> z field-name)
-  ;; (-> phase-shift? string? (or/c (listof zo?) zo? #f))
-  #f)
-
-(define (module-rename-> z field-name)
-  ;; (-> module-rename? string? (or/c (listof zo?) zo? #f))
-  (match field-name
-    ["unmarshals" (module-rename-unmarshals z)]
-    ["renames"    (for/list ([mbpair (module-rename-renames z)]) (cdr mbpair))]
+    ["shifts"
+     (wrap-shifts z)]
+    ["simple-scopes"
+     (wrap-simple-scopes z)]
+    ["multi-scopes"
+     (map car (wrap-multi-scopes z))]
     [_ #f]))
 
-(define (wrap-mark-> z field-name)
-  ;; (-> wrap-mark? string? (or/c (listof zo?) zo? #f))
-  #f)
+;; --- misc. syntax
 
-(define (prune-> z field-name)
-  ;; (-> prune? string? (or/c (listof zo?) zo? #f))
-  #f)
-
-;; --- module-binding
-
-(define (simple-module-binding-> z field-name)
-  ;; (-> simple-module-binding? string? (or/c (listof zo?) zo? #f))
-  #f)
-
-(define (phased-module-binding-> z field-name)
-  ;; (-> phased-module-binding? string? (or/c (listof zo?) zo? #f))
+(define
+  (module-shift-> z field-name)
   (match field-name
-    ["nominal-path" (phased-module-binding-nominal-path z)]
     [_ #f]))
 
-(define (exported-nominal-module-binding-> z field-name)
-  ;; (-> exported-nominal-module-binding? string? (or/c (listof zo?) zo? #f))
+(define
+  (scope-> z field-name)
+  (define (get-bindings bs)
+    (cond [(empty? bs) '()]
+          [else (append (cadar bs) (cddar bs) (get-bindings (cdr bs)))]))
+  (define (get-bulk-bindings bbs)
+    (cond [(empty? bbs) '()]
+          [else (append (caar bbs) (cdar bbs) (get-bulk-bindings (cdr bbs)))]))
   (match field-name
-    ["nominal-path" (exported-nominal-module-binding-nominal-path z)]
+    ["bindings"
+     (get-bindings (scope-bindings z))]
+    ["bulk-bindings"
+     (get-bulk-bindings (scope-bulk-bindings z))]
+    ["multi-owner"
+     (scope-multi-owner z)]
     [_ #f]))
 
-(define (nominal-module-binding-> z field-name)
-  ;; (-> nominal-module-binding? string? (or/c (listof zo?) zo? #f))
+(define
+  (multi-scope-> z field-name)
   (match field-name
-    ["nominal-path" (nominal-module-binding-nominal-path z)]
+    ["scopes"
+     (map cadr (multi-scope-scopes z))]
     [_ #f]))
 
-(define (exported-module-binding-> z field-name)
-  ;; (-> exported-module-binding? string? (or/c (listof zo?) zo? #f))
+(define
+  (module-binding-> z field-name)
+  (match field-name
+    [_ #f]))
+
+(define
+  (decoded-module-binding-> z field-name)
+  (match field-name
+    [_ #f]))
+
+(define
+  (local-binding-> z field-name)
   #f)
 
-;; --- nominal-path
-
-(define (simple-nominal-path-> z field-name)
-  ;; (-> simple-nominal-path? string? (or/c (listof zo?) zo? #f))
-  #f)
-
-(define (imported-nominal-path-> z field-name)
-  ;; (-> imported-nominal-path? string? (or/c (listof zo?) zo? #f))
-  #f)
-
-(define (phased-nominal-path-> z field-name)
-  ;; (-> phased-nominal-path? string? (or/c (listof zo?) zo? #f))
-  #f)
+(define
+  (free-id=?-binding-> z field-name)
+  (match field-name
+    ["base"
+     (free-id=?-binding-base z)]
+    ["id"
+     (free-id=?-binding-id z)]
+    [_ #f]))
 
 ;; --- helpers
 
@@ -575,7 +539,7 @@
            ;(only-in syntax/modresolve module-path-index-join))
 
   ;; compilation-top->
-  (let* ([px (prefix 0 '() '())]
+  (let* ([px (prefix 0 '() '() 'x)]
          [cd (form)]
          [z  (compilation-top 0 px cd)])
     (begin (check-equal? (compilation-top-> z "prefix") px)
@@ -586,13 +550,15 @@
   (let* ([mpi (module-path-index-join #f #f)]
          [gb (global-bucket 'NAME)]
          [mv (module-variable mpi 'SYM 0 0 #f)]
-         [sx (stx (wrapped (void) '() 'tainted))]
+         [sx (stx (stx-obj 'x (wrap '() '() '()) 'tainted))]
          [z  (prefix 0
                     (list gb mv)
-                    (list sx))])
+                    (list sx)
+                    'inspector)])
     (begin (check-equal? (prefix-> z "toplevels") (list gb mv))
            (check-equal? (prefix-> z "stxs")      (list sx))
            (check-equal? (prefix-> z "num-lifts") #f)
+           (check-equal? (prefix-> z "src-inspector-desc") #f)
            (check-equal? (prefix-> z "")          #f)))
 
   ;; global-bucket->
@@ -614,9 +580,9 @@
            (check-equal? (module-variable-> z* "constantness") #f)))
 
   ;; stx->
-  (let* ([wp (wrapped (void) '() 'tainted)]
-         [z (stx wp)])
-    (begin (check-equal? (stx-> z "encoded") wp)
+  (let* ([s (stx-obj 'a (wrap '() '() '()) 'clean)]
+         [z (stx s)])
+    (begin (check-equal? (stx-> z "content") s)
            (check-equal? (stx-> z "")        #f)))
 
   ;; form-> (this is better tested by the specific tests for 'def-values->', 'req->', ...)
@@ -627,49 +593,88 @@
   (let* ([z (expr)])
     (check-equal? (expr-> z "") #f))
 
-  ;; wrapped->
-  (let* ([wps (list (wrap) (wrap) (wrap))]
-         [z   (wrapped (void) wps 'tainted)])
-    (begin (check-equal? (wrapped-> z "wraps")        wps)
-           (check-equal? (wrapped-> z "datum")         #f)
-           (check-equal? (wrapped-> z "tamper-status") #f)
-           (check-equal? (wrapped-> z "")              #f)))
+  ;; wrap->
+  (let* ([ms (module-shift #f #f 'a 'b)]
+         [sc (scope 3 'b '() '() #f)]
+         [msc (multi-scope 1 '2 '())]
+         [z (wrap (list ms) (list sc) (list (list msc 5)))])
+    (begin (check-equal? (wrap-> z "shifts") (list ms))
+           (check-equal? (wrap-> z "simple-scopes") (list sc))
+           (check-equal? (wrap-> z "multi-scopes") (list msc))))
 
-  ;; wrap-> (see below)
-  (let* ([z (wrap)])
-    (check-equal? (wrap-> z "") #f))
-  
-  ;; free-id-info->
+
+  ;; module-shift->
+  (let* ([ms (module-shift #f #f 'a 'b)])
+    (begin (check-equal? (module-shift-> ms "from") #f)
+           (check-equal? (module-shift-> ms "to") #f)
+           (check-equal? (module-shift-> ms "from-inspector-desc") #f)
+           (check-equal? (module-shift-> ms "to-inspector-desc") #f)
+           (check-equal? (module-shift-> ms "") #f)))
+
+  ;; scope->
   (let* ([mpi (module-path-index-join #f #f)]
-         [z   (free-id-info mpi 'A mpi 'B #f 101 #f #f)])
-    (begin (check-equal? (free-id-info-> z "path0") #f)
-           (check-equal? (free-id-info-> z "symbol0") #f)
-           (check-equal? (free-id-info-> z "path1") #f)
-           (check-equal? (free-id-info-> z "symbol1") #f)
-           (check-equal? (free-id-info-> z "phase0") #f)
-           (check-equal? (free-id-info-> z "phase1") #f)
-           (check-equal? (free-id-info-> z "phase2") #f)
-           (check-equal? (free-id-info-> z "use-current-inspector?") #f)
-           (check-equal? (free-id-info-> z "") #f)))
+         [afm (all-from-module mpi #f #f 'x '() #f)]
+         [b (binding)]
+         [s (scope 5 'blah '() '() #f)]
+         [ms (multi-scope 6 'name '())]
+         [mb (module-binding #t)]
+         [z (scope 'root 'kind `((sym (,s) ,mb)) `(((,s) ,afm)) ms)])
+    (begin (check-equal? (scope-> z "bindings") (list s mb))
+           (check-equal? (scope-> z "bulk-bindings") (list s afm))
+           (check-equal? (scope-> z "name") #f)
+           (check-equal? (scope-> z "kind") #f)
+           (check-equal? (scope-> z "multi-owner") ms)))
+
+  ;; multi-scope->
+  (let* ([s (scope 1 'a '() '() #f)]
+         [z (multi-scope 4 'yolo `((#f ,s) (1 ,s)))])
+    (begin (check-equal? (multi-scope-> z "name") #f)
+           (check-equal? (multi-scope-> z "src-name") #f)
+           (check-equal? (multi-scope-> z "scopes") (list s s))))
+
+  ;; binding->
+  (let* ([z (binding)])
+    (check-equal? (binding-> z "") #f))
 
   ;; all-from-module->
   (let* ([mpi (module-path-index-join #f #f)]
-         [z (all-from-module mpi #f #f '() #f '())])
+         [z (all-from-module mpi 2 3 'gadget '(ex1 ex2) 'pre)])
     (begin (check-equal? (all-from-module-> z "path") #f)
            (check-equal? (all-from-module-> z "phase") #f)
            (check-equal? (all-from-module-> z "src-phase") #f)
+           (check-equal? (all-from-module-> z "inspector-desc") #f)
            (check-equal? (all-from-module-> z "exceptions") #f)
-           (check-equal? (all-from-module-> z "prefix") #f)
-           (check-equal? (all-from-module-> z "context") #f)
-           (check-equal? (all-from-module-> z "") #f)))
-  
-  ;; module-binding-> (see below)
-  (let* ([z (module-binding)])
-    (check-equal? (module-binding-> z "") #f))
-  
-  ;; nominal-path-> (see below)
-  (let* ([z (nominal-path)])
-    (check-equal? (nominal-path-> z "") #f))
+           (check-equal? (all-from-module-> z "prefix") #f)))
+
+  ;; module-binding->
+  (let* ([z (module-binding 'any)])
+    (begin (check-equal? (module-binding-> z "encoded") #f)
+           (check-equal? (module-binding-> z "encoded") #f)))
+
+  ;; decoded-module-binding->
+  (let* ([mpi (module-path-index-join #f #f)]
+        [z (decoded-module-binding mpi 'foo 1 mpi 'ex 0 0 'hi)])
+    (begin (check-equal? (decoded-module-binding-> z "path") #f)
+           (check-equal? (decoded-module-binding-> z "name") #f)
+           (check-equal? (decoded-module-binding-> z "phase") #f)
+           (check-equal? (decoded-module-binding-> z "nominal-path") #f)
+           (check-equal? (decoded-module-binding-> z "nominal-export-name") #f)
+           (check-equal? (decoded-module-binding-> z "nominal-phase") #f)
+           (check-equal? (decoded-module-binding-> z "import-phase") #f)
+           (check-equal? (decoded-module-binding-> z "import-desc") #f)))
+
+  ;; local-binding->
+  (let ([z (local-binding 'hello)])
+    (begin (check-equal? (local-binding-> z "name") #f)
+           (check-equal? (local-binding-> z "") #f)))
+
+  ;; free-id=?-binding->
+  (let* ([lb (local-binding 'hi)]
+        [stx (stx-obj 0 (wrap '() '() '()) 'armed)]
+        [z (free-id=?-binding lb stx 3)])
+    (begin (check-equal? (free-id=?-binding-> z "base") lb)
+           (check-equal? (free-id=?-binding-> z "id") stx)
+           (check-equal? (free-id=?-binding-> z "phase") #f)))
 
   ;; def-values->
   (let* ([ids (list (toplevel 1 2 #t #f))]
@@ -682,7 +687,7 @@
   ;; def-syntaxes->
   (let* ([ids (list (toplevel 1 2 #t #f))]
          [rhs (expr)]
-         [px  (prefix 0 '() '())]
+         [px  (prefix 0 '() '() 'yes)]
          [dm  (toplevel 1 1 #t #t)]
          [z   (def-syntaxes ids rhs px 42 dm)]
          ;; If dummy is false, transition fails
@@ -697,7 +702,7 @@
 
   ;; seq-for-syntax->
   (let* ([fms (list (form))]
-         [px  (prefix 0 '() '())]
+         [px  (prefix 0 '() '() 'pacman)]
          [dm  (toplevel 9 9 #t #t)]
          [z   (seq-for-syntax fms px 8 dm)]
          ;; should filter non-zo from the forms list
@@ -714,7 +719,7 @@
                     (check-false pass?)))))
 
   ;; req->
-  (let* ([sx (stx (wrapped 'XXX '() 'clean))]
+  (let* ([sx (stx (stx-obj 'XXX (wrap '() '() '()) 'clean))]
          [dm (toplevel 1 1 #t #t)]
          [z  (req sx dm)])
     (begin (check-equal? (req-> z "reqs") sx)
@@ -751,10 +756,10 @@
     (begin (check-equal? (inline-variant-> z "direct") dr)
            (check-equal? (inline-variant-> z "inline") il)
            (check-equal? (inline-variant-> z "") #f)))
-         
+
   ;; mod->
   (let* ([mpi (module-path-index-join #f #f)]
-         [px  (prefix 0 '() '())]
+         [px  (prefix 0 '() '() 'a)]
          [pd1 (provided 'p1 #f 'B 'C 13 #t)]
          [pd2 (provided 'p2 #f 'asdf 'C 6 #f)]
          [pd3 (provided 'p3 #f 'B 'lol 832 #t)]
@@ -762,18 +767,18 @@
          [pvs (list (list #f (list pd1 pd2) (list pd3))
                     (list #f (list pd4) '()))]
          [bd  (list (form) 'any)]
-         [ds  (def-syntaxes '() (expr) (prefix 0 '() '()) 1 #f)]
-         [sfs (seq-for-syntax '() (prefix 0 '() '()) 999 (toplevel 9 9 #t #t))]
+         [ds  (def-syntaxes '() (expr) (prefix 0 '() '() 'r) 1 #f)]
+         [sfs (seq-for-syntax '() (prefix 0 '() '() 'qq) 999 (toplevel 9 9 #t #t))]
          [sb  (list (cons 7 (list ds))
                     (cons 8 (list sfs)))]
          [dm  (toplevel 1 1 #f #f)]
-         [ic  (stx (wrapped 'dirty '() 'clean))]
-         [m1  (mod 'm1 'm1src mpi px pvs '() bd sb '() 0 dm #f ic '() '() '())]
-         [m2  (mod 'm2 'm2src mpi px pvs '() bd sb '() 0 dm #f ic '() '() '())]
-         [m3  (mod 'm3 'm3src mpi px pvs '() bd sb '() 0 dm #f ic '() '() '())]
+         [ic  (stx (stx-obj 'dirty (wrap '() '() '()) 'clean))]
+         [m1  (mod 'm1 'm1src mpi px pvs '() bd sb '() 0 dm #f ic (hash) '() '() '())]
+         [m2  (mod 'm2 'm2src mpi px pvs '() bd sb '() 0 dm #f ic (hash) '() '() '())]
+         [m3  (mod 'm3 'm3src mpi px pvs '() bd sb '() 0 dm #f ic (hash) '() '() '())]
          [prs (list m1 m2)]
          [pts (list m3)]
-         [z   (mod 'name 'srcname mpi px pvs '() bd sb '() 0 dm #f ic '() prs pts)])
+         [z   (mod 'name 'srcname mpi px pvs '() bd sb '() 0 dm #f ic (hash) '() prs pts)])
     (begin (check-equal? (mod-> z "prefix") px)
            (check-equal? (mod-> z "provides") (list pd1 pd2 pd3 pd4))
            (check-equal? (mod-> z "body") (list (form)))
@@ -790,6 +795,7 @@
            (check-equal? (mod-> z "max-let-depth") #f)
            (check-equal? (mod-> z "lang-info") #f)
            (check-equal? (mod-> z "flags") #f)
+           (check-equal? (mod-> z "binding-names") #f)
            (check-equal? (mod-> z "") #f)))
 
   ;; provided->
@@ -986,123 +992,6 @@
     (begin (check-equal? (primval-> z "id") #f)
            (check-equal? (primval-> z "") #f)))
 
-  ;; top-level-rename->
-  (let* ([z (top-level-rename #t)])
-    (begin (check-equal? (top-level-rename-> z "flag") #f)
-           (check-equal? (top-level-rename-> z "") #f)))
-
-  ;; mark-barrier->
-  (let* ([z (mark-barrier 'val)])
-    (begin (check-equal? (mark-barrier-> z "value") #f)
-           (check-equal? (mark-barrier-> z "") #f)))
-
-  ;; lexical-rename->
-  (let* ([mpi (module-path-index-join #f #f)]
-         [fii (free-id-info mpi 'A mpi 'B #f 101 #f #f)]
-         [alist (list (cons 'A 'B)
-                      (cons 'C (cons 'D fii))
-                      (cons 'F (cons 'G (cons 'H 'I))))]
-         [z (lexical-rename #f #f alist)])
-    (begin (check-equal? (lexical-rename-> z "alist") (list fii))
-           (check-equal? (lexical-rename-> z "bool2") #f)
-           (check-equal? (lexical-rename-> z "has-free-id-renames?") #f)
-           (check-equal? (lexical-rename-> z "") #f)))
-
-  ;; phase-shift->
-  (let ([z (phase-shift #f #f #f #f)])
-    (begin (check-equal? (phase-shift-> z "amt") #f)
-           (check-equal? (phase-shift-> z "src") #f)
-           (check-equal? (phase-shift-> z "dest") #f)
-           (check-equal? (phase-shift-> z "cancel-id") #f)
-           (check-equal? (phase-shift-> z "") #f)))
-
-  ;; module-rename->
-  (let* ([mpi (module-path-index-join #f #f)]
-         [ums (list (all-from-module mpi #f #f '() #f '()))]
-         [bds (list (cons 'A (module-binding)))]
-         [z (module-rename #f 'marked 'setid ums bds 'any #f)])
-    (begin (check-equal? (module-rename-> z "unmarshals") ums)
-           (check-equal? (module-rename-> z "renames") (list (module-binding)))
-           (check-equal? (module-rename-> z "phase") #f)
-           (check-equal? (module-rename-> z "kind") #f)
-           (check-equal? (module-rename-> z "set-id") #f)
-           (check-equal? (module-rename-> z "mark-renames") #f)
-           (check-equal? (module-rename-> z "plus-kern") #f)
-           (check-equal? (module-rename-> z "") #f)))
-
-  ;; wrap-mark->
-  (let ([z (wrap-mark 121)])
-    (begin (check-equal? (wrap-mark-> z "val") #f)
-           (check-equal? (wrap-mark-> z "") #f)))
-
-  ;; prune->
-  (let ([z (prune 'anything-at-all)])
-    (begin (check-equal? (prune-> z "sym") #f)
-           (check-equal? (prune-> z "") #f)))
-
-  ;; simple-module-binding->
-  (let* ([mpi (module-path-index-join #f #f)]
-         [z (simple-module-binding mpi)])
-    (begin (check-equal? (simple-module-binding-> z "path") #f)
-           (check-equal? (simple-module-binding-> z "") #f)))
-
-  ;; phased-module-binding->
-  (let* ([mpi (module-path-index-join #f #f)]
-         [np (nominal-path)]
-         [z (phased-module-binding mpi 1 'any np 'any2)])
-    (begin (check-equal? (phased-module-binding-> z "path") #f)
-           (check-equal? (phased-module-binding-> z "phase") #f)
-           (check-equal? (phased-module-binding-> z "export-name") #f)
-           (check-equal? (phased-module-binding-> z "nominal-path") np)
-           (check-equal? (phased-module-binding-> z "nominal-export-name") #f)
-           (check-equal? (phased-module-binding-> z "") #f)))
-
-  ;; exported-nominal-module-binding->
-  (let* ([mpi (module-path-index-join #f #f)]
-         [np (nominal-path)]
-         [z (exported-nominal-module-binding mpi 'any np 'any)])
-    (begin (check-equal? (exported-nominal-module-binding-> z "path") #f)
-           (check-equal? (exported-nominal-module-binding-> z "export-name") #f)
-           (check-equal? (exported-nominal-module-binding-> z "nominal-path") np)
-           (check-equal? (exported-nominal-module-binding-> z "nominal-export-name") #f)
-           (check-equal? (exported-nominal-module-binding-> z "") #f)))
-
-  ;; nominal-module-binding->
-  (let* ([mpi (module-path-index-join #f #f)]
-         [np (nominal-path)]
-         [z (nominal-module-binding mpi np)])
-    (begin (check-equal? (nominal-module-binding-> z "path") #f)
-           (check-equal? (nominal-module-binding-> z "nominal-path") np)
-           (check-equal? (nominal-module-binding-> z "") #f)))
-
-  ;; exported-module-binding->
-  (let* ([mpi (module-path-index-join #f #f)]
-         [z (exported-module-binding mpi 'any)])
-    (begin (check-equal? (exported-module-binding-> z "path") #f)
-           (check-equal? (exported-module-binding-> z "export-name") #f)
-           (check-equal? (exported-module-binding-> z "") #f)))
-
-  ;; simple-nominal-path->
-  (let* ([mpi (module-path-index-join #f #f)]
-         [z (simple-nominal-path mpi)])
-    (begin (check-equal? (simple-nominal-path-> z "value") #f)
-           (check-equal? (simple-nominal-path-> z "") #f)))
-
-  ;; imported-nominal-path->
-  (let* ([mpi (module-path-index-join #f #f)]
-         [z (imported-nominal-path mpi 12423)])
-    (begin (check-equal? (imported-nominal-path-> z "value") #f)
-           (check-equal? (imported-nominal-path-> z "import-phase") #f)
-           (check-equal? (imported-nominal-path-> z "") #f)))
-
-  ;; phased-nominal-path->
-  (let* ([mpi (module-path-index-join #f #f)]
-         [z (phased-nominal-path mpi #f 8)])
-    (begin (check-equal? (phased-nominal-path-> z "value") #f)
-           (check-equal? (phased-nominal-path-> z "import-phase") #f)
-           (check-equal? (phased-nominal-path-> z "phase") #f)
-           (check-equal? (phased-nominal-path-> z "") #f)))
-
   ;; expr-or-seq?
   (check-true (expr-or-seq? (expr)))
   (check-true (expr-or-seq? (branch #t #t #t)))
@@ -1111,6 +1000,5 @@
 
   (check-false (expr-or-seq? 'asdf))
   (check-false (expr-or-seq? "yolo"))
-  (check-false (expr-or-seq? (nominal-path)))
   (check-false (expr-or-seq? (form)))
 )
