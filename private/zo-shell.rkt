@@ -133,36 +133,48 @@
       (define ctx  (zo-parse port))
       (print-info "Parsing complete!")
       (print-welcome)
-      (repl ctx '() '()))))
+      ((repl ctx '() '()) '()))))
+
+;; (define (get-next-command cmd*)
+;;   (match cmd*
+;;     ['()
+;;      (match (read-line)
+;;        [(? eof-object?)
+;;         (error 'zo-shell "EOF: you have penetrated me")]
+;;        [x (string-split x ";")])]
+;;     [(cons h rest)
 
 ;; The REPL loop. Process a command using context `ctx` and history `hist`.
-(define (repl ctx hist pre-hist)
+(define ((repl ctx hist pre-hist) cmd*)
   ;; (-> context? history? void?)
   (when DEBUG (print-history hist))
-  (print-prompt ctx)
-  (match (read-line)
-    [(? eof-object? _)
-     (error "EOF: you have penetrated me")]
-    [(? (cmd? ALST) raw)
-     (print-alias) (repl ctx hist pre-hist)]
-    [(? (cmd? BACK) raw)
-     (call-with-values (lambda () (back raw ctx hist pre-hist)) repl)]
-    [(? (cmd? DIVE) raw)
-     (call-with-values (lambda () (dive raw ctx hist pre-hist)) repl)]
-    [(? (cmd? FIND) raw)
-     (call-with-values (lambda () (find raw ctx hist pre-hist)) repl)]
-    [(? (cmd? HELP) raw)
-     (print-help) (repl ctx hist pre-hist)]
-    [(? (cmd? INFO) raw)
-     (print-context ctx) (repl ctx hist pre-hist)]
-    [(? (cmd? JUMP) raw)
-     (call-with-values (lambda () (jump raw ctx hist pre-hist)) repl)]
-    [(? (cmd? SAVE) raw)
-     (call-with-values (lambda () (save raw ctx hist pre-hist)) repl)]
-    [(? (cmd? QUIT) raw)
+  (match cmd*
+    ['()
+     (print-prompt ctx)
+     (match (read-line)
+       [(? eof-object? _)
+        (error 'zo-shell:repl "EOF: you have penetrated me")]
+       [str ((repl ctx hist pre-hist) (string-split str ";"))])]
+    [(cons (? (cmd? ALST) raw) cmd*)
+     (print-alias) ((repl ctx hist pre-hist) cmd*)]
+    [(cons (? (cmd? BACK) raw) cmd*)
+     ((call-with-values (lambda () (back raw ctx hist pre-hist)) repl) cmd*)]
+    [(cons (? (cmd? DIVE) raw) cmd*)
+     ((call-with-values (lambda () (dive raw ctx hist pre-hist)) repl) cmd*)]
+    [(cons (? (cmd? FIND) raw) cmd*)
+     ((call-with-values (lambda () (find raw ctx hist pre-hist)) repl) cmd*)]
+    [(cons (? (cmd? HELP) raw) cmd*)
+     (begin (print-help) ((repl ctx hist pre-hist) cmd*))]
+    [(cons (? (cmd? INFO) raw) cmd*)
+     (begin (print-context ctx) ((repl ctx hist pre-hist) cmd*))]
+    [(cons (? (cmd? JUMP) raw) cmd*)
+     ((call-with-values (lambda () (jump raw ctx hist pre-hist)) repl) cmd*)]
+    [(cons (? (cmd? SAVE) raw) cmd*)
+     ((call-with-values (lambda () (save raw ctx hist pre-hist)) repl) cmd*)]
+    [(cons (? (cmd? QUIT) raw) cmd*)
      (print-goodbye)]
-    [raw
-     (print-unknown raw) (repl ctx hist pre-hist)]))
+    [(cons raw cmd*)
+     (begin (print-unknown raw) ((repl ctx hist pre-hist) cmd*))]))
 
 ;; --- command implementations
 
@@ -208,7 +220,7 @@
       (dive-zo   ctx hist arg)]
      [else
       ;; Should never happen! REPL controls the context.
-      (error (format "Invalid context '~a'" ctx))]))
+      (error 'zo-shell:dive (format "Invalid context '~a'" ctx))]))
   ;; Return pre-hist unchanged
   (values ctx* hist* pre-hist))
 
@@ -340,7 +352,7 @@
              (zo->string z #:deep? #f)
              (length ctx))]
     [_
-     (error (format "Unknown context '~a'"  ctx))]))
+     (error 'zo-shell:info (format "Unknown context '~a'"  ctx))]))
 
 ;; Print an error message (after receiving an undefined/invalid command).
 (define (print-unknown raw)
@@ -914,7 +926,7 @@
   (print-welcome)
   (check-pred read-line in)
 
-  (print-prompt) (displayln "")
+  (print-prompt '()) (displayln "")
   (check-pred read-line in)
 
   (print-info "")
