@@ -12,7 +12,7 @@
          "typed-zo-structs.rkt"
          (only-in "zo-string.rkt" zo->string)
          (only-in "zo-transition.rkt" zo-transition)
-         (only-in "zo-find.rkt" zo-find result))
+         (only-in "zo-find.rkt" zo-find result result? result-z result-path))
 (require/typed compiler/zo-parse
                [zo-parse (->* () (Input-Port) zo)])
 
