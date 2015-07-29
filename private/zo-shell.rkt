@@ -4,16 +4,32 @@
 ;; (Use `raco make` to generate bytecode)
 
 (provide
- ;; (-> (vectorof string?) void?)
- ;; Start a REPL using command-line arguments
- init)
+ init-from-filename
+ ;; (-> String Void)
+ ;; Start a repl using the zo file `filename`
+
+ find-all
+ ;; (->* [String (Listof String)] [#:limit (U Natural #f)] Void)
+ ;; (find-all zo arg* #:lim n)
+ ;; Searches the bytecode file `zo` for all zo-structs named by the list `arg*`
+ ;;  and prints the number of matches.
+ ;; If `#:limit` is not false, recursive searches are terminated at depth `n`.
+ ;;
+ ;; For example, if `arg*` is '("branch" "lam"), then the result will be the number
+ ;; of zo structs in the decompiled output that match the `branch?` or `lam?` predicates.
+
+ print-usage
+ ;; (-> Void)
+ ;; Display terms-of-use
+)
 
 (require (only-in compiler/zo-parse zo? zo-parse)
          (only-in racket/string string-split string-join)
          (only-in "zo-find.rkt" zo-find result result? result-zo result-path)
          (only-in "zo-string.rkt" zo->string)
          (only-in "zo-transition.rkt" zo-transition)
-         racket/match)
+         racket/match
+)
 
 ;; -----------------------------------------------------------------------------
 
@@ -22,7 +38,7 @@
 ;; when set, print extra debugging information
 (define DEBUG   #f)
 ;; For aesthetic purposes
-(define VERSION 1.0) 
+(define VERSION 1.0)
 (define VNAME   "vortex")
 ;; (define nat? natural-number/c)
 ;; (define context? (or/c zo? (listof zo?) (listof result?)))
@@ -155,7 +171,7 @@
   (string-append
    "BACK removing most recent 'save' mark. "
    "Be sure to save if you want to continue exploring search result."))
-  
+
 ;; Step back to a previous context, if any, and reduce the history.
 ;; Try popping from `hist`, fall back to list-of-histories `pre-hist`.
 (define (back raw ctx hist pre-hist)
@@ -208,7 +224,7 @@
          (print-unknown (format "dive ~a" arg))
          (values ctx hist)]
         [else
-         ;; Select from list, 
+         ;; Select from list,
          (define res (list-ref ctx index))
          ;; If list elements are search results, current `hist` can be safely ignored.
          (if (result? res)
@@ -261,7 +277,7 @@
      (back raw ctx hist* pre-hist*)]))
 
 ;; Save the current context and history to the pre-history
-;; For now, erases current history. 
+;; For now, erases current history.
 (define (save raw ctx hist pre-hist)
   (values ctx '() (push pre-hist (push hist ctx))))
 
@@ -369,14 +385,14 @@
 
 ;; Print usage information.
 (define USAGE
-  "Usage: zo-shell FILE.zo [STRUCT-NAME ...]")
+  "Usage: zo-shell <OPTIONS> FILE.zo")
 (define (print-usage)
   (displayln USAGE))
 
 ;; --- misc
 
-(define (find-all name args)
-  ;; (-> string? (vectorof string?) void)
+(define (find-all name args #:limit [lim #f])
+  ;; (-> string? (listof string?) void)
   (print-info (format "Loading bytecode file '~a'..." name))
   (call-with-input-file name
     (lambda (port)
@@ -385,7 +401,7 @@
       (print-info "Parsing complete! Searching...")
       (for ([arg (in-list args)])
         (printf "FIND '~a' : " arg)
-        (printf "~a results\n" (length (zo-find ctx arg))))
+        (printf "~a results\n" (length (zo-find ctx arg #:limit lim))))
       (displayln "All done!"))))
 
 ;; Split the string `raw` by whitespace and
@@ -613,8 +629,8 @@
   (check-pred read-line in)
 
   ;; Search results, hist overwritten
-  (let ([ctx (list (result (zo) '(a)) 
-                   (result (expr) '(b)) 
+  (let ([ctx (list (result (zo) '(a))
+                   (result (expr) '(b))
                    (result (wrap '() '() '()) '(c))
                    (result (form) '(d)))]
         [hist '(e)]
@@ -776,7 +792,7 @@
              (check-equal? hist* (cdar pre-hist))
              (check-equal? pre-hist* (cdr pre-hist)))))
   (check-pred read-line in)
-  
+
   ;; -- jump
   ;; - Fail, no pre-hist
   (let* ([ctx      'a]
@@ -855,8 +871,8 @@
   (check-pred read-line in)
   (check-pred read-line in)
   (check-pred read-line in)
-  
-  
+
+
   (print-history '())
   (check-pred read-line in)
 

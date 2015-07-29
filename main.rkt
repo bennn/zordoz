@@ -16,6 +16,4 @@
           ;; zo-transition
           [zo-transition (-> zo? string? (values (or/c zo? (listof zo?)) boolean?))]
           ;; zo-find
-          [zo-find (-> zo? string? (listof result?))]
-          ;; zo-shell
-          [init (-> (vectorof string?) void?)]))
+          [zo-find (-> zo? string? (listof result?))]))
