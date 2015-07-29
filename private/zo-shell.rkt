@@ -26,7 +26,7 @@
 (require (only-in compiler/zo-parse zo? zo-parse)
          (only-in racket/string string-split string-join)
          (only-in "zo-find.rkt" zo-find result result? result-zo result-path)
-         (only-in "zo-string.rkt" zo->string)
+         (only-in "zo-string.rkt" zo->string zo->spec)
          (only-in "zo-transition.rkt" zo-transition)
          racket/match
 )
@@ -139,7 +139,7 @@
 (define (repl ctx hist pre-hist)
   ;; (-> context? history? void?)
   (when DEBUG (print-history hist))
-  (print-prompt)
+  (print-prompt ctx)
   (match (read-line)
     [(? eof-object? _)
      (error "EOF: you have penetrated me")]
@@ -364,9 +364,12 @@
    (format "\033[1;34m--- Welcome to the .zo shell, version ~a '~a' ---\033[0;0m\n" VERSION VNAME)))
 
 ;; Print the REPL prompt.
-(define (print-prompt)
+(define (print-prompt ctx)
   ;; (-> void?)
-  (display "\033[1;32mzo> \033[0;0m"))
+  (define tag (cond [(list? ctx) (format "[~a]" (length ctx))]
+                    [(zo? ctx)   (format "(~a)" (car (zo->spec ctx)))]
+                    [else ""]))
+  (display (string-append tag " \033[1;32mzo> \033[0;0m")))
 
 ;; Print an informative message.
 (define (print-info str)
