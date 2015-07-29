@@ -98,6 +98,7 @@
    scope
    multi-scope
    binding
+   provided
    all-from-module))
 
 (define form->spec
@@ -111,7 +112,6 @@
    splice
    inline-variant
    mod
-   provided
    expr))
 
 (define expr->spec
@@ -849,7 +849,7 @@
   ;; module-variable->spec
   (let* ([mpi (module-path-index-join #f #f)]
          [fs  (function-shape 1 #f)]
-         [ss  (struct-shape)] 
+         [ss  (struct-shape)]
          [z   (module-variable mpi 'arbitrary 999 9001 fs)])
     (check-equal? (force-spec (module-variable->spec z))
                   (cons "module-variable"

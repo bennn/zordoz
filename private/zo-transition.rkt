@@ -61,6 +61,7 @@
    scope
    multi-scope
    binding
+   provided
    all-from-module))
 
 (define form->
@@ -74,7 +75,6 @@
    splice
    inline-variant
    mod
-   provided
    expr))
 
 (define expr->
@@ -568,7 +568,7 @@
   ;; module-variable->
   (let* ([mpi (module-path-index-join #f #f)]
          [fs  (function-shape 1 #f)]
-         [ss  (struct-shape)] 
+         [ss  (struct-shape)]
          [z   (module-variable mpi 'arbitrary 999 9001 fs)]
          ;; Testing when 'constantness' is a struct shape (still #f, it's not a zo)
          [z*  (module-variable mpi 'arbitrary 999 9001 ss)])
@@ -737,7 +737,7 @@
              (begin (check-equal? ctx* z*)
                     (check-false pass?)))))
 
-  
+
   ;; splice->
   (let* ([fms (list (form) (form))]
          [z   (splice fms)]
@@ -748,7 +748,7 @@
            (let-values ([(ctx* pass?) (zo-transition z* "forms")])
              (begin (check-equal? ctx* z*)
                     (check-false pass?)))))
-    
+
   ;; inline-variant->
   (let* ([dr (expr)]
          [il (expr)]
