@@ -1019,4 +1019,20 @@
     (vector "file.zo" "struct1" "struct2" "-accident")
     #t)
 
+  ;; -- starts-with
+  (check-true (starts-with? "racket" ""))
+  (check-true (starts-with? "racket" "r"))
+  (check-true (starts-with? "racket" "rack"))
+  (check-true (starts-with? "racket" "racket"))
+  (check-false (starts-with? ""       "racket"))
+  (check-false (starts-with? "racket" "R"))
+  (check-false (starts-with? "racket" "rak"))
+  (check-false (starts-with? "racket" "racket2"))
+
+  ;; -- split-cd
+  (check-equal? (split-cd '("")) '(""))
+  (check-equal? (split-cd '("cd ../../")) '("cd .." "cd .."))
+  (check-equal? (split-cd '("a" "b" "dive" "c")) '("a" "b" "dive" "c"))
+  (check-equal? (split-cd '("a" "cd ../foo/bar" "car")) '("a" "cd .." "cd foo" "cd bar" "car"))
+
 ) ;; --- end testing
