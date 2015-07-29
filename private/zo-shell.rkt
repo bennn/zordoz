@@ -24,7 +24,7 @@
 )
 
 (require (only-in compiler/zo-parse zo? zo-parse)
-         (only-in racket/string string-split string-join)
+         (only-in racket/string string-split string-join string-trim)
          (only-in "zo-find.rkt" zo-find result result? result-zo result-path)
          (only-in "zo-string.rkt" zo->string zo->spec)
          (only-in "zo-transition.rkt" zo-transition)
@@ -135,14 +135,29 @@
       (print-welcome)
       ((repl ctx '() '()) '()))))
 
-;; (define (get-next-command cmd*)
-;;   (match cmd*
-;;     ['()
-;;      (match (read-line)
-;;        [(? eof-object?)
-;;         (error 'zo-shell "EOF: you have penetrated me")]
-;;        [x (string-split x ";")])]
-;;     [(cons h rest)
+;; Check if second arg is a prefix of the first
+(define (starts-with? str prefix)
+  ;; (-> string? string? boolean?)
+  (and (<= (string-length prefix)
+           (string-length str))
+       (for/and ([c1 (in-string str)]
+                 [c2 (in-string prefix)])
+         (char=? c1 c2))))
+
+;; Split a path like "cd ../BLAH/.." into a list of commands "cd ..; cd BLAH; cd .."
+(define (split-cd cmd*)
+  ;; (-> (listof string?) (listof string?))
+  (match cmd*
+    ['() '()]
+    [(cons cd-cmd rest)
+     #:when (starts-with? cd-cmd "cd ")
+     ;; Split "cd " commands by "/"
+     (append
+      (map (lambda (x) (string-append "cd " x)) (string-split (substring cd-cmd 3) "/"))
+      (split-cd rest))]
+    [(cons cmd rest)
+     ;; Leave other commands alone
+     (cons cmd (split-cd rest))]))
 
 ;; The REPL loop. Process a command using context `ctx` and history `hist`.
 (define ((repl ctx hist pre-hist) cmd*)
@@ -154,7 +169,8 @@
      (match (read-line)
        [(? eof-object? _)
         (error 'zo-shell:repl "EOF: you have penetrated me")]
-       [str ((repl ctx hist pre-hist) (string-split str ";"))])]
+       [str
+        ((repl ctx hist pre-hist) (split-cd (map string-trim (string-split str ";"))))])]
     [(cons (? (cmd? ALST) raw) cmd*)
      (print-alias) ((repl ctx hist pre-hist) cmd*)]
     [(cons (? (cmd? BACK) raw) cmd*)
