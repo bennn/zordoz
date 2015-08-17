@@ -5,7 +5,8 @@
 
 (provide
  ;; Start a REPL using command-line arguments
- init)
+ init
+ find-all)
 
 (require racket/match
          (only-in racket/string string-split string-join)
@@ -411,8 +412,8 @@
   (displayln "Usage: zo-shell FILE.zo"))
 
 ;; --- misc
-(: find-all (-> String (Listof String) Void))
-(define (find-all name args)
+(: find-all (->* [String (Listof String)] [#:limit Natural] Void))
+(define (find-all name args #:limit [lim #f])
   ;; (-> string? (vectorof string?) void)
   (print-info (format "Loading bytecode file '~a'..." name))
   (call-with-input-file name
@@ -423,7 +424,7 @@
       (print-info "Parsing complete! Searching...")
       (for : Void ([arg : String (in-list args)])
         (printf "FIND '~a' : " arg)
-        (printf "~a results\n" (length (zo-find ctx arg))))
+        (printf "~a results\n" (length (zo-find ctx arg #:limit lim))))
       (displayln "All done!"))))
 
 ;; Split the string `raw` by whitespace and

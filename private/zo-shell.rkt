@@ -4,9 +4,12 @@
 ;; (Use `raco make` to generate bytecode)
 
 (provide
- init-from-filename
+ filename->shell
  ;; (-> String Void)
  ;; Start a repl using the zo file `filename`
+
+ zo->shell
+ ;; Start a repl using the zo struct
 
  find-all
  ;; (->* [String (Listof String)] [#:limit (U Natural #f)] Void)
@@ -56,7 +59,7 @@
     ;; Catch --help flag, and any others
     [(? has-any-flags?) (print-usage)]
     [(vector fname)
-     (init-from-filename fname)]
+     (filename->shell fname)]
     [(vector fname args ...)
      (find-all fname args)]))
 
@@ -124,7 +127,7 @@
 ;; --- REPL
 
 ;; Start REPL from a filename
-(define (init-from-filename name)
+(define (filename->shell name)
   ;; (-> string? void?)
   (print-info (format "Loading bytecode file '~a'..." name))
   (call-with-input-file name
@@ -134,6 +137,11 @@
       (print-info "Parsing complete!")
       (print-welcome)
       ((repl ctx '() '()) '()))))
+
+(define (zo->shell z)
+  ;; (-> zo? void?)
+  (print-welcome)
+  ((repl z '() '()) '()))
 
 ;; Check if second arg is a prefix of the first
 (define (starts-with? str prefix)

@@ -4,7 +4,7 @@
 
 (module+ main
   (require racket/cmdline
-           (only-in "private/zo-shell.rkt" init-from-filename find-all print-usage))
+           (only-in "private/zo-shell.rkt" filename->shell find-all print-usage))
   ;; -- parameters
   (define search-limit (make-parameter #f))
   (define start-repl? (make-parameter #t))
@@ -34,6 +34,6 @@
    #:args (filename)
    (when (assert-zo filename)
      (if (start-repl?)
-         (init-from-filename filename)
+         (filename->shell filename)
          (find-all filename (to-find) #:limit (search-limit)))))
 )
