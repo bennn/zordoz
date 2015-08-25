@@ -17,7 +17,7 @@ You have two options.
 (You can also clone, then run `raco pkg install zordoz/`)
 
 To run tests, execute `make test`.
-Each module in the `private/` folder contains a module `test+` containing unit tests.
+Each module in the `private/` folder has a submodule containing unit tests.
 
 Usage
 -----
