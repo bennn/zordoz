@@ -92,13 +92,14 @@
    stx
    form
    expr
-   wrapped
+   stx-obj
    wrap
-   free-id-info
-   all-from-module
-   module-binding
-   nominal-path
-   provided))
+   module-shift
+   scope
+   multi-scope
+   binding
+   provided
+   all-from-module))
 
 (define form->spec
   (make-table
@@ -111,7 +112,6 @@
    splice
    inline-variant
    mod
-   provided
    expr))
 
 (define expr->spec
@@ -137,40 +137,21 @@
    apply-values
    primval))
 
-(define wrap->spec
+(define binding->spec
   (make-table
    #:action ->spec
-   top-level-rename
-   mark-barrier
-   lexical-rename
-   phase-shift
-   module-rename
-   wrap-mark
-   prune))
-
-(define module-binding->spec
-  (make-table
-   #:action ->spec
-   simple-module-binding
-   phased-module-binding
-   exported-nominal-module-binding
-   nominal-module-binding
-   exported-module-binding))
-
-(define nominal-path->spec
-  (make-table
-   #:action ->spec
-   simple-nominal-path
-   imported-nominal-path
-   phased-nominal-path))
+   module-binding
+   decoded-module-binding
+   local-binding
+   free-id=?-binding))
 
 ;; --- private functions
 
 (define
   (compilation-top->spec z)
   (list "compilation-top"
-        (lcons "max-let-depth" (number->string     (compilation-top-max-let-depth z)))
-        (lcons "prefix"        (prefix->spec      (compilation-top-prefix z)))
+        (lcons "max-let-depth" (number->string      (compilation-top-max-let-depth z)))
+        (lcons "prefix"        (prefix->spec        (compilation-top-prefix z)))
         (lcons "code"          (form-or-any->string (compilation-top-code z)))))
 
 (define
@@ -185,9 +166,10 @@
        (symbol->string tl)]
       [#f "#f"]))
   (list "prefix"
-        (lcons "num-lifts" (number->string                (prefix-num-lifts z)))
+        (lcons "num-lifts" (number->string              (prefix-num-lifts z)))
         (lcons "toplevels" (list->string      tl->spec  (prefix-toplevels z)))
-        (lcons "stxs"      (listof-zo->string stx->spec (prefix-stxs z)))))
+        (lcons "stxs"      (listof-zo->string stx->spec (prefix-stxs z)))
+        (lcons "src-inspector-desc" (symbol->string (prefix-src-inspector-desc z)))))
 
 (define
   (global-bucket->spec  z)
@@ -211,51 +193,17 @@
 (define
   (stx->spec z)
   (list "stx"
-        (lcons "encoded" (wrapped->spec (stx-encoded z)))))
-
-(define
-  (wrapped->spec z)
-  (list "wrapped"
-        (lcons "datum"         (any->string                    (wrapped-datum z)))
-        (lcons "wraps"         (listof-zo->string wrap->spec (wrapped-wraps z)))
-        (lcons "tamper-status" (symbol->string                 (wrapped-tamper-status z)))))
-
-;; Helper for `free-id-info` and `all-from-module`
-(define (phase->spec ph)
-  (cond [(number? ph) (number->string ph)]
-        [else         (boolean->string ph)]))
-
-(define
-  (free-id-info->spec z)
-  (list "free-id-info"
-        (lcons "path0"                  (module-path-index->string (free-id-info-path0 z)))
-        (lcons "symbol0"                (symbol->string            (free-id-info-symbol0 z)))
-        (lcons "path1"                  (module-path-index->string (free-id-info-path1 z)))
-        (lcons "symbol1"                (symbol->string            (free-id-info-symbol1 z)))
-        (lcons "phase0"                 (phase->spec             (free-id-info-phase0 z)))
-        (lcons "phase1"                 (phase->spec             (free-id-info-phase1 z)))
-        (lcons "phase2"                 (phase->spec             (free-id-info-phase2 z)))
-        (lcons "use-current-inspector?" (boolean->string           (free-id-info-use-current-inspector? z)))))
+        (lcons "content" (stx-obj->spec (stx-content z)))))
 
 (define
   (all-from-module->spec z)
-  (define (prefix->spec px)
-    (if (symbol? px)
-        (symbol->string px)
-        "#f"))
-  (define (context->spec ctx)
-    (cond [(eq? #f ctx)  "#f"]
-          [(list? ctx)   (list->string number->string ctx)]
-          [(vector? ctx) (format-list #:sep " "
-                                      (list (list->string number->string (vector-ref ctx 0))
-                                            (any->string                 (vector-ref ctx 1))))]))
   (list "all-from-module"
         (lcons "path"      (module-path-index->string (all-from-module-path z)))
-        (lcons "phase"     (phase->spec             (all-from-module-phase z)))
-        (lcons "src-phase" (phase->spec             (all-from-module-src-phase z)))
+        (lcons "phase"     (number-or-f->string (all-from-module-phase z)))
+        (lcons "src-phase" (number-or-f->string (all-from-module-src-phase z)))
+        (lcons "inspector-desc" (symbol->string (all-from-module-inspector-desc z)))
         (lcons "exceptions" (list->string symbol->string (all-from-module-exceptions z)))
-        (lcons "prefix"    (prefix->spec            (all-from-module-prefix z)))
-        (lcons "context"   (context->spec           (all-from-module-context z)))))
+        (lcons "prefix"    (symbol-or-f->string (all-from-module-prefix z)))))
 
 ;; --- form
 
@@ -374,6 +322,10 @@
        (listof-zo->string stx->spec (vector->list ic))]
       [(? boolean? ic)
        (boolean->string ic)]))
+  (define
+    (binding-names->string bns)
+    ;(-> (hash/c exact-integer? (hash/c symbol (or/c #t stx?))))
+    (any->string bns))
   (list "mod"
         (lcons "name"             (name->spec               (mod-name z)))
         (lcons "srcname"          (symbol->string             (mod-srcname z)))
@@ -388,6 +340,7 @@
         (lcons "dummy"            (toplevel->spec           (mod-dummy z)))
         (lcons "lang-info"        (lang-info->spec          (mod-lang-info z)))
         (lcons "internal-context" (internal-context->string (mod-internal-context z)))
+        (lcons "binding-names"    (binding-names->string (mod-binding-names z)))
         (lcons "flags"            (list->string   symbol->string (mod-flags z)))
         (lcons "pre-submodules"   (listof-zo->string mod->spec (mod-pre-submodules z)))
         (lcons "post-submodules"  (listof-zo->string mod->spec (mod-post-submodules z)))))
@@ -454,7 +407,7 @@
   (list "let-one"
         (lcons "rhs"    (expr-seq-any->string (let-one-rhs  z)))
         (lcons "body"   (expr-seq-any->string (let-one-body z)))
-        (lcons "type"   (symbol-or-f->spec  (let-one-type z)))
+        (lcons "type"   (symbol-or-f->string  (let-one-type z)))
         (lcons "unused?" (boolean->string      (let-one-unused? z)))))
 
 (define
@@ -492,7 +445,7 @@
         (lcons "pos"           (number->string      (localref-pos z)))
         (lcons "clear?"        (boolean->string     (localref-clear? z)))
         (lcons "other-clears?" (boolean->string     (localref-other-clears? z)))
-        (lcons "type"          (symbol-or-f->spec (localref-type z)))))
+        (lcons "type"          (symbol-or-f->string (localref-type z)))))
 
 (define
   (toplevel->spec z)
@@ -563,129 +516,96 @@
   (list "primval"
         (lcons "id" (number->string (primval-id z)))))
 
+;; --- stx-obj
+
+(define
+  (stx-obj->spec so)
+  (list "stx-obj"
+        (lcons "datum" (any->string (stx-obj-datum so)))
+        (lcons "wrap" (wrap->spec (stx-obj-wrap so)))
+        (lcons "tamper-status" (symbol->string (stx-obj-tamper-status so)))))
+
 ;; --- wrap
 
 (define
-  (top-level-rename->spec z)
-  (list "top-level-rename"
-        (lcons "flag" (boolean->string (top-level-rename-flag z)))))
+  (wrap->spec wp)
+  (define (ms->string ms+id)
+    (format "(~a ~a)" (format-spec #f (multi-scope->spec (car ms+id)))
+                      (number-or-f->string (cadr ms+id))))
+  (list "wrap"
+        (lcons "shifts" (listof-zo->string module-shift->spec (wrap-shifts wp)))
+        (lcons "simple-scopes" (listof-zo->string scope->spec (wrap-simple-scopes wp)))
+        (lcons "multi-scopes" (list->string ms->string (wrap-multi-scopes wp)))))
+
+;; --- misc. syntax
 
 (define
-  (mark-barrier->spec z)
-  (list "mark-barrier"
-        (lcons "value" (symbol->string (mark-barrier-value z)))))
+  (module-shift->spec ms)
+  (list "module-shift"
+        (lcons "from" (module-path-index->string (module-shift-from ms)))
+        (lcons "to" (module-path-index->string (module-shift-to ms)))
+        (lcons "from-inspector-desc" (symbol-or-f->string (module-shift-from-inspector-desc ms)))
+        (lcons "to-inspector-desc" (symbol-or-f->string (module-shift-to-inspector-desc ms)))))
 
 (define
-  (lexical-rename->spec z)
-  (define
-    (lexical-rename-alist->string alst)
-    (list->string (lambda (x) x)
-                  (for/list ([a alst])
-                    (format "(~a . ~a)"
-                            (car a)
-                            (cond [(symbol? (cdr a)) (cdr a)]
-                                  [else (define a* (cdr a))
-                                        (format "(~a . ~a)"
-                                                (car a*)
-                                                (cond [(free-id-info? (cdr a*)) (free-id-info->spec (cdr a*))]
-                                                      [else                     (cdr a*)]))])))))
-  (list "lexical-rename"
-        (lcons "has-free-id-renames?" (boolean->string              (lexical-rename-has-free-id-renames? z)))
-        (lcons "bool2"                (boolean->string              (lexical-rename-bool2 z)))
-        (lcons "alist"                (lexical-rename-alist->string (lexical-rename-alist z)))))
+  (scope->spec sc)
+  (define (sym+scope+binding->string ssbs)
+    (format "(~a ~a ~a)" (symbol->string (car ssbs))
+                         (listof-zo->string scope->spec (cadr ssbs))
+                         (format-spec #f (binding->spec (caddr ssbs)))))
+  (define (scope+all-from-module->string bbs)
+    (format "(~a ~a)" (listof-zo->string scope->spec (car bbs))
+                      (format-spec #f (all-from-module->spec (cadr bbs)))))
+  (list "scope"
+        (lcons "name" (let ([name (scope-name sc)])
+                        (cond [(eq? 'root name) "root"]
+                              [else (number->string name)])))
+        (lcons "kind" (symbol->string (scope-kind sc)))
+        (lcons "bindings" (list->string sym+scope+binding->string (scope-bindings sc)))
+        (lcons "bulk-bindings" (list->string scope+all-from-module->string (scope-bulk-bindings sc)))
+        (lcons "multi-owner" (cond [(scope-multi-owner sc) => multi-scope->spec]
+                                   [else "#f"]))))
 
 (define
-  (phase-shift->spec z)
-  (define (mpi-or-f->string x)
-    (if (module-path-index? x)
-        (module-path-index->string x)
-        "#f"))
-  (list "phase-shift"
-        (lcons "amt"       (number-or-f->string (phase-shift-amt z)))
-        (lcons "src"       (mpi-or-f->string    (phase-shift-src z)))
-        (lcons "dest"      (mpi-or-f->string    (phase-shift-dest z)))
-        (lcons "cancel-id" (number-or-f->string (phase-shift-cancel-id z)))))
+  (multi-scope->spec ms)
+  (define (sc->string id+scope)
+    (format "(~a ~a)" (number-or-f->string (car id+scope))
+                      (format-spec #f (scope->spec (cadr id+scope)))))
+  (list "multi-scope"
+        (lcons "name" (number->string (multi-scope-name ms)))
+        (lcons "src-name" (any->string (multi-scope-src-name ms)))
+        (lcons "scopes" (list->string sc->string (multi-scope-scopes ms)))))
+
+;; --- binding
 
 (define
-  (module-rename->spec z)
-  (define (rename->string rm)
-    (format "(~a ~a)"
-            (symbol->string (car rm))
-            (format-spec #f (module-binding->spec (cdr rm)))))
-  (list "module-rename"
-        (lcons "phase"        (number-or-f->string                     (module-rename-phase z)))
-        (lcons "kind"         (symbol->string                          (module-rename-kind z)))
-        (lcons "set-id"       (any->string                             (module-rename-set-id z)))
-        (lcons "unmarshals"   (listof-zo->string all-from-module->spec (module-rename-unmarshals z)))
-        (lcons "renames"      (list->string rename->string  (module-rename-renames z)))
-        (lcons "mark-renames" (any->string                             (module-rename-mark-renames z)))
-        (lcons "plus-kern?"   (boolean->string                         (module-rename-plus-kern? z)))))
+  (module-binding->spec mb)
+  (list "module-binding"
+        (lcons "encoded" (any->string (module-binding-encoded mb)))))
 
 (define
-  (wrap-mark->spec z)
-  (list "wrap-mark"
-        (lcons "val" (number->string (wrap-mark-val z)))))
+  (decoded-module-binding->spec dmb)
+  (list "decoded-module-binding"
+        (lcons "path" (module-path-index->string (decoded-module-binding-path dmb)))
+        (lcons "name" (symbol->string (decoded-module-binding-name dmb)))
+        (lcons "phase" (number->string (decoded-module-binding-phase dmb)))
+        (lcons "nominal-path" (module-path-index->string (decoded-module-binding-nominal-path dmb)))
+        (lcons "nominal-export-name" (symbol->string (decoded-module-binding-nominal-export-name dmb)))
+        (lcons "nominal-phase" (number-or-f->string (decoded-module-binding-nominal-phase dmb)))
+        (lcons "import-phase" (number-or-f->string (decoded-module-binding-import-phase dmb)))
+        (lcons "inspector-desc" (symbol-or-f->string (decoded-module-binding-inspector-desc dmb)))))
 
 (define
-  (prune->spec z)
-  (list "prune"
-        (lcons "sym" (any->string (prune-sym z)))))
-
-;; --- module-binding
+  (local-binding->spec lb)
+  (list "local-binding"
+        (lcons "name" (symbol->string (local-binding-name lb)))))
 
 (define
-  (simple-module-binding->spec z)
-  (list "simple-module-binding"
-        (lcons "path" (module-path-index->string (simple-module-binding-path z)))))
-
-(define
-  (phased-module-binding->spec z)
-  (list "phased-module-binding"
-        (lcons "path"                (module-path-index->string (phased-module-binding-path z)))
-        (lcons "phase"               (number->string            (phased-module-binding-phase z)))
-        (lcons "export-name"         (any->string               (phased-module-binding-export-name z)))
-        (lcons "nominal-path"        (nominal-path->spec      (phased-module-binding-nominal-path z)))
-        (lcons "nominal-export-name" (any->string               (phased-module-binding-nominal-export-name z)))))
-
-(define
-  (exported-nominal-module-binding->spec z)
-  (list "exported-nominal-module-binding"
-        (lcons "path"                (module-path-index->string (exported-nominal-module-binding-path z)))
-        (lcons "export-name"         (any->string               (exported-nominal-module-binding-export-name z)))
-        (lcons "nominal-path"        (nominal-path->spec      (exported-nominal-module-binding-nominal-path z)))
-        (lcons "nominal-export-name" (any->string               (exported-nominal-module-binding-nominal-export-name z)))))
-
-(define
-  (nominal-module-binding->spec z)
-  (list "nominal-module-binding"
-        (lcons "path"         (module-path-index->string (nominal-module-binding-path z)))
-        (lcons "nominal-path" (nominal-path->spec      (nominal-module-binding-nominal-path z)))))
-
-(define
-  (exported-module-binding->spec z)
-  (list "exported-module-binding"
-        (lcons "path"        (module-path-index->string (exported-module-binding-path z)))
-        (lcons "export-name" (any->string               (exported-module-binding-export-name z)))))
-
-;; --- nominal-path
-
-(define
-  (simple-nominal-path->spec z)
-  (list "simple-nominal-path"
-        (lcons "value" (module-path-index->string (simple-nominal-path-value z)))))
-
-(define
-  (imported-nominal-path->spec z)
-  (list "imported-nominal-path"
-        (lcons "value"        (module-path-index->string (imported-nominal-path-value z)))
-        (lcons "import-phase" (number->string            (imported-nominal-path-import-phase z)))))
-
-(define
-  (phased-nominal-path->spec z)
-  (list "phased-nominal-path"
-        (lcons "value"        (module-path-index->string (phased-nominal-path-value z)))
-        (lcons "import-phase" (number-or-f->string       (phased-nominal-path-import-phase z)))
-        (lcons "phase"        (number->string            (phased-nominal-path-phase z)))))
+  (free-id=?-binding->spec fib)
+  (list "free-id=?-binding"
+        (lcons "base" (binding->spec (free-id=?-binding-base fib)))
+        (lcons "id" (stx-obj->spec (free-id=?-binding-id fib)))
+        (lcons "phase" (number-or-f->string (free-id=?-binding-phase fib)))))
 
 ;; --- Shapes
 
@@ -833,7 +753,7 @@
 
 ;; Turn a symbol or #f into a string.
 (define
-  (symbol-or-f->spec sf)
+  (symbol-or-f->string sf)
   (if (eq? #f sf)
       "#f"
       (symbol->string sf)))
@@ -895,7 +815,7 @@
   ;; --- private
 
   ;; compilation-top->spec
-  (let* ([px (prefix 0 '() '())]
+  (let* ([px (prefix 0 '() '() 'd)]
          [cd (seq '())]
          [z  (compilation-top 0 px cd)])
     (check-equal? (force-spec (compilation-top->spec z))
@@ -908,15 +828,17 @@
   (let* ([mpi (module-path-index-join #f #f)]
          [gb (global-bucket 'NAME)]
          [mv (module-variable mpi 'SYM 0 0 #f)]
-         [sx (stx (wrapped (void) '() 'tainted))]
+         [sx (stx (stx-obj 'x (wrap '() '() '()) 'tainted))]
          [z  (prefix 0
                     (list gb mv)
-                    (list sx))])
+                    (list sx)
+                    'yes)])
     (check-equal? (force-spec (prefix->spec z))
                   (cons "prefix"
                         (list (cons "num-lifts" "0")
                               (cons "toplevels" "[<struct:global-bucket> <struct:module-variable>]")
-                              (cons "stxs" "<struct:stx>[1]")))))
+                              (cons "stxs" "<struct:stx>[1]")
+                              (cons "src-inspector-desc" "yes")))))
 
   ;; global-bucket->spec
   (let* ([z (global-bucket 'arbitrary-symbol)])
@@ -927,22 +849,22 @@
   ;; module-variable->spec
   (let* ([mpi (module-path-index-join #f #f)]
          [fs  (function-shape 1 #f)]
-         [ss  (struct-shape)] 
+         [ss  (struct-shape)]
          [z   (module-variable mpi 'arbitrary 999 9001 fs)])
     (check-equal? (force-spec (module-variable->spec z))
                   (cons "module-variable"
-                        (list (cons "modidx" "#<module-path-index>")
+                        (list (cons "modidx" "#<module-path-index:()>")
                               (cons "sym" "arbitrary")
                               (cons "pos" "999")
                               (cons "phase" "9001")
                               (cons "constantness" "function-shape arity : 1 preserves-marks? : #f")))))
 
   ;; stx->spec
-  (let* ([wp (wrapped (void) '() 'tainted)]
-         [z (stx wp)])
+  (let* ([s (stx-obj 'a (wrap '() '() '()) 'clean)]
+         [z (stx s)])
     (check-equal? (force-spec (stx->spec z))
                   (cons "stx"
-                        (list (cons "encoded" "<struct:wrapped>")))))
+                        (list (cons "content" "<struct:stx-obj>")))))
 
   ;; form->spec (see below)
   (let* ([z (form)])
@@ -952,52 +874,80 @@
   (let* ([z (expr)])
     (check-equal? (expr->spec z) #f))
 
-  ;; wrapped->spec
-  (let* ([wps (list (prune 'A) (prune 'B) (prune 'C))]
-         [z   (wrapped 'yolo wps 'tainted)])
-    (check-equal? (force-spec (wrapped->spec z))
-                  (cons "wrapped"
-                        (list (cons "datum" "yolo")
-                              (cons "wraps" "<struct:prune>[3]")
-                              (cons "tamper-status" "tainted")))))
+  ;; stx-obj->spec
+  (let* ([z (stx-obj 'datum (wrap '() '() '()) 'clean)])
+    (check-equal? (force-spec (stx-obj->spec z))
+                  (cons "stx-obj"
+                        (list (cons "datum" "datum")
+                              (cons "wrap"  "<struct:wrap>")
+                              (cons "tamper-status" "clean")))))
 
-  ;; wrap->spec (see below)
-  (let* ([z (wrap)])
-    (check-equal? (wrap->spec z) #f))
-  
-  ;; free-id-info->spec
+  ;; wrap->spec
+  (let* ([ms (module-shift #f #f 'a 'b)]
+         [sc (scope 3 'b '() '() #f)]
+         [msc (multi-scope 1 '2 '())]
+         [z (wrap (list ms) (list sc) (list (list msc 5)))])
+    (check-equal? (force-spec (wrap->spec z))
+                  (cons "wrap"
+                        (list (cons "shifts" "<struct:module-shift>[1]")
+                              (cons "simple-scopes" "<struct:scope>[1]")
+                              (cons "multi-scopes" "[(<struct:multi-scope> 5)]")))))
+
+  ;; module-shift->spec
   (let* ([mpi (module-path-index-join #f #f)]
-         [z   (free-id-info mpi 'A mpi 'B #f 101 #f #f)])
-    (check-equal? (force-spec (free-id-info->spec z))
-                  (cons "free-id-info"
-                        (list (cons "path0" "#<module-path-index>")
-                              (cons "symbol0" "A")
-                              (cons "path1" "#<module-path-index>")
-                              (cons "symbol1" "B")
-                              (cons "phase0" "#f")
-                              (cons "phase1" "101")
-                              (cons "phase2" "#f")
-                              (cons "use-current-inspector?" "#f")))))
+         [z (module-shift mpi mpi 'from 'to)])
+    (check-equal? (force-spec (module-shift->spec z))
+                  (cons "module-shift"
+                        (list (cons "from" "#<module-path-index:()>")
+                              (cons "to"   "#<module-path-index:()>")
+                              (cons "from-inspector-desc" "from")
+                              (cons "to-inspector-desc" "to")))))
+
+  ;; scope->spec
+  (let* ([mpi (module-path-index-join #f #f)]
+         [afm (all-from-module mpi #f #f 'x '() #f)]
+         [b (binding)]
+         [s (scope 5 'blah '() '() #f)]
+         [ms (multi-scope 6 'name '())]
+         [z (scope 'root 'kind `((sym (,s) ,(module-binding #t))) `(((,s) ,afm)) ms)])
+    (check-equal? (force-spec (scope->spec z))
+                  (cons "scope"
+                        (list (cons "name" "root")
+                          (cons "kind" "kind")
+                          (cons "bindings" "[(sym <struct:scope>[1] <struct:module-binding>)]")
+                          (cons "bulk-bindings" "[(<struct:scope>[1] <struct:all-from-module>)]")
+                          (cons "multi-owner" "<struct:multi-scope>")))))
+
+  ;; multi-scope->spec
+  (let* ([s (scope 1 'a '() '() #f)]
+         [z (multi-scope 4 'yolo `((#f ,s) (1 ,s)))])
+    (check-equal? (force-spec (multi-scope->spec z))
+                  (cons "multi-scope"
+                        (list (cons "name" "4")
+                              (cons "src-name" "yolo")
+                              (cons "scopes" "[(#f <struct:scope>) (1 <struct:scope>)]")))))
+
+  ;; binding->spec (see below)
+  (let* ([z (binding)])
+    (check-equal? (binding->spec z) #f))
 
   ;; all-from-module->spec
   (let* ([mpi (module-path-index-join #f #f)]
-         [z (all-from-module mpi #f #f '() #f '())])
+         [z (all-from-module mpi 2 3 'gadget '(ex1 ex2) 'pre)])
     (check-equal? (force-spec (all-from-module->spec z))
                   (cons "all-from-module"
-                        (list (cons "path" "#<module-path-index>")
-                              (cons "phase" "#f")
-                              (cons "src-phase" "#f")
-                              (cons "exceptions" "[]")
-                              (cons "prefix" "#f")
-                              (cons "context" "[]")))))
+                        (list (cons "path" "#<module-path-index:()>")
+                              (cons "phase" "2")
+                              (cons "src-phase" "3")
+                              (cons "inspector-desc" "gadget")
+                              (cons "exceptions" "[ex1 ex2]")
+                              (cons "prefix" "pre")))))
 
   ;; module-binding->spec (see below)
-  (let* ([z (module-binding)])
-    (check-equal? (module-binding->spec z) #f))
-  
-  ;; nominal-path->spec (see below)
-  (let* ([z (nominal-path)])
-    (check-equal? (nominal-path->spec z) #f))
+  (let* ([z (module-binding 'any)])
+    (check-equal? (force-spec (module-binding->spec z))
+                  (cons "module-binding"
+                        (list (cons "encoded" "any")))))
 
   ;; def-values->spec
   (let* ([ids (list (toplevel 1 2 #t #f))]
@@ -1011,7 +961,7 @@
   ;; def-syntaxes->
   (let* ([ids (list (toplevel 1 2 #t #f))]
          [rhs (beg0 '())]
-         [px  (prefix 0 '() '())]
+         [px  (prefix 0 '() '() 'yay)]
          [dm  (toplevel 1 1 #t #t)]
          [z   (def-syntaxes ids rhs px 42 dm)])
     (check-equal? (force-spec (def-syntaxes->spec z))
@@ -1024,7 +974,7 @@
 
   ;; seq-for-syntax->spec
   (let* ([fms (list (seq '()))]
-         [px  (prefix 0 '() '())]
+         [px  (prefix 0 '() '() 'hi)]
          [dm  (toplevel 9 9 #t #t)]
          [z   (seq-for-syntax fms px 8 dm)])
     (check-equal? (force-spec (seq-for-syntax->spec z))
@@ -1035,7 +985,7 @@
                               (cons "dummy" "<struct:toplevel>")))))
 
   ;; req->spec
-  (let* ([sx (stx (wrapped 'XXX '() 'clean))]
+  (let* ([sx (stx (stx-obj 'XXX (wrap '() '() '()) 'clean))]
          [dm (toplevel 1 1 #t #t)]
          [z  (req sx dm)])
     (check-equal? (force-spec (req->spec z))
@@ -1050,14 +1000,14 @@
                   (cons "seq"
                         (list (cons "forms" "[<struct:seq> <struct:seq> <struct:seq>]")))))
 
-  
+
   ;; splice->
   (let* ([fms (list (seq '()) (seq '()))]
          [z   (splice fms)])
     (check-equal? (force-spec (splice->spec z))
                   (cons "splice"
                         (list (cons "forms" "[<struct:seq> <struct:seq>]")))))
-    
+
   ;; inline-variant->spec
   (let* ([dr (beg0 '())]
          [il (beg0 '())]
@@ -1069,7 +1019,7 @@
 
   ;; mod->spec
   (let* ([mpi (module-path-index-join #f #f)]
-         [px  (prefix 0 '() '())]
+         [px  (prefix 0 '() '() 'a)]
          [pd1 (provided 'p1 #f 'B 'C 13 #t)]
          [pd2 (provided 'p2 #f 'asdf 'C 6 #f)]
          [pd3 (provided 'p3 #f 'B 'lol 832 #t)]
@@ -1077,23 +1027,24 @@
          [pvs (list (list #f (list pd1 pd2) (list pd3))
                     (list #f (list pd4) '()))]
          [bd  (list (seq '()) 'any)]
-         [ds  (def-syntaxes '() (beg0 '()) (prefix 0 '() '()) 1 #f)]
-         [sfs (seq-for-syntax '() (prefix 0 '() '()) 999 (toplevel 9 9 #t #t))]
+         [ds  (def-syntaxes '() (beg0 '()) (prefix 0 '() '() 'b) 1 #f)]
+         [sfs (seq-for-syntax '() (prefix 0 '() '() 'c) 999 (toplevel 9 9 #t #t))]
          [sb  (list (cons 7 (list ds))
                     (cons 8 (list sfs)))]
          [dm  (toplevel 1 1 #f #f)]
-         [ic  (stx (wrapped 'dirty '() 'clean))]
-         [m1  (mod 'm1 'm1src mpi px pvs '() bd sb '() 0 dm #f ic '() '() '())]
-         [m2  (mod 'm2 'm2src mpi px pvs '() bd sb '() 0 dm #f ic '() '() '())]
-         [m3  (mod 'm3 'm3src mpi px pvs '() bd sb '() 0 dm #f ic '() '() '())]
+         [ic  (stx (stx-obj 'dirty (wrap '() '() '()) 'clean))]
+         [m1  (mod 'm1 'm1src mpi px pvs '() bd sb '() 0 dm #f ic (hash) '() '() '())]
+         [m2  (mod 'm2 'm2src mpi px pvs '() bd sb '() 0 dm #f ic (hash) '() '() '())]
+         [m3  (mod 'm3 'm3src mpi px pvs '() bd sb '() 0 dm #f ic (hash) '() '() '())]
+         [bn  (hash 1 (hash 'something #t))]
          [prs (list m1 m2)]
          [pts (list m3)]
-         [z   (mod 'name 'srcname mpi px pvs '() bd sb '() 0 dm #f ic '() prs pts)])
+         [z   (mod 'name 'srcname mpi px pvs '() bd sb '() 0 dm #f ic bn '() prs pts)])
     (check-equal? (force-spec (mod->spec z))
                   (cons "mod"
                         (list (cons "name" "name")
                               (cons "srcname" "srcname")
-                              (cons "self-modidx" "#<module-path-index>")
+                              (cons "self-modidx" "#<module-path-index:()>")
                               (cons "prefix" "<struct:prefix>")
                               (cons "provides" "[#f <struct:provided>[2] <struct:provided>[1] #f <struct:provided>[1] []]")
                               (cons "requires" "[]")
@@ -1104,6 +1055,7 @@
                               (cons "dummy" "<struct:toplevel>")
                               (cons "lang-info" "#f")
                               (cons "internal-context" "<struct:stx>")
+                              (cons "binding-names" "#hash((1 . #hash((something . #t))))")
                               (cons "flags" "[]")
                               (cons "pre-submodules" "<struct:mod>[2]")
                               (cons "post-submodules" "<struct:mod>[1]")))))
@@ -1292,137 +1244,41 @@
                   (cons "primval"
                         (list (cons "id" "420")))))
 
-  ;; top-level-rename->spec
-  (let* ([z (top-level-rename #t)])
-    (check-equal? (force-spec (top-level-rename->spec z))
-                              (cons "top-level-rename"
-                                    (list (cons "flag" "#t")))))
+  ;; module-binding->spec
+  (let ([z (module-binding 'any)])
+    (check-equal? (force-spec (module-binding->spec z))
+                  (cons "module-binding"
+                        (list (cons "encoded" "any")))))
 
-  ;; mark-barrier->spec
-  (let* ([z (mark-barrier 'val)])
-    (check-equal? (force-spec (mark-barrier->spec z))
-                  (cons "mark-barrier"
-                        (list (cons "value" "val")))))
-
-  ;; lexical-rename->spec
+  ;; decoded-module-binding->spec
   (let* ([mpi (module-path-index-join #f #f)]
-         [fii (free-id-info mpi 'A mpi 'B #f 101 #f #f)]
-         [alist (list (cons 'A 'B)
-                      (cons 'C (cons 'D fii))
-                      (cons 'F (cons 'G (cons 'H 'I))))]
-         [z (lexical-rename #f #f alist)]
-         [res (force-spec (lexical-rename->spec z))])
-    (check-equal? (car res) "lexical-rename")
-    (check-equal? (cadr res) (cons "has-free-id-renames?" "#f"))
-    (check-equal? (caddr res) (cons "bool2" "#f"))
-    (check-equal? (car (cadddr res)) "alist"))
-
-  ;; phase-shift->spec
-  (let ([z (phase-shift #f #f #f #f)])
-    (check-equal? (force-spec (phase-shift->spec z))
-                  (cons "phase-shift"
-                        (list (cons "amt" "#f")
-                              (cons "src" "#f")
-                              (cons "dest" "#f")
-                              (cons "cancel-id" "#f")))))
-
-  ;; module-rename->spec
-  (let* ([mpi (module-path-index-join #f #f)]
-         [ums (list (all-from-module mpi #f #f '() #f '()))]
-         [bds (list (cons 'A (simple-module-binding mpi)))]
-         [z (module-rename #f 'marked 'setid ums bds 'any #f)])
-    (check-equal? (force-spec (module-rename->spec z))
-                  (cons "module-rename"
-                        (list (cons "phase" "#f")
-                              (cons "kind" "marked")
-                              (cons "set-id" "setid")
-                              (cons "unmarshals" "<struct:all-from-module>[1]")
-                              (cons "renames" "[(A <struct:simple-module-binding>)]")
-                              (cons "mark-renames" "any")
-                              (cons "plus-kern?" "#f")))))
-
-  ;; wrap-mark->spec
-  (let ([z (wrap-mark 121)])
-    (check-equal? (force-spec (wrap-mark->spec z))
-                  (cons "wrap-mark"
-                        (list (cons "val" "121")))))
-
-  ;; prune->spec
-  (let ([z (prune 'anything-at-all)])
-    (check-equal? (force-spec (prune->spec z))
-                  (cons "prune"
-                        (list (cons "sym" "anything-at-all")))))
-
-  ;; simple-module-binding->spec
-  (let* ([mpi (module-path-index-join #f #f)]
-         [z (simple-module-binding mpi)])
-    (check-equal? (force-spec (simple-module-binding->spec z))
-                  (cons "simple-module-binding"
-                        (list (cons "path" "#<module-path-index>")))))
-
-  ;; phased-module-binding->spec
-  (let* ([mpi (module-path-index-join #f #f)]
-         [np (simple-nominal-path mpi)]
-         [z (phased-module-binding mpi 1 'any np 'any2)])
-    (check-equal? (force-spec (phased-module-binding->spec z))
-                  (cons "phased-module-binding"
-                        (list (cons "path" "#<module-path-index>")
+        [z (decoded-module-binding mpi 'foo 1 mpi 'ex 0 0 'hi)])
+    (check-equal? (force-spec (decoded-module-binding->spec z))
+                  (cons "decoded-module-binding"
+                        (list (cons "path" "#<module-path-index:()>")
+                              (cons "name" "foo")
                               (cons "phase" "1")
-                              (cons "export-name" "any")
-                              (cons "nominal-path" "<struct:simple-nominal-path>")
-                              (cons "nominal-export-name" "any2")))))
+                              (cons "nominal-path" "#<module-path-index:()>")
+                              (cons "nominal-export-name" "ex")
+                              (cons "nominal-phase" "0")
+                              (cons "import-phase" "0")
+                              (cons "inspector-desc" "hi")))))
 
-  ;; exported-nominal-module-binding->spec
-  (let* ([mpi (module-path-index-join #f #f)]
-         [np (simple-nominal-path mpi)]
-         [z (exported-nominal-module-binding mpi 'any np 'any)])
-    (check-equal? (force-spec (exported-nominal-module-binding->spec z))
-                  (cons "exported-nominal-module-binding"
-                        (list (cons "path" "#<module-path-index>")
-                              (cons "export-name" "any")
-                              (cons "nominal-path" "<struct:simple-nominal-path>")
-                              (cons "nominal-export-name" "any")))))
+  ;; local-binding->spec
+  (let ([z (local-binding 'hello)])
+    (check-equal? (force-spec (local-binding->spec z))
+                  (cons "local-binding"
+                        (list (cons "name" "hello")))))
 
-  ;; nominal-module-binding->spec
-  (let* ([mpi (module-path-index-join #f #f)]
-         [np (simple-nominal-path mpi)]
-         [z (nominal-module-binding mpi np)])
-    (check-equal? (force-spec (nominal-module-binding->spec z))
-                  (cons "nominal-module-binding"
-                        (list (cons "path" "#<module-path-index>")
-                              (cons "nominal-path" "<struct:simple-nominal-path>")))))
-
-  ;; exported-module-binding->spec
-  (let* ([mpi (module-path-index-join #f #f)]
-         [z (exported-module-binding mpi 'any)])
-    (check-equal? (force-spec (exported-module-binding->spec z))
-                  (cons "exported-module-binding"
-                        (list (cons "path" "#<module-path-index>")
-                              (cons "export-name" "any")))))
-
-  ;; simple-nominal-path->spec
-  (let* ([mpi (module-path-index-join #f #f)]
-         [z (simple-nominal-path mpi)])
-    (check-equal? (force-spec (simple-nominal-path->spec z))
-                  (cons "simple-nominal-path"
-                        (list (cons "value" "#<module-path-index>")))))
-
-  ;; imported-nominal-path->spec
-  (let* ([mpi (module-path-index-join #f #f)]
-         [z (imported-nominal-path mpi 12423)])
-    (check-equal? (force-spec (imported-nominal-path->spec z))
-                  (cons "imported-nominal-path"
-                        (list (cons "value" "#<module-path-index>")
-                              (cons "import-phase" "12423")))))
-
-  ;; phased-nominal-path->spec
-  (let* ([mpi (module-path-index-join #f #f)]
-         [z (phased-nominal-path mpi #f 8)])
-    (check-equal? (force-spec (phased-nominal-path->spec z))
-                  (cons "phased-nominal-path"
-                        (list (cons "value" "#<module-path-index>")
-                              (cons "import-phase" "#f")
-                              (cons "phase" "8")))))
+  ;; free-id=?-binding->spec
+  (let* ([lb (local-binding 'hi)]
+         [stx (stx-obj 0 (wrap '() '() '()) 'armed)]
+         [z (free-id=?-binding lb stx 3)])
+    (check-equal? (force-spec (free-id=?-binding->spec z))
+                  (cons "free-id=?-binding"
+                        (list (cons "base" "<struct:local-binding>")
+                              (cons "id" "<struct:stx-obj>")
+                              (cons "phase" "3")))))
 
   ;; --- helpers
   ;; any->string
@@ -1430,7 +1286,6 @@
   (check-equal? (any->string "any") "any")
   (check-equal? (any->string #t) "#t")
   (check-equal? (any->string (vector 1 2 3)) "#(1 2 3)")
-  (check-equal? (any->string (nominal-path)) "#s((nominal-path zo 0))")
 
   ;; boolean->string
   (check-equal? (boolean->string #t) "#t")
@@ -1484,7 +1339,7 @@
   (check-equal? (listof-zo->string toplevel->spec (list (toplevel 1 1 #f #f))) "<struct:toplevel>[1]")
 
   ;; module-path-index->string
-  (check-equal? (module-path-index->string (module-path-index-join #f #f)) "#<module-path-index>")
+  (check-equal? (module-path-index->string (module-path-index-join #f #f)) "#<module-path-index:()>")
 
   ;; module-path->spec
   (check-equal? (module-path->spec 'lalala) "lalala")
@@ -1495,11 +1350,11 @@
   (check-equal? (number-or-f->string -1) "-1")
   (check-equal? (number-or-f->string 98) "98")
 
-  ;; symbol-or-f->spec
-  (check-equal? (symbol-or-f->spec #f) "#f")
-  (check-equal? (symbol-or-f->spec '#f) "#f")
-  (check-equal? (symbol-or-f->spec 'foobar) "foobar")
-  (check-equal? (symbol-or-f->spec 'wunderbar) "wunderbar")
+  ;; symbol-or-f->string
+  (check-equal? (symbol-or-f->string #f) "#f")
+  (check-equal? (symbol-or-f->string '#f) "#f")
+  (check-equal? (symbol-or-f->string 'foobar) "foobar")
+  (check-equal? (symbol-or-f->string 'wunderbar) "wunderbar")
 
   ;; toplevel-or-any->string
   (check-equal? (toplevel-or-any->string (toplevel 19 462 #t #t)) "<struct:toplevel>")

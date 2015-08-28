@@ -35,25 +35,27 @@
 
 ;; Check if `str` is one of the known looping zo-structs.
 ;; 2015-01-23: So far as I know, only closures may loop.
+;; 2015-07-29: New macro expander => scope and multi-scope can loop
 (define (may-loop? str)
   ;; (-> string? boolean?)
-  (member str (list "closure")))
+  (member str (list "closure" "scope" "multi-scope")))
 
 ;; Recursive helper for `zo-find`.
 ;; Add the current struct to the results, if it matches.
 ;; Check struct members for matches unless the search has reached its limit.
 (define (zo-find-aux z hist str i lim seen)
   (define-values (title children) (parse-zo z))
+  (define zstr (format "~a" z))
   (define results
     (cond
      [(and lim (<= lim i))
       '()]
      ;; Terminate search if we're seeing a node for the second time
-     [(and (may-loop? title) (member z seen))
+     [(and (may-loop? title) (member zstr seen))
       '()]
      [else
       ;; Remember current node if we might see it again.
-      (define seen* (if (may-loop? title) (cons z seen) seen))
+      (define seen* (if (may-loop? title) (cons zstr seen) seen))
       (define hist* (cons z hist))
       (apply append (for/list ([z* children]) (zo-find-aux z* hist* str (add1 i) lim seen*)))]))
   (if (and (string=? str title) (not (member z seen)))
@@ -81,7 +83,7 @@
      (cond [(not success?) (get-children z tl)]
            [(list? r)      (append (filter zo? r) (get-children z tl))]
            [(zo?   r)      (cons r (get-children z tl))])]))
-                
+
 ;; -----------------------------------------------------------------------------
 ;; --- testing
 
@@ -105,14 +107,6 @@
     (begin (check-equal? (length res) 2)
            (check-equal? (result-zo (cadr res)) (branch-else (branch-else z)))
            (check-equal? (result-path (cadr res)) (list (branch-else z)))))
-
-  ;; This test was problematic in REPL. Should succeed
-  (let* ([tgt (wrap-mark 42)]
-         [z (wrapped #f (list tgt tgt tgt) 'tainted)]
-         [arg "wrap-mark"]
-         [res (zo-find z arg)])
-    (begin (check-equal? (length res) 3)
-           (check-equal? (result-zo (car res)) tgt)))
 
   ;; Fail, no results
   (let* ([z (primval 8)]
@@ -191,7 +185,7 @@
          [arg "lam"]
          [res (zo-find-aux z '() arg 1 10 (list z))])
     (begin (check-equal? (length res) 0)))
-  
+
   ;; Success, it's a closure but we have not seen it
   (let* ([z (closure (lam 'N '() 0 '() #f '#() '() #f 0 #f) 'C)]
          [arg "lam"]

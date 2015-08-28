@@ -18,4 +18,4 @@
           ;; zo-find
           [zo-find (-> zo? string? (listof result?))]
           ;; zo-shell
-          [init (-> (vectorof string?) void?)]))
+          [zo->shell (-> zo? void?)]))

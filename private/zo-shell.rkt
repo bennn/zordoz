@@ -4,16 +4,35 @@
 ;; (Use `raco make` to generate bytecode)
 
 (provide
- ;; (-> (vectorof string?) void?)
- ;; Start a REPL using command-line arguments
- init)
+ filename->shell
+ ;; (-> String Void)
+ ;; Start a repl using the zo file `filename`
+
+ zo->shell
+ ;; Start a repl using the zo struct
+
+ find-all
+ ;; (->* [String (Listof String)] [#:limit (U Natural #f)] Void)
+ ;; (find-all zo arg* #:lim n)
+ ;; Searches the bytecode file `zo` for all zo-structs named by the list `arg*`
+ ;;  and prints the number of matches.
+ ;; If `#:limit` is not false, recursive searches are terminated at depth `n`.
+ ;;
+ ;; For example, if `arg*` is '("branch" "lam"), then the result will be the number
+ ;; of zo structs in the decompiled output that match the `branch?` or `lam?` predicates.
+
+ print-usage
+ ;; (-> Void)
+ ;; Display terms-of-use
+)
 
 (require (only-in compiler/zo-parse zo? zo-parse)
-         (only-in racket/string string-split string-join)
+         (only-in racket/string string-split string-join string-trim)
          (only-in "zo-find.rkt" zo-find result result? result-zo result-path)
-         (only-in "zo-string.rkt" zo->string)
+         (only-in "zo-string.rkt" zo->string zo->spec)
          (only-in "zo-transition.rkt" zo-transition)
-         racket/match)
+         racket/match
+)
 
 ;; -----------------------------------------------------------------------------
 
@@ -22,7 +41,7 @@
 ;; when set, print extra debugging information
 (define DEBUG   #f)
 ;; For aesthetic purposes
-(define VERSION 1.0) 
+(define VERSION 1.0)
 (define VNAME   "vortex")
 ;; (define nat? natural-number/c)
 ;; (define context? (or/c zo? (listof zo?) (listof result?)))
@@ -40,7 +59,7 @@
     ;; Catch --help flag, and any others
     [(? has-any-flags?) (print-usage)]
     [(vector fname)
-     (init-from-filename fname)]
+     (filename->shell fname)]
     [(vector fname args ...)
      (find-all fname args)]))
 
@@ -108,7 +127,7 @@
 ;; --- REPL
 
 ;; Start REPL from a filename
-(define (init-from-filename name)
+(define (filename->shell name)
   ;; (-> string? void?)
   (print-info (format "Loading bytecode file '~a'..." name))
   (call-with-input-file name
@@ -117,36 +136,69 @@
       (define ctx  (zo-parse port))
       (print-info "Parsing complete!")
       (print-welcome)
-      (repl ctx '() '()))))
+      ((repl ctx '() '()) '()))))
+
+(define (zo->shell z)
+  ;; (-> zo? void?)
+  (print-welcome)
+  ((repl z '() '()) '()))
+
+;; Check if second arg is a prefix of the first
+(define (starts-with? str prefix)
+  ;; (-> string? string? boolean?)
+  (and (<= (string-length prefix)
+           (string-length str))
+       (for/and ([c1 (in-string str)]
+                 [c2 (in-string prefix)])
+         (char=? c1 c2))))
+
+;; Split a path like "cd ../BLAH/.." into a list of commands "cd ..; cd BLAH; cd .."
+(define (split-cd cmd*)
+  ;; (-> (listof string?) (listof string?))
+  (match cmd*
+    ['() '()]
+    [(cons cd-cmd rest)
+     #:when (starts-with? cd-cmd "cd ")
+     ;; Split "cd " commands by "/"
+     (append
+      (map (lambda (x) (string-append "cd " x)) (string-split (substring cd-cmd 3) "/"))
+      (split-cd rest))]
+    [(cons cmd rest)
+     ;; Leave other commands alone
+     (cons cmd (split-cd rest))]))
 
 ;; The REPL loop. Process a command using context `ctx` and history `hist`.
-(define (repl ctx hist pre-hist)
+(define ((repl ctx hist pre-hist) cmd*)
   ;; (-> context? history? void?)
   (when DEBUG (print-history hist))
-  (print-prompt)
-  (match (read-line)
-    [(? eof-object? _)
-     (error "EOF: you have penetrated me")]
-    [(? (cmd? ALST) raw)
-     (print-alias) (repl ctx hist pre-hist)]
-    [(? (cmd? BACK) raw)
-     (call-with-values (lambda () (back raw ctx hist pre-hist)) repl)]
-    [(? (cmd? DIVE) raw)
-     (call-with-values (lambda () (dive raw ctx hist pre-hist)) repl)]
-    [(? (cmd? FIND) raw)
-     (call-with-values (lambda () (find raw ctx hist pre-hist)) repl)]
-    [(? (cmd? HELP) raw)
-     (print-help) (repl ctx hist pre-hist)]
-    [(? (cmd? INFO) raw)
-     (print-context ctx) (repl ctx hist pre-hist)]
-    [(? (cmd? JUMP) raw)
-     (call-with-values (lambda () (jump raw ctx hist pre-hist)) repl)]
-    [(? (cmd? SAVE) raw)
-     (call-with-values (lambda () (save raw ctx hist pre-hist)) repl)]
-    [(? (cmd? QUIT) raw)
+  (match cmd*
+    ['()
+     (print-prompt ctx)
+     (match (read-line)
+       [(? eof-object? _)
+        (error 'zo-shell:repl "EOF: you have penetrated me")]
+       [str
+        ((repl ctx hist pre-hist) (split-cd (map string-trim (string-split str ";"))))])]
+    [(cons (? (cmd? ALST) raw) cmd*)
+     (print-alias) ((repl ctx hist pre-hist) cmd*)]
+    [(cons (? (cmd? BACK) raw) cmd*)
+     ((call-with-values (lambda () (back raw ctx hist pre-hist)) repl) cmd*)]
+    [(cons (? (cmd? DIVE) raw) cmd*)
+     ((call-with-values (lambda () (dive raw ctx hist pre-hist)) repl) cmd*)]
+    [(cons (? (cmd? FIND) raw) cmd*)
+     ((call-with-values (lambda () (find raw ctx hist pre-hist)) repl) cmd*)]
+    [(cons (? (cmd? HELP) raw) cmd*)
+     (begin (print-help) ((repl ctx hist pre-hist) cmd*))]
+    [(cons (? (cmd? INFO) raw) cmd*)
+     (begin (print-context ctx) ((repl ctx hist pre-hist) cmd*))]
+    [(cons (? (cmd? JUMP) raw) cmd*)
+     ((call-with-values (lambda () (jump raw ctx hist pre-hist)) repl) cmd*)]
+    [(cons (? (cmd? SAVE) raw) cmd*)
+     ((call-with-values (lambda () (save raw ctx hist pre-hist)) repl) cmd*)]
+    [(cons (? (cmd? QUIT) raw) cmd*)
      (print-goodbye)]
-    [raw
-     (print-unknown raw) (repl ctx hist pre-hist)]))
+    [(cons raw cmd*)
+     (begin (print-unknown raw) ((repl ctx hist pre-hist) cmd*))]))
 
 ;; --- command implementations
 
@@ -155,7 +207,7 @@
   (string-append
    "BACK removing most recent 'save' mark. "
    "Be sure to save if you want to continue exploring search result."))
-  
+
 ;; Step back to a previous context, if any, and reduce the history.
 ;; Try popping from `hist`, fall back to list-of-histories `pre-hist`.
 (define (back raw ctx hist pre-hist)
@@ -192,7 +244,7 @@
       (dive-zo   ctx hist arg)]
      [else
       ;; Should never happen! REPL controls the context.
-      (error (format "Invalid context '~a'" ctx))]))
+      (error 'zo-shell:dive (format "Invalid context '~a'" ctx))]))
   ;; Return pre-hist unchanged
   (values ctx* hist* pre-hist))
 
@@ -208,7 +260,7 @@
          (print-unknown (format "dive ~a" arg))
          (values ctx hist)]
         [else
-         ;; Select from list, 
+         ;; Select from list,
          (define res (list-ref ctx index))
          ;; If list elements are search results, current `hist` can be safely ignored.
          (if (result? res)
@@ -261,7 +313,7 @@
      (back raw ctx hist* pre-hist*)]))
 
 ;; Save the current context and history to the pre-history
-;; For now, erases current history. 
+;; For now, erases current history.
 (define (save raw ctx hist pre-hist)
   (values ctx '() (push pre-hist (push hist ctx))))
 
@@ -324,7 +376,7 @@
              (zo->string z #:deep? #f)
              (length ctx))]
     [_
-     (error (format "Unknown context '~a'"  ctx))]))
+     (error 'zo-shell:info (format "Unknown context '~a'"  ctx))]))
 
 ;; Print an error message (after receiving an undefined/invalid command).
 (define (print-unknown raw)
@@ -348,9 +400,12 @@
    (format "\033[1;34m--- Welcome to the .zo shell, version ~a '~a' ---\033[0;0m\n" VERSION VNAME)))
 
 ;; Print the REPL prompt.
-(define (print-prompt)
+(define (print-prompt ctx)
   ;; (-> void?)
-  (display "\033[1;32mzo> \033[0;0m"))
+  (define tag (cond [(list? ctx) (format "[~a]" (length ctx))]
+                    [(zo? ctx)   (format "(~a)" (car (zo->spec ctx)))]
+                    [else ""]))
+  (display (string-append tag " \033[1;32mzo> \033[0;0m")))
 
 ;; Print an informative message.
 (define (print-info str)
@@ -369,14 +424,14 @@
 
 ;; Print usage information.
 (define USAGE
-  "Usage: zo-shell FILE.zo [STRUCT-NAME ...]")
+  "Usage: zo-shell <OPTIONS> FILE.zo")
 (define (print-usage)
   (displayln USAGE))
 
 ;; --- misc
 
-(define (find-all name args)
-  ;; (-> string? (vectorof string?) void)
+(define (find-all name args #:limit [lim #f])
+  ;; (-> string? (listof string?) void)
   (print-info (format "Loading bytecode file '~a'..." name))
   (call-with-input-file name
     (lambda (port)
@@ -385,7 +440,7 @@
       (print-info "Parsing complete! Searching...")
       (for ([arg (in-list args)])
         (printf "FIND '~a' : " arg)
-        (printf "~a results\n" (length (zo-find ctx arg))))
+        (printf "~a results\n" (length (zo-find ctx arg #:limit lim))))
       (displayln "All done!"))))
 
 ;; Split the string `raw` by whitespace and
@@ -570,18 +625,18 @@
     (check-equal? pre-hist pre*))
 
   ;; zo, valid field
-  (let* ([z (wrap)]
-         [ctx (wrapped #f (list z z z) 'tainted)]
+  (let* ([z (wrap '() '() '())]
+         [ctx (stx-obj 0 z 'armed)]
          [hist '()]
          [pre-hist '(7 7 7)]
-         [arg "dive wraps"])
+         [arg "dive wrap"])
     (define-values (ctx* hist* pre*) (dive arg ctx hist pre-hist))
-    (check-equal? ctx*  (list z z z))
+    (check-equal? ctx*  z)
     (check-equal? hist* (cons ctx hist))
     (check-equal? pre-hist pre*))
 
   ;; zo, invalid field
-  (let ([ctx (wrapped #f '() 'tainted)]
+  (let ([ctx (stx-obj 0 (wrap '() '() '()) 'armed)]
         [hist '()]
         [pre-hist '(a b x)]
         [arg "dive datum"])
@@ -613,9 +668,9 @@
   (check-pred read-line in)
 
   ;; Search results, hist overwritten
-  (let ([ctx (list (result (zo) '(a)) 
-                   (result (expr) '(b)) 
-                   (result (wrap) '(c))
+  (let ([ctx (list (result (zo) '(a))
+                   (result (expr) '(b))
+                   (result (wrap '() '() '()) '(c))
                    (result (form) '(d)))]
         [hist '(e)]
         [arg "3"])
@@ -675,14 +730,15 @@
 
   ;; -- find
   ;; Success, search 1 level down
-  (let* ([z (wrap-mark 42)]
-         [ctx (wrapped #f (list z z z) 'tainted)]
-         [raw "find wrap-mark"]
+  (let* ([z (wrap '() '() '())]
+         [st (stx-obj 0 z 'clean)]
+         [ctx (stx st)]
+         [raw "find wrap"]
          [hist '(A)]
          [pre-hist '(a b)])
     (let-values ([(ctx* hist* pre-hist*) (find raw ctx hist pre-hist)])
       (begin (check-equal? (result-zo (car ctx*)) z)
-             (check-equal? (result-path (car ctx*)) '())
+             (check-equal? (result-path (car ctx*)) (list st))
              (check-equal? hist* '())
              (check-equal? pre-hist* (cons (cons ctx* (cons ctx hist)) pre-hist)))))
   (check-pred read-line in)
@@ -690,9 +746,10 @@
   (check-pred read-line in)
 
   ;; Failure, search 1 level down
-  (let* ([z (wrap-mark 42)]
-         [ctx (wrapped #f (list z z z) 'tainted)]
-         [raw "find mummy"]
+  (let* ([z (wrap '() '() '())]
+         [st (stx-obj 0 z 'clean)]
+         [ctx (stx st)]
+         [raw "find local-binding"]
          [hist '(A)]
          [pre-hist '(a b)])
     (let-values ([(ctx* hist* pre-hist*) (find raw ctx hist pre-hist)])
@@ -774,7 +831,7 @@
              (check-equal? hist* (cdar pre-hist))
              (check-equal? pre-hist* (cdr pre-hist)))))
   (check-pred read-line in)
-  
+
   ;; -- jump
   ;; - Fail, no pre-hist
   (let* ([ctx      'a]
@@ -853,8 +910,8 @@
   (check-pred read-line in)
   (check-pred read-line in)
   (check-pred read-line in)
-  
-  
+
+
   (print-history '())
   (check-pred read-line in)
 
@@ -893,7 +950,7 @@
   (print-welcome)
   (check-pred read-line in)
 
-  (print-prompt) (displayln "")
+  (print-prompt '()) (displayln "")
   (check-pred read-line in)
 
   (print-info "")
@@ -969,5 +1026,21 @@
   (has-any-flags-test
     (vector "file.zo" "struct1" "struct2" "-accident")
     #t)
+
+  ;; -- starts-with
+  (check-true (starts-with? "racket" ""))
+  (check-true (starts-with? "racket" "r"))
+  (check-true (starts-with? "racket" "rack"))
+  (check-true (starts-with? "racket" "racket"))
+  (check-false (starts-with? ""       "racket"))
+  (check-false (starts-with? "racket" "R"))
+  (check-false (starts-with? "racket" "rak"))
+  (check-false (starts-with? "racket" "racket2"))
+
+  ;; -- split-cd
+  (check-equal? (split-cd '("")) '(""))
+  (check-equal? (split-cd '("cd ../../")) '("cd .." "cd .."))
+  (check-equal? (split-cd '("a" "b" "dive" "c")) '("a" "b" "dive" "c"))
+  (check-equal? (split-cd '("a" "cd ../foo/bar" "car")) '("a" "cd .." "cd foo" "cd bar" "car"))
 
 ) ;; --- end testing
