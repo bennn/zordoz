@@ -2,8 +2,7 @@
 (define collection "zordoz")
 (define deps '(("base" #:version "6.1")
                "compiler-lib"
-               "rackunit-lib"
-               "zo-lib"))
+               "rackunit-lib"))
 (define build-deps '("scribble-lib" "racket-doc"))
 (define pkg-desc "REPL for exploring .zo bytecode files")
 (define version "0.6")
