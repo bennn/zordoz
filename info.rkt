@@ -1,6 +1,6 @@
 #lang info
 (define collection "zordoz")
-(define deps '(("base" #:version "6.2")
+(define deps '(("base" #:version "6.1")
                "compiler-lib"
                "rackunit-lib"
                "zo-lib"))
