@@ -89,6 +89,7 @@
 
 (module+ test
   (require rackunit
+           (only-in "zo-string.rkt" zo->string)
            compiler/zo-structs)
 
   ;; --- API
@@ -183,7 +184,7 @@
   ;; Failure, thing is already seen
   (let* ([z (closure (lam 'N '() 0 '() #f '#() '() #f 0 #f) 'C)]
          [arg "lam"]
-         [res (zo-find-aux z '() arg 1 10 (list z))])
+         [res (zo-find-aux z '() arg 1 10 (list (format "~a" z)))])
     (begin (check-equal? (length res) 0)))
 
   ;; Success, it's a closure but we have not seen it
