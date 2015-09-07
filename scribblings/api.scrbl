@@ -6,6 +6,8 @@
 @defmodule[zordoz]
 
 These functions support the REPL, but may be useful in more general settings.
+Import them with `(require zordoz)`.
+Typed variants of the same functions are available with `(require zordoz/typed)`.
 
 
 @section{String Representations}
