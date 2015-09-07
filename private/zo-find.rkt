@@ -13,8 +13,8 @@
 (require (only-in racket/list empty?)
          (only-in racket/string string-split string-trim)
          (only-in compiler/zo-structs zo?)
-         (only-in "zo-transition.rkt" zo-transition)
-         (only-in "zo-string.rkt" zo->spec spec/c)
+         (only-in zordoz/private/zo-transition zo-transition)
+         (only-in zordoz/private/zo-string zo->spec spec/c)
          racket/match)
 
 ;; -----------------------------------------------------------------------------

@@ -28,9 +28,9 @@
 
 (require (only-in compiler/zo-parse zo? zo-parse)
          (only-in racket/string string-split string-join string-trim)
-         (only-in "zo-find.rkt" zo-find result result? result-zo result-path)
-         (only-in "zo-string.rkt" zo->string zo->spec)
-         (only-in "zo-transition.rkt" zo-transition)
+         (only-in zordoz/private/zo-find zo-find result result? result-zo result-path)
+         (only-in zordoz/private/zo-string zo->string zo->spec)
+         (only-in zordoz/private/zo-transition zo-transition)
          racket/match
 )
 

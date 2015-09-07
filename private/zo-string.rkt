@@ -47,7 +47,7 @@
          (only-in racket/list   empty?)
          (only-in racket/string string-join)
          (for-syntax racket/base racket/syntax)
-         (only-in "dispatch-table.rkt" make-table))
+         (only-in zordoz/private/dispatch-table make-table))
 
 ;; -----------------------------------------------------------------------------
 
