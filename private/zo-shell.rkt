@@ -626,7 +626,7 @@
 
   ;; zo, valid field
   (let* ([z (wrap '() '() '())]
-         [ctx (stx-obj 0 z 'armed)]
+         [ctx (stx-obj 0 z #f (make-hash) 'armed)]
          [hist '()]
          [pre-hist '(7 7 7)]
          [arg "dive wrap"])
@@ -636,7 +636,7 @@
     (check-equal? pre-hist pre*))
 
   ;; zo, invalid field
-  (let ([ctx (stx-obj 0 (wrap '() '() '()) 'armed)]
+  (let ([ctx (stx-obj 0 (wrap '() '() '()) #f (make-hash) 'armed)]
         [hist '()]
         [pre-hist '(a b x)]
         [arg "dive datum"])
@@ -731,7 +731,7 @@
   ;; -- find
   ;; Success, search 1 level down
   (let* ([z (wrap '() '() '())]
-         [st (stx-obj 0 z 'clean)]
+         [st (stx-obj 0 z #f (make-hash) 'clean)]
          [ctx (stx st)]
          [raw "find wrap"]
          [hist '(A)]
@@ -747,7 +747,7 @@
 
   ;; Failure, search 1 level down
   (let* ([z (wrap '() '() '())]
-         [st (stx-obj 0 z 'clean)]
+         [st (stx-obj 0 z #f (make-hash) 'clean)]
          [ctx (stx st)]
          [raw "find local-binding"]
          [hist '(A)]
