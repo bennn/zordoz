@@ -47,7 +47,7 @@
          (only-in racket/list   empty?)
          (only-in racket/string string-join)
          (for-syntax racket/base racket/syntax)
-         (only-in "dispatch-table.rkt" make-table))
+         (only-in zordoz/private/dispatch-table make-table))
 
 ;; -----------------------------------------------------------------------------
 
@@ -150,9 +150,10 @@
 (define
   (compilation-top->spec z)
   (list "compilation-top"
-        (lcons "max-let-depth" (number->string      (compilation-top-max-let-depth z)))
-        (lcons "prefix"        (prefix->spec        (compilation-top-prefix z)))
-        (lcons "code"          (form-or-any->string (compilation-top-code z)))))
+        (lcons "max-let-depth"  (number->string      (compilation-top-max-let-depth z)))
+        (lcons "binding-namess" (hash->string        (compilation-top-binding-namess z)))
+        (lcons "prefix"         (prefix->spec        (compilation-top-prefix z)))
+        (lcons "code"           (form-or-any->string (compilation-top-code z)))))
 
 (define
   (prefix->spec z)
@@ -523,6 +524,8 @@
   (list "stx-obj"
         (lcons "datum" (any->string (stx-obj-datum so)))
         (lcons "wrap" (wrap->spec (stx-obj-wrap so)))
+        (lcons "srcloc" (srcloc->string (stx-obj-srcloc so)))
+        (lcons "props" (hash->string (stx-obj-props so)))
         (lcons "tamper-status" (symbol->string (stx-obj-tamper-status so)))))
 
 ;; --- wrap
@@ -758,6 +761,10 @@
       "#f"
       (symbol->string sf)))
 
+(define
+  (hash->string h)
+  (format "~a" h))
+
 ;; Turn something that might be a 'toplevel' struct into a string.
 (define
   (toplevel-or-any->string tl)
@@ -817,10 +824,11 @@
   ;; compilation-top->spec
   (let* ([px (prefix 0 '() '() 'd)]
          [cd (seq '())]
-         [z  (compilation-top 0 px cd)])
+         [z  (compilation-top 0 (make-hash) px cd)])
     (check-equal? (force-spec (compilation-top->spec z))
                   (cons "compilation-top"
                         (list (cons "max-let-depth" "0")
+                              (cons "binding-namess" "#hash()")
                               (cons "prefix" "<struct:prefix>")
                               (cons "code" "<struct:seq>")))))
 
@@ -828,7 +836,7 @@
   (let* ([mpi (module-path-index-join #f #f)]
          [gb (global-bucket 'NAME)]
          [mv (module-variable mpi 'SYM 0 0 #f)]
-         [sx (stx (stx-obj 'x (wrap '() '() '()) 'tainted))]
+         [sx (stx (stx-obj 'x (wrap '() '() '()) #f (make-hash) 'tainted))]
          [z  (prefix 0
                     (list gb mv)
                     (list sx)
@@ -860,7 +868,7 @@
                               (cons "constantness" "function-shape arity : 1 preserves-marks? : #f")))))
 
   ;; stx->spec
-  (let* ([s (stx-obj 'a (wrap '() '() '()) 'clean)]
+  (let* ([s (stx-obj 'a (wrap '() '() '()) (srcloc 'a #f #f #f #f) (make-hash '((a . b))) 'clean)]
          [z (stx s)])
     (check-equal? (force-spec (stx->spec z))
                   (cons "stx"
@@ -875,11 +883,13 @@
     (check-equal? (expr->spec z) #f))
 
   ;; stx-obj->spec
-  (let* ([z (stx-obj 'datum (wrap '() '() '()) 'clean)])
+  (let* ([z (stx-obj 'datum (wrap '() '() '()) (srcloc 'a 1 2 3 #f) (make-hash '((a . 1))) 'clean)])
     (check-equal? (force-spec (stx-obj->spec z))
                   (cons "stx-obj"
                         (list (cons "datum" "datum")
                               (cons "wrap"  "<struct:wrap>")
+                              (cons "srcloc" "a:1:2")
+                              (cons "props" "#hash((a . 1))")
                               (cons "tamper-status" "clean")))))
 
   ;; wrap->spec
@@ -985,7 +995,7 @@
                               (cons "dummy" "<struct:toplevel>")))))
 
   ;; req->spec
-  (let* ([sx (stx (stx-obj 'XXX (wrap '() '() '()) 'clean))]
+  (let* ([sx (stx (stx-obj 'XXX (wrap '() '() '()) #f (make-hash) 'clean))]
          [dm (toplevel 1 1 #t #t)]
          [z  (req sx dm)])
     (check-equal? (force-spec (req->spec z))
@@ -1032,7 +1042,7 @@
          [sb  (list (cons 7 (list ds))
                     (cons 8 (list sfs)))]
          [dm  (toplevel 1 1 #f #f)]
-         [ic  (stx (stx-obj 'dirty (wrap '() '() '()) 'clean))]
+         [ic  (stx (stx-obj 'dirty (wrap '() '() '()) #f (make-hash) 'clean))]
          [m1  (mod 'm1 'm1src mpi px pvs '() bd sb '() 0 dm #f ic (hash) '() '() '())]
          [m2  (mod 'm2 'm2src mpi px pvs '() bd sb '() 0 dm #f ic (hash) '() '() '())]
          [m3  (mod 'm3 'm3src mpi px pvs '() bd sb '() 0 dm #f ic (hash) '() '() '())]
@@ -1272,7 +1282,7 @@
 
   ;; free-id=?-binding->spec
   (let* ([lb (local-binding 'hi)]
-         [stx (stx-obj 0 (wrap '() '() '()) 'armed)]
+         [stx (stx-obj 0 (wrap '() '() '()) #f (make-hash) 'armed)]
          [z (free-id=?-binding lb stx 3)])
     (check-equal? (force-spec (free-id=?-binding->spec z))
                   (cons "free-id=?-binding"

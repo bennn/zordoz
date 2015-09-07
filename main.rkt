@@ -1,12 +1,11 @@
 #lang racket/base
 
 (require racket/contract
-         compiler/zo-structs)
-
-(require "private/zo-string.rkt"
-         "private/zo-transition.rkt"
-         "private/zo-find.rkt"
-         "private/zo-shell.rkt")
+         compiler/zo-structs
+         zordoz/private/zo-string
+         zordoz/private/zo-transition
+         zordoz/private/zo-find
+         zordoz/private/zo-shell)
 
 (provide result result? result-zo result-path)
 (provide (contract-out

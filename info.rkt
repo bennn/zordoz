@@ -1,6 +1,6 @@
 #lang info
 (define collection "zordoz")
-(define deps '("base" ;; Expects 6.2.900.5 or greater
+(define deps '("base" ;; Expects 6.2.900.15 or greater
                "compiler-lib"
                "rackunit-lib"
                "zo-lib"

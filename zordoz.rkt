@@ -4,7 +4,7 @@
 
 (module+ main
   (require racket/cmdline
-           (only-in "private/zo-shell.rkt" filename->shell find-all print-usage))
+           (only-in zordoz/private/zo-shell filename->shell find-all print-usage))
   ;; -- parameters
   (define search-limit (make-parameter #f))
   (define start-repl? (make-parameter #t))

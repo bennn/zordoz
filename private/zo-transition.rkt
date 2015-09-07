@@ -15,7 +15,7 @@
 (require compiler/zo-structs
          racket/match
          (only-in racket/list empty? empty)
-         (only-in "dispatch-table.rkt" make-table))
+         (only-in zordoz/private/dispatch-table make-table))
 
 ;; -----------------------------------------------------------------------------
 
@@ -116,7 +116,7 @@
     ["prefix"
      (compilation-top-prefix z)]
     ["code"
-     (define res (compilation-top-code   z))
+     (define res (compilation-top-code z))
      (if (form? res) res #f)]
     [_ #f]))
 
@@ -541,16 +541,18 @@
   ;; compilation-top->
   (let* ([px (prefix 0 '() '() 'x)]
          [cd (form)]
-         [z  (compilation-top 0 px cd)])
+         [z  (compilation-top 0 (make-hash '((asdf . 2))) px cd)])
     (begin (check-equal? (compilation-top-> z "prefix") px)
            (check-equal? (compilation-top-> z "code")   cd)
+           (check-equal? (compilation-top-> z "max-let-depth")   #f)
+           (check-equal? (compilation-top-> z "binding-namess")   #f)
            (check-equal? (compilation-top-> z "")       #f)))
 
   ;; prefix->
   (let* ([mpi (module-path-index-join #f #f)]
          [gb (global-bucket 'NAME)]
          [mv (module-variable mpi 'SYM 0 0 #f)]
-         [sx (stx (stx-obj 'x (wrap '() '() '()) 'tainted))]
+         [sx (stx (stx-obj 'x (wrap '() '() '()) #f (make-hash) 'tainted))]
          [z  (prefix 0
                     (list gb mv)
                     (list sx)
@@ -580,7 +582,7 @@
            (check-equal? (module-variable-> z* "constantness") #f)))
 
   ;; stx->
-  (let* ([s (stx-obj 'a (wrap '() '() '()) 'clean)]
+  (let* ([s (stx-obj 'a (wrap '() '() '()) #f (make-hash) 'clean)]
          [z (stx s)])
     (begin (check-equal? (stx-> z "content") s)
            (check-equal? (stx-> z "")        #f)))
@@ -592,6 +594,15 @@
   ;; expr-> (see tests for specific expressions below
   (let* ([z (expr)])
     (check-equal? (expr-> z "") #f))
+
+  ;; stx-obj->
+  (let* ([w (wrap '() '() '())]
+         [z (stx-obj 'a w (srcloc 'asdf 6 6 6 #f) (make-hash '((t . 1))) 'clean)])
+    (begin (check-equal? (stx-obj-> z "datum") #f)
+           (check-equal? (stx-obj-> z "wrap") w)
+           (check-equal? (stx-obj-> z "srcloc") #f)
+           (check-equal? (stx-obj-> z "props") #f)
+           (check-equal? (stx-obj-> z "tamper-status") #f)))
 
   ;; wrap->
   (let* ([ms (module-shift #f #f 'a 'b)]
@@ -670,7 +681,7 @@
 
   ;; free-id=?-binding->
   (let* ([lb (local-binding 'hi)]
-        [stx (stx-obj 0 (wrap '() '() '()) 'armed)]
+        [stx (stx-obj 0 (wrap '() '() '()) #f (make-hash) 'armed)]
         [z (free-id=?-binding lb stx 3)])
     (begin (check-equal? (free-id=?-binding-> z "base") lb)
            (check-equal? (free-id=?-binding-> z "id") stx)
@@ -719,7 +730,7 @@
                     (check-false pass?)))))
 
   ;; req->
-  (let* ([sx (stx (stx-obj 'XXX (wrap '() '() '()) 'clean))]
+  (let* ([sx (stx (stx-obj 'XXX (wrap '() '() '()) #f (make-hash) 'clean))]
          [dm (toplevel 1 1 #t #t)]
          [z  (req sx dm)])
     (begin (check-equal? (req-> z "reqs") sx)
@@ -772,7 +783,7 @@
          [sb  (list (cons 7 (list ds))
                     (cons 8 (list sfs)))]
          [dm  (toplevel 1 1 #f #f)]
-         [ic  (stx (stx-obj 'dirty (wrap '() '() '()) 'clean))]
+         [ic  (stx (stx-obj 'dirty (wrap '() '() '()) #f (make-hash) 'clean))]
          [m1  (mod 'm1 'm1src mpi px pvs '() bd sb '() 0 dm #f ic (hash) '() '() '())]
          [m2  (mod 'm2 'm2src mpi px pvs '() bd sb '() 0 dm #f ic (hash) '() '() '())]
          [m3  (mod 'm3 'm3src mpi px pvs '() bd sb '() 0 dm #f ic (hash) '() '() '())]
