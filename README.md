@@ -6,7 +6,7 @@ Zordoz
 
 This is an explorer for Racket .zo files.
 
-Tested to work on Racket `v6.2.900.11`.
+Tested to work on Racket `v6.2.900.15`.
 For compatibility with older versions, see the [v6.2](https://github.com/bennn/zordoz/tree/v6.2) and [v6.1](https://github.com/bennn/zordoz/tree/v6.1) branches of this repo.
 (Note that installing through `raco` will choose the version matching your Racket install.)
 
@@ -35,6 +35,9 @@ Depending on how you installed, you can either:
 1. `./zordoz FILE.zo`
 2. `raco zordoz FILE.zo`
 
+Passing the `-t` option uses typed racket code.
+Beware, the typed racket version is up to 5x slower than untyped because of contracts with the `compiler/zo-lib` structs.
+
 The REPL accepts the following commands:
 
 - `alst` prints all command aliases; for example, the repl treats the words 'alst' and 'aliases' the same way
@@ -52,16 +55,18 @@ Check the [guide](http://bennn.github.io/zordoz) for a summary.
 
 ### Quick Search
 
-Passing the names of AST nodes on the command line immediately counts their occurrences in the source.
-For example, running:
+Running:
 
 ```
-./zordoz FILE.zo branch lam closure
+./zordoz -f branch -f lam -f closure FILE.zo
 ```
 
 Will count and print the number of times the zo structs [branch](http://docs.racket-lang.org/raco/decompile.html#%28def._%28%28lib._compiler%2Fzo-structs..rkt%29._branch%29%29) [lam](http://docs.racket-lang.org/raco/decompile.html#%28def._%28%28lib._compiler%2Fzo-structs..rkt%29._lam%29%29) and [closure](http://docs.racket-lang.org/raco/decompile.html#%28def._%28%28lib._compiler%2Fzo-structs..rkt%29._closure%29%29) appear.
-(This may take a while, depending on the size of the bytecode file.)
+This may take a while, depending on the size of the bytecode file.
+You can limit the search depth by passing a natural number with the `-l` flag.
+
 See the [decompilation guide](http://docs.racket-lang.org/raco/decompile.html#%28mod-path._compiler%2Fzo-structs%29) for a list of all zo struct names.
+
 
 Background
 ----------
