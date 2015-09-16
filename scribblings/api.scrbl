@@ -3,7 +3,6 @@
 @title{API}
 
 @local-table-of-contents[]
-@defmodule[zordoz]
 
 These functions support the REPL, but may be useful in more general settings.
 Import them with `(require zordoz)`.
