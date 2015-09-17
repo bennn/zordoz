@@ -34,8 +34,11 @@
           [zo->shell (-> zo? void?)]
           ;; Start a REPL session to explore a zo struct
 
-          [syntax->zo (-> syntax? zo?)]
+          [syntax->shell (-> syntax? void?)]
           ;; Start a REPL session to explore a syntax object
+
+          [syntax->zo (-> syntax? zo?)]
+          ;; Compile a syntax object to a zo struct
 
           [syntax->decompile (-> syntax? any/c)]
           ;; Compile a syntax object, then decompile the result to an S-expression
