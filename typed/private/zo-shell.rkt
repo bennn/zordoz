@@ -11,6 +11,9 @@
  zo->shell
  ;; Start a repl using the zo struct
 
+ syntax->shell
+ ;; Start a repl using the syntax object
+
  find-all
  ;; (->* [String (Listof String)] [#:limit (U Natural #f)] Void)
  ;; (find-all zo arg* #:lim n)
@@ -26,17 +29,21 @@
  ;; Display terms-of-use
 )
 
+;; -----------------------------------------------------------------------------
+
 (require (only-in racket/string string-split string-join string-trim)
          (only-in zordoz/typed/private/zo-find zo-find result result? result-zo result-path)
          (only-in zordoz/typed/private/zo-string zo->string zo->spec)
          (only-in zordoz/typed/private/zo-transition zo-transition)
+         (only-in zordoz/typed/private/zo-syntax syntax->zo)
          zordoz/typed/typed-zo-structs
          racket/match
 )
+
 (require/typed compiler/zo-parse
   [zo-parse (-> Input-Port zo)])
 
-;; -----------------------------------------------------------------------------
+;; =============================================================================
 
 ;; --- constants & contracts
 
@@ -149,6 +156,10 @@
   ;; (-> zo? void?)
   (print-welcome)
   ((repl z '() '()) '()))
+
+(: syntax->shell (-> (Syntaxof Any) Void))
+(define (syntax->shell stx)
+  (zo->shell (syntax->zo stx)))
 
 ;; Split a path like "cd ../BLAH/.." into a list of commands "cd ..; cd BLAH; cd .."
 (: split-cd (-> (Listof String) (Listof String)))
