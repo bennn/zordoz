@@ -10,6 +10,8 @@
  ;; Search result: a zo-struct and the path to reach it
  result result? result-zo result-path)
 
+;; -----------------------------------------------------------------------------
+
 (require (only-in racket/list empty?)
          (only-in racket/string string-split string-trim)
          (only-in compiler/zo-structs zo?)
@@ -17,7 +19,7 @@
          (only-in zordoz/private/zo-string zo->spec spec/c)
          racket/match)
 
-;; -----------------------------------------------------------------------------
+;; =============================================================================
 
 ;; --- API functions
 

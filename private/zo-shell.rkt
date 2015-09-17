@@ -9,7 +9,12 @@
  ;; Start a repl using the zo file `filename`
 
  zo->shell
+ ;; (-> zo Void)
  ;; Start a repl using the zo struct
+
+ syntax->shell
+ ;; (-> Syntax Void)
+ ;; Start a repl from a syntax object
 
  find-all
  ;; (->* [String (Listof String)] [#:limit (U Natural #f)] Void)
@@ -26,15 +31,18 @@
  ;; Display terms-of-use
 )
 
+;; -----------------------------------------------------------------------------
+
 (require (only-in compiler/zo-parse zo? zo-parse)
          (only-in racket/string string-split string-join string-trim)
          (only-in zordoz/private/zo-find zo-find result result? result-zo result-path)
          (only-in zordoz/private/zo-string zo->string zo->spec)
          (only-in zordoz/private/zo-transition zo-transition)
+         (only-in zordoz/private/zo-syntax syntax->zo)
          racket/match
 )
 
-;; -----------------------------------------------------------------------------
+;; =============================================================================
 
 ;; --- constants & contracts
 
@@ -126,6 +134,10 @@
 
 ;; --- REPL
 
+(define (init-repl ctx)
+  (print-welcome)
+  ((repl ctx '() '()) '()))
+
 ;; Start REPL from a filename
 (define (filename->shell name)
   ;; (-> string? void?)
@@ -135,37 +147,12 @@
       (print-info "Parsing bytecode...")
       (define ctx  (zo-parse port))
       (print-info "Parsing complete!")
-      (print-welcome)
-      ((repl ctx '() '()) '()))))
+      (init-repl ctx))))
 
-(define (zo->shell z)
-  ;; (-> zo? void?)
-  (print-welcome)
-  ((repl z '() '()) '()))
+(define zo->shell init-repl)
 
-;; Check if second arg is a prefix of the first
-(define (starts-with? str prefix)
-  ;; (-> string? string? boolean?)
-  (and (<= (string-length prefix)
-           (string-length str))
-       (for/and ([c1 (in-string str)]
-                 [c2 (in-string prefix)])
-         (char=? c1 c2))))
-
-;; Split a path like "cd ../BLAH/.." into a list of commands "cd ..; cd BLAH; cd .."
-(define (split-cd cmd*)
-  ;; (-> (listof string?) (listof string?))
-  (match cmd*
-    ['() '()]
-    [(cons cd-cmd rest)
-     #:when (starts-with? cd-cmd "cd ")
-     ;; Split "cd " commands by "/"
-     (append
-      (map (lambda (x) (string-append "cd " x)) (string-split (substring cd-cmd 3) "/"))
-      (split-cd rest))]
-    [(cons cmd rest)
-     ;; Leave other commands alone
-     (cons cmd (split-cd rest))]))
+(define (syntax->shell stx)
+  (zo->shell (syntax->zo stx)))
 
 ;; The REPL loop. Process a command using context `ctx` and history `hist`.
 (define ((repl ctx hist pre-hist) cmd*)
@@ -443,6 +430,38 @@
         (printf "~a results\n" (length (zo-find ctx arg #:limit lim))))
       (displayln "All done!"))))
 
+;; True if the vector contains any command-line flags.
+;; All flags begin with a hyphen, -
+(define (has-any-flags? v)
+  ;; (-> (vectorof string) boolean?)
+  (for/or ([str (in-vector v)])
+    (and (< 0 (string-length str))
+         (eq? #\- (string-ref str 0)))))
+
+;; Check if second arg is a prefix of the first
+(define (starts-with? str prefix)
+  ;; (-> string? string? boolean?)
+  (and (<= (string-length prefix)
+           (string-length str))
+       (for/and ([c1 (in-string str)]
+                 [c2 (in-string prefix)])
+         (char=? c1 c2))))
+
+;; Split a path like "cd ../BLAH/.." into a list of commands "cd ..; cd BLAH; cd .."
+(define (split-cd cmd*)
+  ;; (-> (listof string?) (listof string?))
+  (match cmd*
+    ['() '()]
+    [(cons cd-cmd rest)
+     #:when (starts-with? cd-cmd "cd ")
+     ;; Split "cd " commands by "/"
+     (append
+      (map (lambda (x) (string-append "cd " x)) (string-split (substring cd-cmd 3) "/"))
+      (split-cd rest))]
+    [(cons cmd rest)
+     ;; Leave other commands alone
+     (cons cmd (split-cd rest))]))
+
 ;; Split the string `raw` by whitespace and
 ;; return the second element of the split, if any.
 ;; Otherwise return `#f`.
@@ -454,14 +473,6 @@
     [(list _ x ys ...) (print-warn (format "Ignoring extra arguments: '~a'" ys))
                        x]
     [_ #f]))
-
-;; True if the vector contains any command-line flags.
-;; All flags begin with a hyphen, -
-(define (has-any-flags? v)
-  ;; (-> (vectorof string) boolean?)
-  (for/or ([str (in-vector v)])
-    (and (< 0 (string-length str))
-         (eq? #\- (string-ref str 0)))))
 
 ;; -----------------------------------------------------------------------------
 ;; --- testing

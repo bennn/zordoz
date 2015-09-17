@@ -24,6 +24,8 @@
  spec/c
  specof)
 
+;; -----------------------------------------------------------------------------
+
 ;; --- string specifications
 
 ;; Contract for conversion functions.
@@ -49,7 +51,7 @@
          (for-syntax racket/base racket/syntax)
          (only-in zordoz/private/dispatch-table make-table))
 
-;; -----------------------------------------------------------------------------
+;; =============================================================================
 
 ;; --- API functions
 

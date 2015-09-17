@@ -34,7 +34,7 @@
     "Maximum depth to search during --find queries"
     (search-limit l)]
    [("-t" "--typed")
-    "Use typed racket version (disclaimer: types slow this program down)"
+    "Use Typed Racket (disclaimer: types slow this program down)"
     (typed? #t)]
    #:args (filename)
    (when (assert-zo filename)

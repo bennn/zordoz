@@ -9,9 +9,11 @@
  ;; Create a dispatch table from an action and list of names
  make-table)
 
+;; --------------------------------------------------------------------------------
+
 (require (for-syntax racket/base syntax/parse racket/syntax))
 
-;; --------------------------------------------------------------------------------
+;; =============================================================================
 
 ;; Create a dispatch table from an action and 
 (define-syntax (make-table stx)
