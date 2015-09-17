@@ -26,6 +26,8 @@
  ;; Display terms-of-use
 )
 
+;; -----------------------------------------------------------------------------
+
 (require (only-in compiler/zo-parse zo? zo-parse)
          (only-in racket/string string-split string-join string-trim)
          (only-in zordoz/private/zo-find zo-find result result? result-zo result-path)
@@ -34,7 +36,7 @@
          racket/match
 )
 
-;; -----------------------------------------------------------------------------
+;; =============================================================================
 
 ;; --- constants & contracts
 

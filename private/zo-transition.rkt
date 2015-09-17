@@ -12,12 +12,14 @@
  ;; Access "structName-fieldName myStruct" at runtime.
  zo-transition)
 
+;; -----------------------------------------------------------------------------
+
 (require compiler/zo-structs
          racket/match
          (only-in racket/list empty? empty)
          (only-in zordoz/private/dispatch-table make-table))
 
-;; -----------------------------------------------------------------------------
+;; =============================================================================
 
 ;; --- API functions
 
