@@ -7,38 +7,43 @@
 
 @section{Quickstart}
 
-The main entry point is @tt{zordoz.rkt}.
+To install, either use @tt{raco}
 
-@subsection{Explorer}
-If you have a bytecode file ready, run
+@racketblock[raco pkg install zordoz]
 
-@racketblock[racket zordoz.rkt FILE.zo]
-
-and you're started.
-Type @tt{help} at the REPL to see available commands.
+Or clone the repository and install manually, via raco.
 
 @racketblock[
-zo> help
-At your service. Available commands:
-  alst        Print command aliases
-  back        Move up to the previous context
-  dive ARG    Step into struct field ARG
-  find ARG    Search the current subtree for structs with the name ARG
-  help        Print this message
-  info        Show information about current context
-  jump        Revert to last saved position
-  save        Save the current context as jump target
-  quit        Exit the interpreter
+$ git clone https://github.com/bennn/zordoz
+$ raco pkg install zordoz/
 ]
 
-@subsection{Quick Search}
-To search a bytecode file for occurrences of a certain zo struct, use the @tt{-f} flag.
-@racketblock[racket zordoz.rkt -f STRUCT-NAME FILE.zo]
+Zordoz provides a raco command.
+To see help information, run:
 
-the number of occurrences of each struct will be printed to the console.
+@racketblock[raco zordoz --help]
+
+
+@subsection{Explorer}
+The default mode is to interactively explore a bytecode file.
+Assuming @tt{FILE.zo} is a compiled file on your computer,
+
+@racketblock[raco zordoz FILE.zo]
+
+will start a REPL session.
+Type @tt{help} at the REPL to see available commands.
+See @Secref{REPL} for a detailed explanation of each.
+
+
+@subsection{Automated Search}
+To search a bytecode file for occurrences of a certain zo struct, use the @tt{-f} flag.
+(This flag may be supplied more than once.)
+@racketblock[raco zordoz -f STRUCT-NAME FILE.zo]
+
+The number of occurrences of each struct will be printed to the console.
 For example:
 @racketblock[
-$ racket zordoz.rkt private/compiled/zo-string_rkt.zo branch lam
+$ raco zordoz -f branch -f lam private/compiled/zo-string_rkt.zo
 INFO: Loading bytecode file 'private/compiled/zo-string_rkt.zo'...
 INFO: Parsing bytecode...
 INFO: Parsing complete! Searching...
@@ -46,21 +51,6 @@ FIND 'branch' : 427 results
 FIND 'lam' : 433 results
 All done!
 ]
-The command accepts any number of @tt{-f} flags and struct names.
-
-
-@section{Building}
-
-The included Makefile runs @tt{raco make zordoz.rkt} to generate an executable.
-The Makefile additionally renames this executable to @tt{zordoz}, so you can run:
-
-@racketblock[./zordoz FILE.zo]
-
-If you installed via @tt{raco}, then the command 
-
-@racketblock[raco zordoz FILE.zo]
-
-will be available.
 
 
 @section{Testing}
@@ -68,7 +58,7 @@ will be available.
 Each source file contains a @tt{module+ test} with unit tests.
 Run them all with:
 
-@racketblock[make test]
+@racketblock[raco test zordoz]
 
 or individually using:
 
@@ -77,22 +67,22 @@ or individually using:
 
 @section{Project Goals}
 
-The goal of this project is to help explore Racket bytecode in any useful way.
-This library should be available to as many versions of Racket as possible,
-and kept up-to-date.
-
 Racket offers a de-compilation @hyperlink["http://docs.racket-lang.org/raco/decompile.html"]{API}, however the structs it produces are still dense reading.
-This project takes a de-compiled @hyperlink["http://docs.racket-lang.org/raco/decompile.html#%28def._%28%28lib._compiler%2Fzo-parse..rkt%29._zo-parse%29%29"]{zo struct} and offers:
+This project takes a de-compiled @racket[zo] struct and offers:
 
 @itemlist[
 
     @item{A string representation of the struct, with name and fields clearly labeled.}
 
-    @item{Step-by-step exploration of the struct's fields.}
+    @item{Interactive exploration of the struct's fields.}
 
-    @item{A simple search interface for finding structs nested within the current.}
+    @item{A simple search interface for finding patterns nested within a struct.}
 
 ]
 
-We hope to add more features, especially a tool for comparing two bytecode files.
+This library should be available to as many versions of Racket as possible,
+and kept up-to-date.
+
+We also hope to add more features, especially a tool for comparing two bytecode files.
 @hyperlink["https://github.com/bennn/zordoz/issues"]{Feedback} and suggestions appreciated!
+

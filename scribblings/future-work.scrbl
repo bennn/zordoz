@@ -40,6 +40,8 @@ Some ideas:
   @item{Search for often-run structs.}
 ]
 
+@hyperlink["http://okmij.org/ftp/Scheme/xml.html"]{SXPath} seems promising; we should try replacing the @tt{spec/c} representation with XML.
+
 
 @section{Bytecode Graphs}
 

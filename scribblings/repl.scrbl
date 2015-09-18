@@ -5,53 +5,36 @@
 @title{REPL}
 
 The REPL is a simple, interactive way to explore bytecode files.
-
-@defproc[(filename->shell [fname path-string?] void?)]{
-  Start a REPL to explore a @tt{.zo} file.
-}
-
-@defproc[(zo->shell [z zo] void?)]{
-  Start a REPL to explore a zo struct.
-}
-
-@defproc[(syntax->shell [stx syntax?] void?)]{
-  Start a REPL to explore a syntax object.
-  First compiles the syntax to a zo representation.
-}
-
-Additionally, we can run simple queries on bytecode rather than exploring the structure manually.
-
-@defproc[(find-all [[fname path-string?] [qry (Listof String)]] [#:limit [or/c natural-number/c #f]] void?)]
-
-
 This document is a users' guide for the REPL.
-See the @secref{API} page for implementation details.
+See the @secref{API} page for alternate ways of starting a REPL (besides the command line).
 
 @section{Summary}
 
 The REPL works by storing an internal @emph{context} and reacting to commands.
-This context is normally a zo struct, but may also be:
+This context is either:
 @itemlist[
+  @item{A zo struct}
   @item{A list of zo structs}
   @item{Search results, obtained by calling @secref{find}.}
 ]
 
-The commands show information about this context or change it.
+The commands observe or advance this context.
+Commands may be separated by newlines or semicolons.
 
-Also, the REPL remembers previous states.
-We call this recorded past the @emph{history} of the REPL.
-It's basically a list of contexts.
+For convenience, the REPL records previous states.
+We call this recorded past the @emph{history} of the REPL; it is a stack of contexts.
+
+Keeping this stack in mind is useful for understanding the REPL commands.
 
 
 @section{Commands}
-The REPL supports commands to display and explore structs parsed from a @tt{.zo} file.
 
 @subsection{@bold{alst}}
 
 List all command aliases.
 
-For fun and uniformity, the canonical name of each command has 4 letters.
-But each has plenty of shorter and more mnemonic aliases to choose from.
+For uniformity, the canonical name of each command has 4 letters.
+But each has a few mnemonic aliases to choose from.
 For example, you can type @tt{ls} instead of @secref{info} and @tt{cd} instead of @secref{dive}.
 
 
@@ -63,7 +46,7 @@ Each successful @secref{dive} or @secref{find} command changes the current conte
 Before making these transitions, we save the previous context to a stack.
 The @secref{back} command pops and switches to the most recent element from this stack.
 
-Note that @secref{back} will fail (and do nothing) at the top of the zo struct hierarchy or the top of a saved subtree.
+Note that @secref{back} will fail (and print a warning) at the top of the zo struct hierarchy or the top of a saved subtree.
 
 
 @subsection{@bold{dive}}
@@ -73,16 +56,23 @@ Enter a struct's field.
 This is where exploring happens.
 Each struct has a few fields; you can see these by printing with @secref{info}.
 Any field containing zo structs is a candidate for dive.
-For example, the struct @hyperlink["http://docs.racket-lang.org/raco/decompile.html#%28def._%28%28lib._compiler%2Fzo-structs..rkt%29._assign%29%29"]{assign} has a field @tt{rhs}, which can be accessed by:
+For example, the struct @racket[assign] has a field @tt{rhs}, which can be accessed by:
 @racketblock[
   dive rhs
 ]
 
-Notes:
+If you know where you are going, you can chain paths together.
+Starting at an average @racket[compilation-top], this command should move to the body of the enclosed module.
+@racketblock[
+  dive code/body
+]
+
+Extra Notes:
 @itemlist[
-  @item{Fields that do not exist or do not contain structs may not be explored.}
-  @item{Fields that are zo change the context to a zo; fields that are lists change the context to a list.}
-  @item{Elements in a list may be accessed by their index, as in @secref{dive} @tt{3}.}
+  @item{Only fields that contain zo structures or lists of zo structures may be explored.}
+  @item{Changing to a zo structure field changes the context to the child zo structure.
+        Changing to a list field changes context to that list, from which you can select a natural-number position
+        in the list to explore.}
   @item{@secref{dive} takes exactly one argument. Any more or less is not permitted.}
 ]
 
@@ -92,13 +82,18 @@ Notes:
 Search the current struct's children for a certain zo struct.
 
 Find uses string matching to automate a simple search process.
-Give it a string, for instance @secref{find} @hyperlink["http://docs.racket-lang.org/raco/decompile.html#%28def._%28%28lib._compiler%2Fzo-structs..rkt%29._lam%29%29"]{lam}, and it searches for @hyperlink["http://docs.racket-lang.org/raco/decompile.html#%28def._%28%28lib._compiler%2Fzo-structs..rkt%29._lam%29%29"]{lam} structs nested within the current context.
+Give it a string, for instance @secref{find} @racket[lam] structs nested within the current context.
 The string must be the name of a zo struct---anything else will return null results.
 
 A successful find changes context to a list of zo structs.
 Exploring any element of the list changes the current history to be that element's history.
 You are free to explore the children and parents of any struct returned by a find query.
 Use @secref{jump} to immediately return to the search results.
+
+Note:
+@itemlist[
+  @item{If, after exploring a search result, you move @tt{back} past the list of search results, the REPL will print a notice.}
+]
 
 
 @subsection{@bold{help}}
@@ -108,6 +103,7 @@ Print command information.
 Shows a one-line summary of each command.
 The tabernacle is all-knowing.
 
+
 @subsection{@bold{info}}
 
 Print the current context.
@@ -116,9 +112,15 @@ This @secref{info} command does the real work of exploring.
 It shows the current context, whether struct or list.
 Lists give their length and the names of their elements.
 Zo structs show their name, their fields' names, and their fields' values.
-Non-struct field values are printed as best we know how; struct field values are not printed in detail, but may be @secref{dive}-ed into.
 
-There is currently no tool for printing the current history.
+Struct fields are printed as best we can.
+@itemlist[
+  @item{Fields which are zo structures print their names. These fields may be @secref{dive}-ed into.}
+  @item{Fields which are lists containing at least one zo structure are printed with a natural number in square braces,
+        indicating the number of zo structs inside the list. These fields may also be @secref{dive}d into.}
+  @item{Other fields are printed with Racket's default printer. Be aware, lists and hashes can sometimes cause very large
+        printouts.}
+]
 
 
 @subsection{@bold{jump}}
@@ -136,8 +138,9 @@ For example, if you call @secref{find} and explore one of the results, you can i
 @subsection{@bold{save}}
 
 Mark the current context and history as a future target for @secref{jump}.
+This is useful for marking a struct you want to backtrack to.
 
-Manually calling @secref{save} is not very useful, but helpful if you know of a zo struct you will want to revisit.
+Note that, if you manually backtrack past a @secref{save}d struct then its mark disappears and the REPL prints a notice.
 
 
 @subsection{@bold{quit}}
@@ -148,18 +151,11 @@ Exit the REPL.
 @section{Sample Interaction}
 
 Let's explore the REPL's own bytecode.
-First, compile the project and build an executable:
-@racketblock[
-$ raco make zordoz.rkt
-$ raco exe zordoz.rkt
-]
-
-Now we have both an executable and some bytecode to explore.
-Open the bytecode for @tt{zo-string.rkt}.
-You should see the interpreter prompt.
+Starting from the directory you cloned this repo to
+(or where `raco` put it on your filesystem):
 
 @racketblock[
-$ ./zordoz private/compiled/zo-string_rkt.zo
+$ raco zordoz private/compiled/zo-string_rkt.zo
 INFO: Loading bytecode file 'private/compiled/zo-string_rkt.zo'...
 INFO: Parsing bytecode...
 INFO: Parsing complete!
@@ -171,10 +167,10 @@ Now we can start typing commands, like @secref{info}.
 
 @racketblock[
 zo> info
-<struct:compilation-top>
+<zo:compilation-top>
   max-let-depth : 31
-  prefix        : <struct:prefix>
-  code          : <struct:mod>
+  prefix        : <zo:prefix>
+  code          : <zo:mod>
 ]
 
 Next, let's try a @secref{dive}.
@@ -191,7 +187,7 @@ Let's try one of the structs.
 @racketblock[
 zo> dive prefix
 zo> info
-<struct:prefix>
+<zo:prefix>
   num-lifts : 0
   toplevels : [#f]
   stxs      : []
@@ -203,10 +199,10 @@ We can't dive any further from here, so let's go back up.
 @racketblock[
 zo> back
 zo> info
-<struct:compilation-top>
+<zo:compilation-top>
   max-let-depth : 31
-  prefix        : <struct:prefix>
-  code          : <struct:mod>
+  prefix        : <zo:prefix>
+  code          : <zo:mod>
 ]
 
 And we're back to where we began.
@@ -214,7 +210,7 @@ From here we @emph{could} dive to the @tt{code} field and print it, but the prin
 The module we're exploring, @tt{zo-string}, creates over 40 different functions.
 There's just a lot of data to look at, and because it's heterogenous data we do not have a nice way of truncating it.
 
-Instead, we let's use @secref{find}.
+Instead, we'll try the @secref{find} command.
 Be warned, the search might take a minute.
 
 @racketblock[
@@ -223,13 +219,13 @@ FIND returned 0 results
 ]
 
 Zero results is good: there should not be any other @tt{compilation-top} structs besides the one we're currently in.
-Now try searching for something else, like @hyperlink["http://docs.racket-lang.org/raco/decompile.html#%28def._%28%28lib._compiler%2Fzo-structs..rkt%29._branch%29%29"]{branch}.
+Now try searching for something else, like @racket[branch].
 
 @racketblock[
 zo> find branch
 FIND returned 422 results
 FIND automatically saving context
-<struct:branch>[422]
+<zo:branch>[422]
 ]
 
 Wow! Over 400 results.
@@ -238,10 +234,10 @@ We can start exploring one of them:
 @racketblock[
 zo> dive 17
 zo> info
-<struct:branch>
-  test : <struct:application>
-  then : <struct:seq>
-  else : <struct:branch>
+<zo:branch>
+  test : <zo:application>
+  then : <zo:seq>
+  else : <zo:branch>
 ]
 
 We can also explore its children and parents.
@@ -249,25 +245,25 @@ We can also explore its children and parents.
 @racketblock[
 zo> dive test
 zo> info
-<struct:application>
-  rator : <struct:primval>
-  rands : [<struct:localref>]
+<zo:application>
+  rator : <zo:primval>
+  rands : [<zo:localref>]
 zo> dive rator
 zo> info
-<struct:primval>
+<zo:primval>
   id : 90
 zo> up
 zo> up
 zo> info
-<struct:branch>
-  test : <struct:application>
-  then : <struct:seq>
-  else : <struct:branch>
+<zo:branch>
+  test : <zo:application>
+  then : <zo:seq>
+  else : <zo:branch>
 zo> up
 zo> info
-<struct:branch>
-  test : <struct:localref>
-  then : <struct:branch>
+<zo:branch>
+  test : <zo:localref>
+  then : <zo:branch>
   else : #f
 ]
 
@@ -276,6 +272,6 @@ And if we do a @secref{jump}, we return to the search results.
 @racketblock[
 zo> jump
 zo> info
-<struct:branch>[422]
+<zo:branch>[422]
 ]
 
