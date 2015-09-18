@@ -32,8 +32,8 @@ At your service. Available commands:
 ]
 
 @subsection{Quick Search}
-To search a bytecode file for occurrences of a certain zo struct, run
-@racketblock[racket zordoz.rkt FILE.zo STRUCT-NAME ...]
+To search a bytecode file for occurrences of a certain zo struct, use the @tt{-f} flag.
+@racketblock[racket zordoz.rkt -f STRUCT-NAME FILE.zo]
 
 the number of occurrences of each struct will be printed to the console.
 For example:
@@ -44,8 +44,10 @@ INFO: Parsing bytecode...
 INFO: Parsing complete! Searching...
 FIND 'branch' : 427 results
 FIND 'lam' : 433 results
-All done! 
+All done!
 ]
+The command accepts any number of @tt{-f} flags and struct names.
+
 
 @section{Building}
 
@@ -76,6 +78,8 @@ or individually using:
 @section{Project Goals}
 
 The goal of this project is to help explore Racket bytecode in any useful way.
+This library should be available to as many versions of Racket as possible,
+and kept up-to-date.
 
 Racket offers a de-compilation @hyperlink["http://docs.racket-lang.org/raco/decompile.html"]{API}, however the structs it produces are still dense reading.
 This project takes a de-compiled @hyperlink["http://docs.racket-lang.org/raco/decompile.html#%28def._%28%28lib._compiler%2Fzo-parse..rkt%29._zo-parse%29%29"]{zo struct} and offers:
