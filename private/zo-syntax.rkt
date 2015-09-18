@@ -15,7 +15,7 @@
   ;; Decompile a syntax object into an S-expression
 
   zo->compiled-expression
-  ;; (-> compilation-top Any)
+  ;; (-> compilation-top Compiled-Expression)
   ;; Parse a zo struct (output of zo-parse) as an S-expression
 )
 
