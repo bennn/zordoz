@@ -55,22 +55,7 @@
 ;; (define context? (or/c zo? (listof zo?) (listof result?)))
 ;; (define history? (listof context?))
 
-;; --- API functions
-
-;; Entry point to the REPL, expects command-line arguments passed as a list.
-;; In the future, there may be more entry points.
-(define (init args)
-  ;; (-> (vectorof string?) void?)
-  (match args
-    ['#()
-     (print-usage)]
-    ;; Catch --help flag, and any others
-    [(? has-any-flags?) (print-usage)]
-    [(vector fname)
-     (filename->shell fname)]
-    [(vector fname args ...)
-     (find-all fname args)]))
-
+;; -----------------------------------------------------------------------------
 ;; --- Commands (could go in their own file)
 
 (struct command (name       ;; String
@@ -132,7 +117,21 @@
     (or (string=? (car splt) (command-name c))
         (member   (car splt) (command-aliases c))))))
 
+;; -----------------------------------------------------------------------------
 ;; --- REPL
+
+;; Basic entry point to the REPL, expects command-line arguments passed as a list.
+(define (init args)
+  ;; (-> (vectorof string?) void?)
+  (match args
+    ['#()
+     (print-usage)]
+    ;; Catch --help flag, and any others
+    [(? has-any-flags?) (print-usage)]
+    [(vector fname)
+     (filename->shell fname)]
+    [(vector fname args ...)
+     (find-all fname args)]))
 
 (define (init-repl ctx)
   (print-welcome)
@@ -187,6 +186,7 @@
     [(cons raw cmd*)
      (begin (print-unknown raw) ((repl ctx hist pre-hist) cmd*))]))
 
+;; -----------------------------------------------------------------------------
 ;; --- command implementations
 
 ;; 2015-01-23: Warn about possible-unexpected behavior
@@ -304,6 +304,7 @@
 (define (save raw ctx hist pre-hist)
   (values ctx '() (push pre-hist (push hist ctx))))
 
+;; -----------------------------------------------------------------------------
 ;; --- history manipulation
 
 ;; Add the context `ctx` to the stack `hist`.
@@ -318,6 +319,7 @@
   ;; (-> history? (values context? history?))
   (values (car hist) (cdr hist)))
 
+;; -----------------------------------------------------------------------------
 ;; --- print
 
 (define (print-alias)
@@ -415,6 +417,7 @@
 (define (print-usage)
   (displayln USAGE))
 
+;; -----------------------------------------------------------------------------
 ;; --- misc
 
 (define (find-all name args #:limit [lim #f])
@@ -453,10 +456,10 @@
   (match cmd*
     ['() '()]
     [(cons cd-cmd rest)
-     #:when (starts-with? cd-cmd "cd ")
+     #:when ((cmd? DIVE) cd-cmd)
      ;; Split "cd " commands by "/"
      (append
-      (map (lambda (x) (string-append "cd " x)) (string-split (substring cd-cmd 3) "/"))
+      (map (lambda (x) (string-append "dive " x)) (string-split (cadr (string-split cd-cmd)) "/"))
       (split-cd rest))]
     [(cons cmd rest)
      ;; Leave other commands alone
@@ -474,7 +477,7 @@
                        x]
     [_ #f]))
 
-;; -----------------------------------------------------------------------------
+;; =============================================================================
 ;; --- testing
 
 (module+ test
@@ -1050,8 +1053,10 @@
 
   ;; -- split-cd
   (check-equal? (split-cd '("")) '(""))
-  (check-equal? (split-cd '("cd ../../")) '("cd .." "cd .."))
+  (for ([a (in-list (command-aliases DIVE))])
+    (check-equal? (split-cd (list (format "~a ../../" a)))
+                  '("dive .." "dive ..")))
   (check-equal? (split-cd '("a" "b" "dive" "c")) '("a" "b" "dive" "c"))
-  (check-equal? (split-cd '("a" "cd ../foo/bar" "car")) '("a" "cd .." "cd foo" "cd bar" "car"))
+  (check-equal? (split-cd '("a" "dive ../foo/bar" "car")) '("a" "dive .." "dive foo" "dive bar" "car"))
 
 ) ;; --- end testing

@@ -31,6 +31,9 @@
           ;;  with names exactly matching the argument string.
           ;; Matching structs are return along with the path taken to reach them
 
+          [filename->shell (-> path-string? void?)]
+          ;; Start a REPL session to explore a .zo bytecode file
+
           [zo->shell (-> zo? void?)]
           ;; Start a REPL session to explore a zo struct
 

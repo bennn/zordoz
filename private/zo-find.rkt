@@ -4,11 +4,13 @@
 ;; Explores the current struct's fields recursively for a exact string match.
 
 (provide
-  ;; (-> zo? string? (listof result?))
- ;; Search a struct recursively for member zo-structs matching a string.
  zo-find
+ ;; (->* [zo? string?] [#:limit (or/c natural-number/c #f)] (listof result?))
+ ;; Search a struct recursively for member zo-structs matching a string.
+
+ result result? result-zo result-path
  ;; Search result: a zo-struct and the path to reach it
- result result? result-zo result-path)
+ )
 
 ;; -----------------------------------------------------------------------------
 
@@ -86,7 +88,7 @@
            [(list? r)      (append (filter zo? r) (get-children z tl))]
            [(zo?   r)      (cons r (get-children z tl))])]))
 
-;; -----------------------------------------------------------------------------
+;; =============================================================================
 ;; --- testing
 
 (module+ test
