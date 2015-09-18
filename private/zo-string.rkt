@@ -702,7 +702,7 @@
 (define
   (format-spec deep? struct-spec)
   (define fields (cdr struct-spec))
-  (define title (format "<struct:~a>" (car struct-spec)))
+  (define title (format "<zo:~a>" (car struct-spec)))
   (define field-name-lengths
     (for/list ([fd fields]) (string-length (car fd))))
   (define w ;; width of longest struct field name
@@ -817,9 +817,9 @@
 
   ;; zo->string
   (check-exn exn:fail? (lambda () (zo->string (zo))))
-  (check-equal? (zo->string (toplevel 1 1 #t #t)) "<struct:toplevel>\n  depth  : 1\n  pos    : 1\n  const? : #t\n  ready? : #t")
-  (check-equal? (zo->string #:deep? #t (toplevel 1 1 #t #t)) "<struct:toplevel>\n  depth  : 1\n  pos    : 1\n  const? : #t\n  ready? : #t")
-  (check-equal? (zo->string #:deep? #f (toplevel 1 1 #t #t)) "<struct:toplevel>")
+  (check-equal? (zo->string (toplevel 1 1 #t #t)) "<zo:toplevel>\n  depth  : 1\n  pos    : 1\n  const? : #t\n  ready? : #t")
+  (check-equal? (zo->string #:deep? #t (toplevel 1 1 #t #t)) "<zo:toplevel>\n  depth  : 1\n  pos    : 1\n  const? : #t\n  ready? : #t")
+  (check-equal? (zo->string #:deep? #f (toplevel 1 1 #t #t)) "<zo:toplevel>")
 
   ;; --- private
 
@@ -831,8 +831,8 @@
                   (cons "compilation-top"
                         (list (cons "max-let-depth" "0")
                               (cons "binding-namess" "#hash()")
-                              (cons "prefix" "<struct:prefix>")
-                              (cons "code" "<struct:seq>")))))
+                              (cons "prefix" "<zo:prefix>")
+                              (cons "code" "<zo:seq>")))))
 
   ;; prefix->spec
   (let* ([mpi (module-path-index-join #f #f)]
@@ -846,8 +846,8 @@
     (check-equal? (force-spec (prefix->spec z))
                   (cons "prefix"
                         (list (cons "num-lifts" "0")
-                              (cons "toplevels" "[<struct:global-bucket> <struct:module-variable>]")
-                              (cons "stxs" "<struct:stx>[1]")
+                              (cons "toplevels" "[<zo:global-bucket> <zo:module-variable>]")
+                              (cons "stxs" "<zo:stx>[1]")
                               (cons "src-inspector-desc" "yes")))))
 
   ;; global-bucket->spec
@@ -874,7 +874,7 @@
          [z (stx s)])
     (check-equal? (force-spec (stx->spec z))
                   (cons "stx"
-                        (list (cons "content" "<struct:stx-obj>")))))
+                        (list (cons "content" "<zo:stx-obj>")))))
 
   ;; form->spec (see below)
   (let* ([z (form)])
@@ -889,7 +889,7 @@
     (check-equal? (force-spec (stx-obj->spec z))
                   (cons "stx-obj"
                         (list (cons "datum" "datum")
-                              (cons "wrap"  "<struct:wrap>")
+                              (cons "wrap"  "<zo:wrap>")
                               (cons "srcloc" "a:1:2")
                               (cons "props" "#hash((a . 1))")
                               (cons "tamper-status" "clean")))))
@@ -901,9 +901,9 @@
          [z (wrap (list ms) (list sc) (list (list msc 5)))])
     (check-equal? (force-spec (wrap->spec z))
                   (cons "wrap"
-                        (list (cons "shifts" "<struct:module-shift>[1]")
-                              (cons "simple-scopes" "<struct:scope>[1]")
-                              (cons "multi-scopes" "[(<struct:multi-scope> 5)]")))))
+                        (list (cons "shifts" "<zo:module-shift>[1]")
+                              (cons "simple-scopes" "<zo:scope>[1]")
+                              (cons "multi-scopes" "[(<zo:multi-scope> 5)]")))))
 
   ;; module-shift->spec
   (let* ([mpi (module-path-index-join #f #f)]
@@ -926,9 +926,9 @@
                   (cons "scope"
                         (list (cons "name" "root")
                           (cons "kind" "kind")
-                          (cons "bindings" "[(sym <struct:scope>[1] <struct:module-binding>)]")
-                          (cons "bulk-bindings" "[(<struct:scope>[1] <struct:all-from-module>)]")
-                          (cons "multi-owner" "<struct:multi-scope>")))))
+                          (cons "bindings" "[(sym <zo:scope>[1] <zo:module-binding>)]")
+                          (cons "bulk-bindings" "[(<zo:scope>[1] <zo:all-from-module>)]")
+                          (cons "multi-owner" "<zo:multi-scope>")))))
 
   ;; multi-scope->spec
   (let* ([s (scope 1 'a '() '() #f)]
@@ -937,7 +937,7 @@
                   (cons "multi-scope"
                         (list (cons "name" "4")
                               (cons "src-name" "yolo")
-                              (cons "scopes" "[(#f <struct:scope>) (1 <struct:scope>)]")))))
+                              (cons "scopes" "[(#f <zo:scope>) (1 <zo:scope>)]")))))
 
   ;; binding->spec (see below)
   (let* ([z (binding)])
@@ -967,8 +967,8 @@
          [z (def-values ids rhs)])
     (check-equal? (force-spec (def-values->spec z))
                   (cons "def-values"
-                        (list (cons "ids" "[<struct:toplevel>]")
-                              (cons "rhs" "<struct:beg0>")))))
+                        (list (cons "ids" "[<zo:toplevel>]")
+                              (cons "rhs" "<zo:beg0>")))))
 
   ;; def-syntaxes->
   (let* ([ids (list (toplevel 1 2 #t #f))]
@@ -978,11 +978,11 @@
          [z   (def-syntaxes ids rhs px 42 dm)])
     (check-equal? (force-spec (def-syntaxes->spec z))
                   (cons "def-syntaxes"
-                        (list (cons "ids" "[<struct:toplevel>]")
-                              (cons "rhs" "<struct:beg0>")
-                              (cons "prefix" "<struct:prefix>")
+                        (list (cons "ids" "[<zo:toplevel>]")
+                              (cons "rhs" "<zo:beg0>")
+                              (cons "prefix" "<zo:prefix>")
                               (cons "max-let-depth" "42")
-                              (cons  "dummy" "<struct:toplevel>")))))
+                              (cons  "dummy" "<zo:toplevel>")))))
 
   ;; seq-for-syntax->spec
   (let* ([fms (list (seq '()))]
@@ -991,10 +991,10 @@
          [z   (seq-for-syntax fms px 8 dm)])
     (check-equal? (force-spec (seq-for-syntax->spec z))
                   (cons "seq-for-syntax"
-                        (list (cons "forms" "[<struct:seq>]")
-                              (cons "prefix" "<struct:prefix>")
+                        (list (cons "forms" "[<zo:seq>]")
+                              (cons "prefix" "<zo:prefix>")
                               (cons "max-let-depth" "8")
-                              (cons "dummy" "<struct:toplevel>")))))
+                              (cons "dummy" "<zo:toplevel>")))))
 
   ;; req->spec
   (let* ([sx (stx (stx-obj 'XXX (wrap '() '() '()) #f (make-hash) 'clean))]
@@ -1002,15 +1002,15 @@
          [z  (req sx dm)])
     (check-equal? (force-spec (req->spec z))
                   (cons "req"
-                        (list (cons "reqs" "<struct:stx>")
-                              (cons "dummy" "<struct:toplevel>")))))
+                        (list (cons "reqs" "<zo:stx>")
+                              (cons "dummy" "<zo:toplevel>")))))
 
   ;; seq->spec
   (let* ([fms (list (seq '()) (seq '()) (seq '()))]
          [z   (seq fms)])
     (check-equal? (force-spec (seq->spec z))
                   (cons "seq"
-                        (list (cons "forms" "[<struct:seq> <struct:seq> <struct:seq>]")))))
+                        (list (cons "forms" "[<zo:seq> <zo:seq> <zo:seq>]")))))
 
 
   ;; splice->
@@ -1018,7 +1018,7 @@
          [z   (splice fms)])
     (check-equal? (force-spec (splice->spec z))
                   (cons "splice"
-                        (list (cons "forms" "[<struct:seq> <struct:seq>]")))))
+                        (list (cons "forms" "[<zo:seq> <zo:seq>]")))))
 
   ;; inline-variant->spec
   (let* ([dr (beg0 '())]
@@ -1026,8 +1026,8 @@
          [z  (inline-variant dr il)])
     (check-equal? (force-spec (inline-variant->spec z))
                   (cons "inline-variant"
-                        (list (cons "direct" "<struct:beg0>")
-                              (cons "inline" "<struct:beg0>")))))
+                        (list (cons "direct" "<zo:beg0>")
+                              (cons "inline" "<zo:beg0>")))))
 
   ;; mod->spec
   (let* ([mpi (module-path-index-join #f #f)]
@@ -1057,20 +1057,20 @@
                         (list (cons "name" "name")
                               (cons "srcname" "srcname")
                               (cons "self-modidx" "#<module-path-index:()>")
-                              (cons "prefix" "<struct:prefix>")
-                              (cons "provides" "[#f <struct:provided>[2] <struct:provided>[1] #f <struct:provided>[1] []]")
+                              (cons "prefix" "<zo:prefix>")
+                              (cons "provides" "[#f <zo:provided>[2] <zo:provided>[1] #f <zo:provided>[1] []]")
                               (cons "requires" "[]")
-                              (cons "body" "[<struct:seq> any]")
-                              (cons "syntax-bodies" "[7 [<struct:def-syntaxes>] 8 [<struct:seq-for-syntax>]]")
+                              (cons "body" "[<zo:seq> any]")
+                              (cons "syntax-bodies" "[7 [<zo:def-syntaxes>] 8 [<zo:seq-for-syntax>]]")
                               (cons "unexported" "[]")
                               (cons "max-let-depth" "0")
-                              (cons "dummy" "<struct:toplevel>")
+                              (cons "dummy" "<zo:toplevel>")
                               (cons "lang-info" "#f")
-                              (cons "internal-context" "<struct:stx>")
+                              (cons "internal-context" "<zo:stx>")
                               (cons "binding-names" "#hash((1 . #hash((something . #t))))")
                               (cons "flags" "[]")
-                              (cons "pre-submodules" "<struct:mod>[2]")
-                              (cons "post-submodules" "<struct:mod>[1]")))))
+                              (cons "pre-submodules" "<zo:mod>[2]")
+                              (cons "post-submodules" "<zo:mod>[1]")))))
 
   ;; provided->spec
   (let* ([z (provided 'name #f 'srcname 'nomnom 12 #t)])
@@ -1097,14 +1097,14 @@
                               (cons "closure-types" "[]")
                               (cons "toplevel-map" "#f")
                               (cons "max-let-depth" "1")
-                              (cons "body" "<struct:beg0>")))))
+                              (cons "body" "<zo:beg0>")))))
 
   ;; closure->spec
   (let* ([lm (lam 'nmme '() 3 '() #f '#() '() #f 1 (seq '()))]
          [z  (closure lm 'genid)])
     (check-equal? (force-spec (closure->spec z))
                   (cons "closure"
-                        (list (cons "code" "<struct:lam>")
+                        (list (cons "code" "<zo:lam>")
                               (cons "gen-id" "genid")))))
 
   ;; case-lam->spec
@@ -1115,7 +1115,7 @@
     (check-equal? (force-spec (case-lam->spec z))
                   (cons "case-lam"
                         (list (cons "name" "name")
-                              (cons "clauses" "[<struct:lam> <struct:closure> <struct:lam>]")))))
+                              (cons "clauses" "[<zo:lam> <zo:closure> <zo:lam>]")))))
 
   ;; let-one->spec
   (let* ([rhs (beg0 '())]
@@ -1123,8 +1123,8 @@
          [z   (let-one rhs bdy #f #f)])
     (check-equal? (force-spec (let-one->spec z))
                   (cons "let-one"
-                        (list (cons "rhs" "<struct:beg0>")
-                              (cons "body" "<struct:beg0>")
+                        (list (cons "rhs" "<zo:beg0>")
+                              (cons "body" "<zo:beg0>")
                               (cons "type" "#f")
                               (cons "unused?" "#f")))))
 
@@ -1135,7 +1135,7 @@
                   (cons "let-void"
                         (list (cons "count" "1")
                               (cons "boxes" "#f")
-                              (cons "body" "<struct:beg0>")))))
+                              (cons "body" "<zo:beg0>")))))
 
   ;; install-value->spec
   (let* ([rhs (branch #t #t #t)]
@@ -1146,8 +1146,8 @@
                         (list (cons "count" "2")
                               (cons "pos" "3")
                               (cons "boxes?" "#f")
-                              (cons "rhs" "<struct:branch>")
-                              (cons "body" "<struct:beg0>")))))
+                              (cons "rhs" "<zo:branch>")
+                              (cons "body" "<zo:beg0>")))))
 
   ;; let-rec->spec
   (let* ([lm (lam 'nmme '() 3 '() #f '#() '() #f 1 (seq '()))]
@@ -1156,8 +1156,8 @@
          [z   (let-rec pcs bdy)])
     (check-equal? (force-spec (let-rec->spec z))
                   (cons "let-rec"
-                        (list (cons "procs" "<struct:lam>[2]")
-                              (cons "body" "<struct:beg0>")))))
+                        (list (cons "procs" "<zo:lam>[2]")
+                              (cons "body" "<zo:beg0>")))))
 
   ;; boxenv->spec
   (let* ([bdy (beg0 '())]
@@ -1165,7 +1165,7 @@
     (check-equal? (force-spec (boxenv->spec z))
                   (cons "boxenv"
                         (list (cons "pos" "2")
-                              (cons "body" "<struct:beg0>")))))
+                              (cons "body" "<zo:beg0>")))))
 
   ;; localref->spec
   (let ([z (localref #t 1 #t #t #f)])
@@ -1200,37 +1200,37 @@
          [z (application s (list e s s '() 'any 54 e))])
     (check-equal? (force-spec (application->spec z))
                   (cons "application"
-                        (list (cons "rator" "<struct:seq>")
-                              (cons "rands" "[<struct:beg0> <struct:seq> <struct:seq> () any 54 <struct:beg0>]")))))
+                        (list (cons "rator" "<zo:seq>")
+                              (cons "rands" "[<zo:beg0> <zo:seq> <zo:seq> () any 54 <zo:beg0>]")))))
 
   ;; branch->spec
   (let* ([z (branch #t (beg0 '()) #f)])
     (check-equal? (force-spec (branch->spec z))
                   (cons "branch"
                         (list (cons "test" "#t")
-                              (cons "then" "<struct:beg0>")
+                              (cons "then" "<zo:beg0>")
                               (cons "else" "#f")))))
 
   ;; with-cont-mark->spec
   (let ([z (with-cont-mark (beg0 '()) (branch #t #t #t) (topsyntax 1 1 1))])
     (check-equal? (force-spec (with-cont-mark->spec z))
                   (cons "with-cont-mark"
-                        (list (cons "key" "<struct:beg0>")
-                              (cons "val" "<struct:branch>")
-                              (cons "body" "<struct:topsyntax>")))))
+                        (list (cons "key" "<zo:beg0>")
+                              (cons "val" "<zo:branch>")
+                              (cons "body" "<zo:topsyntax>")))))
 
   ;; beg0->spec
   (let ([z (beg0 (list (beg0 '()) 'asdf (beg0 (list (expr)))))])
     (check-equal? (force-spec (beg0->spec z))
                   (cons "beg0"
-                        (list (cons "seq" "[<struct:beg0> asdf <struct:beg0>]")))))
+                        (list (cons "seq" "[<zo:beg0> asdf <zo:beg0>]")))))
 
   ;; varref->spec
   (let* ([tl (toplevel 1 1 #f #f)]
          [z  (varref tl #f)])
     (check-equal? (force-spec (varref->spec z))
                   (cons "varref"
-                        (list (cons "toplevel" "<struct:toplevel>")
+                        (list (cons "toplevel" "<zo:toplevel>")
                               (cons "dummy" "#f")))))
 
   ;; assign->spec
@@ -1239,16 +1239,16 @@
          [z   (assign id rhs #t)])
     (check-equal? (force-spec (assign->spec z))
                   (cons "assign"
-                        (list (cons "id" "<struct:toplevel>")
-                              (cons "rhs" "<struct:beg0>")
+                        (list (cons "id" "<zo:toplevel>")
+                              (cons "rhs" "<zo:beg0>")
                               (cons "undef-ok?" "#t")))))
 
   ;; apply-values->spec
   (let ([z (apply-values (beg0 '()) (topsyntax 1 2 8))])
     (check-equal? (force-spec (apply-values->spec z))
                   (cons "apply-values"
-                        (list (cons "proc" "<struct:beg0>")
-                              (cons "args-expr" "<struct:topsyntax>")))))
+                        (list (cons "proc" "<zo:beg0>")
+                              (cons "args-expr" "<zo:topsyntax>")))))
 
   ;; primval->spec
   (let ([z (primval 420)])
@@ -1288,8 +1288,8 @@
          [z (free-id=?-binding lb stx 3)])
     (check-equal? (force-spec (free-id=?-binding->spec z))
                   (cons "free-id=?-binding"
-                        (list (cons "base" "<struct:local-binding>")
-                              (cons "id" "<struct:stx-obj>")
+                        (list (cons "base" "<zo:local-binding>")
+                              (cons "id" "<zo:stx-obj>")
                               (cons "phase" "3")))))
 
   ;; --- helpers
@@ -1304,15 +1304,15 @@
   (check-equal? (boolean->string #f) "#f")
 
   ;; expr-seq-any->string
-  (check-equal? (expr-seq-any->string (beg0 '())) "<struct:beg0>")
-  (check-equal? (expr-seq-any->string (branch #t (expr) (expr))) "<struct:branch>")
-  (check-equal? (expr-seq-any->string (seq '(blah))) "<struct:seq>")
+  (check-equal? (expr-seq-any->string (beg0 '())) "<zo:beg0>")
+  (check-equal? (expr-seq-any->string (branch #t (expr) (expr))) "<zo:branch>")
+  (check-equal? (expr-seq-any->string (seq '(blah))) "<zo:seq>")
   (check-equal? (expr-seq-any->string 420) "420")
   (check-equal? (expr-seq-any->string +) "#<procedure:+>")
 
   ;; form-or-any->string
-  (check-equal? (form-or-any->string (def-values '() (expr))) "<struct:def-values>")
-  (check-equal? (form-or-any->string (lam 'name '() 3 '() #f '#() '() #f 1 (expr))) "<struct:lam>")
+  (check-equal? (form-or-any->string (def-values '() (expr))) "<zo:def-values>")
+  (check-equal? (form-or-any->string (lam 'name '() 3 '() #f '#() '() #f 1 (expr))) "<zo:lam>")
   (check-equal? (form-or-any->string (zo)) "#s(zo)")
   (check-equal? (form-or-any->string "()") "()")
   (check-equal? (form-or-any->string #\H) "H")
@@ -1325,30 +1325,30 @@
 
   ;; format-spec
   ; No fields
-  (check-equal? (format-spec #f (cons "hello" '())) "<struct:hello>")
-  (check-equal? (format-spec #t (cons "hello" '())) "<struct:hello>")
+  (check-equal? (format-spec #f (cons "hello" '())) "<zo:hello>")
+  (check-equal? (format-spec #t (cons "hello" '())) "<zo:hello>")
   ; String fields
-  (check-equal? (format-spec #f (cons "str" (list (cons "hello" (lambda () "there"))))) "<struct:str>")
-  (check-equal? (format-spec #t (cons "str" (list (cons "hello" (lambda () "there"))))) "<struct:str>\n  hello : there")
+  (check-equal? (format-spec #f (cons "str" (list (cons "hello" (lambda () "there"))))) "<zo:str>")
+  (check-equal? (format-spec #t (cons "str" (list (cons "hello" (lambda () "there"))))) "<zo:str>\n  hello : there")
   ; Nested struct fields
   (check-equal? (format-spec #f (cons "pika" (list (cons "f1" (lambda () "val1"))
-                                                   (cons "f2" (lambda () (list "nested" (cons "n1" (lambda () "wepa")))))))) "<struct:pika>")
+                                                   (cons "f2" (lambda () (list "nested" (cons "n1" (lambda () "wepa")))))))) "<zo:pika>")
   (check-equal? (format-spec #t (cons "pika" (list (cons "f1" (lambda () "val1"))
-                                                   (cons "f2" (lambda () (list "nested" (cons "n1" (lambda () "wepa")))))))) "<struct:pika>\n  f1 : val1\n  f2 : <struct:nested>")
+                                                   (cons "f2" (lambda () (list "nested" (cons "n1" (lambda () "wepa")))))))) "<zo:pika>\n  f1 : val1\n  f2 : <zo:nested>")
   ; Padding
   (check-equal? (format-spec #t (cons "pika" (list (cons "long-name" (lambda () "v1"))
-                                                   (cons "name" (lambda () "v2"))))) "<struct:pika>\n  long-name : v1\n  name      : v2")
+                                                   (cons "name" (lambda () "v2"))))) "<zo:pika>\n  long-name : v1\n  name      : v2")
 
   ;; list->string
   (check-equal? (list->string (lambda (x) "blah") '()) "[]")
   (check-equal? (list->string number->string (list 1 2 3 4)) "[1 2 3 4]")
-  (check-equal? (list->string (lambda (x) (format-spec #f (expr->spec x))) (list (branch #t #t #t))) "[<struct:branch>]")
+  (check-equal? (list->string (lambda (x) (format-spec #f (expr->spec x))) (list (branch #t #t #t))) "[<zo:branch>]")
 
   ;; listof-form-or-any->string
-  (check-equal? (listof-form-or-any->string (list (seq '()) 'cat 53)) "[<struct:seq> cat 53]")
+  (check-equal? (listof-form-or-any->string (list (seq '()) 'cat 53)) "[<zo:seq> cat 53]")
 
   ;; listof-zo->string
-  (check-equal? (listof-zo->string toplevel->spec (list (toplevel 1 1 #f #f))) "<struct:toplevel>[1]")
+  (check-equal? (listof-zo->string toplevel->spec (list (toplevel 1 1 #f #f))) "<zo:toplevel>[1]")
 
   ;; module-path-index->string
   (check-equal? (module-path-index->string (module-path-index-join #f #f)) "#<module-path-index:()>")
@@ -1369,8 +1369,8 @@
   (check-equal? (symbol-or-f->string 'wunderbar) "wunderbar")
 
   ;; toplevel-or-any->string
-  (check-equal? (toplevel-or-any->string (toplevel 19 462 #t #t)) "<struct:toplevel>")
-  (check-equal? (toplevel-or-any->string (toplevel 0 0 #f #f)) "<struct:toplevel>")
+  (check-equal? (toplevel-or-any->string (toplevel 19 462 #t #t)) "<zo:toplevel>")
+  (check-equal? (toplevel-or-any->string (toplevel 0 0 #f #f)) "<zo:toplevel>")
   ; Only toplevel zo structs get pretty-printed
   (check-equal? (toplevel-or-any->string (branch #t #t (beg0 '()))) "#s((branch expr 0 form 0 zo 0) #t #t #s((beg0 expr 0 form 0 zo 0) ()))")
   (check-equal? (toplevel-or-any->string "help") "help")
