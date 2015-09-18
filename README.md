@@ -16,24 +16,26 @@ Install
 
 You have two options.
 
-1. Clone this repo, run `make` to generate an executable named `zordoz`
-2. Run `raco pkg install zordoz`
+1. Install from `raco` by running `raco pkg install zordoz`
+2. Build from source by cloning this repo and using `raco`:
+   `git clone https://github.com/bennn/zordoz; raco pkg install zordoz/`
 
-(You can also clone, then run `raco pkg install zordoz/`)
+To run tests, do `raco test zordoz`.
+Tests are located in the `test` submodule of each source file.
 
-To run tests, execute `make test`.
-Each module in the `private/` folder has a submodule containing unit tests.
 
 Usage
 -----
 
+Zordoz provides a `raco zordoz` command.
+
 ### REPL
 
-Activate the REPL by running with a `.zo` file.
-Depending on how you installed, you can either:
+Activate the REPL by giving a path to a compiled file.
 
-1. `./zordoz FILE.zo`
-2. `raco zordoz FILE.zo`
+```
+raco zordoz FILE.zo
+```
 
 Passing the `-t` option uses typed racket code.
 Beware, the typed racket version is up to 5x slower than untyped because of contracts with the `compiler/zo-lib` structs.
@@ -124,13 +126,13 @@ zo> info
   provides         : 0 [] [] 1 [] [] #f [] []
   requires         : 0 #<module-path-index> 1  -1  #f 
   body             : <struct:apply-values>
-  syntax-bodies    : 
-  unexported       : 0  
+  syntax-bodies    :
+  unexported       : 0
   max-let-depth    : 0
   dummy            : <struct:toplevel>
   lang-info        : #f
   internal-context : #t
-  flags            : 
+  flags            :
   pre-submodules   : <struct:mod>[1]
   post-submodules  : []
 ```
