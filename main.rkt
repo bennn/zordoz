@@ -26,7 +26,7 @@
           ;; - this field `s` exists
           ;; - the type of `s` is a zo struct (and not an integer, list, ...)
 
-          [zo-find (-> zo? string? (listof result?))]
+          [zo-find (->* [zo? string?] [#:limit (or/c natural-number/c #f)] (listof result?))]
           ;; Recursively search a zo struct for sub-structures
           ;;  with names exactly matching the argument string.
           ;; Matching structs are return along with the path taken to reach them
