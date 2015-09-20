@@ -97,14 +97,26 @@ Tools for compiling syntax fragments rather than entire modules.
 @defproc[(syntax->zo [stx syntax?]) zo?]{
   Compiles a syntax object to a @racket[zo] struct.
   The result is wrapped in a @racket[compilation-top] struct.
+
+  @racket[stx] is a syntax object that will be compiled.
 }
 
 @defproc[(syntax->decompile [stx syntax?]) any/c]{
   Compiles a syntax object, then immediately decompiles the compiled code back to an S-expression.
   This is @emph{not} an identity transformation.
+  Like @racket[syntax->zo], except the result is decompiled into a human
+  readoable format.
+
+  @racket[stx] is a syntax object that will be compiled.
 }
 
-@defproc[(zo->compiled-expression [z zo?]) compiled-expression?]{
+@defproc[(zo->compiled-expression [zo zo?]) compiled-expression?]{
   Transform a @racket[zo] struct to compiled code.
+  The compiled code can be run with @racket[eval].
+  If it is a module, it can be written to a file and run with the Racket
+  Executable.
+
+  @racket[zo] is a compiled @racket[zo?] struct that can be produced by calling
+  @racket[syntax->zo].
 }
 
