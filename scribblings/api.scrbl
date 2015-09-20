@@ -1,4 +1,7 @@
 #lang scribble/manual
+@require[racket/include]
+@require[scribble/eval]
+@(define zordoz-eval (make-base-eval '(begin (require zordoz racket/string))))
 
 @title{API}
 
@@ -97,26 +100,25 @@ Tools for compiling syntax fragments rather than entire modules.
 @defproc[(syntax->zo [stx syntax?]) zo?]{
   Compiles a syntax object to a @racket[zo] struct.
   The result is wrapped in a @racket[compilation-top] struct.
-
-  @racket[stx] is a syntax object that will be compiled.
 }
 
 @defproc[(syntax->decompile [stx syntax?]) any/c]{
   Compiles a syntax object, then immediately decompiles the compiled code back to an S-expression.
-  This is @emph{not} an identity transformation.
-  Like @racket[syntax->zo], except the result is decompiled into a human
-  readoable format.
-
-  @racket[stx] is a syntax object that will be compiled.
+  Similar to @racket{syntax->zo}, except the final output is Racket code and not a @racket{zo} structure.
 }
 
-@defproc[(zo->compiled-expression [zo zo?]) compiled-expression?]{
+@defproc[(zo->compiled-expression [z zo?]) compiled-expression?]{
   Transform a @racket[zo] struct to compiled code.
   The compiled code can be run with @racket[eval].
-  If it is a module, it can be written to a file and run with the Racket
-  Executable.
-
-  @racket[zo] is a compiled @racket[zo?] struct that can be produced by calling
-  @racket[syntax->zo].
+  If the struct @racket{z} encodes a module (i.e., contains a @racket{mod} sub-struct)
+  then the result @racket{zo->compiled-expressions z} can be written to a @racket{.rkt}
+  and run using the Racket executable.
 }
+
+@examples[#:eval zordoz-eval
+  (let* ([stx #'(string-append "hello, " "world")]
+         [z     (syntax->zo stx)]
+         [e     (zo->compiled-expression e)])
+    (eval e (make-base-namespace)))
+]
 
