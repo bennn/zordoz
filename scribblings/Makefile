@@ -3,7 +3,7 @@ all:
 		--htmls \
 		++main-xref-in \
 		--redirect-main http://docs.racket-lang.org/ \
-		main.scrbl
+		zordoz.scrbl
 
 clean:
-	rm -rf main
+	rm -rf zordoz
