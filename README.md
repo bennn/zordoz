@@ -1,5 +1,7 @@
 Zordoz
 ======
+[![Build Status](https://travis-ci.org/bennn/zordoz.svg)](https://travis-ci.org/bennn/zordoz)
+[![Coverage Status](https://coveralls.io/repos/bennn/zordoz/badge.svg?branch=master&service=github)](https://coveralls.io/github/bennn/zordoz?branch=master)
 
 [ZORDOZ](https://www.youtube.com/watch?v=kbGVIdA3dx0) speaks to you! His chosen ones.
 
