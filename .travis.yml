@@ -11,10 +11,7 @@ before_install:
   - cat ../travis-racket/install-racket.sh | bash
   - export PATH="${RACKET_DIR}/bin:${PATH}"
 
-install:
-  - git clone https://github.com/florence/cover ../cover
-  - raco pkg install --deps search-auto ../cover/
-  - raco pkg install --deps search-auto $TRAVIS_BUILD_DIR
+install: raco pkg install --deps search-auto $TRAVIS_BUILD_DIR
 
 script:
   - raco test $TRAVIS_BUILD_DIR
