@@ -3,8 +3,13 @@
 (define deps '("base" ;; Expects 6.2.900.15 or greater
                "compiler-lib"
                "zo-lib"
-               "typed-racket-lib"))
-(define build-deps '("cover" "cover-coveralls" "rackunit-lib" "scribble-lib" "racket-doc"))
+               "typed-racket-lib"
+               "typed-racket-more"))
+(define build-deps '("cover"
+                     "cover-coveralls"
+                     "rackunit-lib"
+                     "scribble-lib"
+                     "racket-doc"))
 (define pkg-desc "REPL for exploring .zo bytecode files")
 (define version "0.6")
 (define pkg-authors '(ben))
