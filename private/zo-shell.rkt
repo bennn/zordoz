@@ -40,7 +40,12 @@
          (only-in zordoz/private/zo-transition zo-transition)
          (only-in zordoz/private/zo-syntax syntax->zo)
          racket/match
+         zordoz/private/if-windows
 )
+
+(if-windows
+  (require zordoz/private/windows-readline)
+  (require readline readline/pread))
 
 ;; =============================================================================
 
@@ -51,6 +56,15 @@
 ;; For aesthetic purposes
 (define VERSION 1.0)
 (define VNAME   "vortex")
+
+;; A welcome message for users entering the REPL
+(define WELCOME
+  (let ([base-str (format "--- Welcome to the .zo shell, version ~a '~a' ---" VERSION VNAME)])
+    (if-windows
+      base-str
+      ;; Add colors
+      (string-append "\033[1;34m" base-str "\033[0;0m"))))
+
 ;; (define nat? natural-number/c)
 ;; (define context? (or/c zo? (listof zo?) (listof result?)))
 ;; (define history? (listof context?))
@@ -134,7 +148,7 @@
      (find-all fname args)]))
 
 (define (init-repl ctx)
-  (print-welcome)
+  (displayln WELCOME)
   ((repl ctx '() '()) '()))
 
 ;; Start REPL from a filename
@@ -159,8 +173,8 @@
   (when DEBUG (print-history hist))
   (match cmd*
     ['()
-     (print-prompt ctx)
-     (match (read-line)
+     (match (parameterize ([readline-prompt (make-prompt ctx)])
+              (read-line))
        [(? eof-object? _)
         (error 'zo-shell:repl "EOF: you have penetrated me")]
        [str
@@ -382,19 +396,14 @@
   ;; (-> string? void?)
   (printf "DEBUG: ~a\n" str))
 
-;; Print a welcome message (when the user enters the REPL).
-(define (print-welcome)
-  ;; (-> void?)
-  (display
-   (format "\033[1;34m--- Welcome to the .zo shell, version ~a '~a' ---\033[0;0m\n" VERSION VNAME)))
-
 ;; Print the REPL prompt.
-(define (print-prompt ctx)
+(define (make-prompt ctx)
   ;; (-> void?)
   (define tag (cond [(list? ctx) (format "[~a]" (length ctx))]
                     [(zo? ctx)   (format "(~a)" (car (zo->spec ctx)))]
                     [else ""]))
-  (display (string-append tag " \033[1;32mzo> \033[0;0m")))
+  (string->bytes/locale
+    (string-append tag " zo> ")))
 
 ;; Print an informative message.
 (define (print-info str)
@@ -961,11 +970,10 @@
   (print-debug "")
   (check-pred read-line in)
 
-  (print-welcome)
-  (check-pred read-line in)
+  (check-pred string? WELCOME)
 
-  (print-prompt '()) (displayln "")
-  (check-pred read-line in)
+  (check-true
+    (bytes? (make-prompt '())))
 
   (print-info "")
   (check-pred read-line in)
