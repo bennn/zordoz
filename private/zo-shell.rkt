@@ -135,7 +135,7 @@
 
 (define (init-repl ctx)
   (print-welcome)
-  ((repl ctx '() '()) '()))
+  ((repl ctx '() `((,ctx))) '()))
 
 ;; Start REPL from a filename
 (define (filename->shell name)
@@ -205,9 +205,12 @@
      (values ctx hist pre-hist)]
     [(list '() _)
      ;; Pop from pre-history
-     (displayln BACK-WARNING)
      (define-values (hist* pre-hist*) (pop pre-hist))
-     (back raw ctx hist* pre-hist*)]
+     (define pre-hist**
+       (if (null? pre-hist*)
+         pre-hist
+         (begin (displayln BACK-WARNING) pre-hist*)))
+     (back raw ctx hist* pre-hist**)]
     [_
      (define-values (ctx* hist*) (pop hist))
      (values ctx* hist* pre-hist)]))
@@ -233,6 +236,7 @@
       ;; Should never happen! REPL controls the context.
       (error 'zo-shell:dive (format "Invalid context '~a'" ctx))]))
   ;; Return pre-hist unchanged
+  (printf "done dive hist = ~a, pre = ~a\n" (length hist) (length pre-hist))
   (values ctx* hist* pre-hist))
 
 ;; Parse the string `arg` to an integer n.
@@ -297,7 +301,9 @@
      (values ctx hist pre-hist)]
     [_
      (define-values (hist* pre-hist*) (pop pre-hist))
-     (back raw ctx hist* pre-hist*)]))
+     (define pre-hist**
+       (if (null? pre-hist*) pre-hist pre-hist*))
+     (back raw ctx hist* pre-hist**)]))
 
 ;; Save the current context and history to the pre-history
 ;; For now, erases current history.
@@ -846,6 +852,16 @@
              (check-equal? pre-hist* (cdr pre-hist)))))
   (check-pred read-line in)
 
+  ;; - Success, never empty the pre-list
+  (let* ([ctx      'z]
+         [hist     '()]
+         [pre-hist '((a b c))])
+    (let-values ([(ctx* hist* pre-hist*) (back 'foo ctx hist pre-hist)])
+      (begin (check-equal? ctx* 'a)
+             (check-equal? hist* (cdar pre-hist))
+             (check-equal? pre-hist* pre-hist))))
+  (check-pred read-line in)
+
   ;; -- jump
   ;; - Fail, no pre-hist
   (let* ([ctx      'a]
@@ -865,6 +881,15 @@
       (begin (check-equal? ctx* 'a)
              (check-equal? hist* (cdar pre-hist))
              (check-equal? pre-hist* (cdr pre-hist)))))
+
+  ;; - Success! Never empty the pre-hist
+  (let* ([ctx      'z]
+         [hist     '()]
+         [pre-hist '((a b))])
+    (let-values ([(ctx* hist* pre-hist*) (jump 'raw ctx hist pre-hist)])
+      (begin (check-equal? ctx* 'a)
+             (check-equal? hist* (cdar pre-hist))
+             (check-equal? pre-hist* pre-hist))))
 
   ;; - Success, clobber old hist
   (let* ([ctx      'z]
