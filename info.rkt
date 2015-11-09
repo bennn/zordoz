@@ -4,7 +4,8 @@
                "compiler-lib"
                "zo-lib"
                "typed-racket-lib"
-               "typed-racket-more"))
+               "typed-racket-more"
+               "readline-lib"))
 (define build-deps '("cover"
                      "cover-coveralls"
                      "rackunit-lib"
