@@ -17,4 +17,5 @@ script:
   - raco test $TRAVIS_BUILD_DIR
 
 after_success:
+  - raco setup --check-deps zordoz
   - raco cover -b -f coveralls -d $TRAVIS_BUILD_DIR/coverage .
