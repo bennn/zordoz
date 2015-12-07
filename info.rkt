@@ -6,9 +6,7 @@
                "typed-racket-lib"
                "typed-racket-more"
                "readline-lib"))
-(define build-deps '("cover"
-                     "cover-coveralls"
-                     "rackunit-lib"
+(define build-deps '("rackunit-lib"
                      "scribble-lib"
                      "racket-doc"))
 (define pkg-desc "REPL for exploring .zo bytecode files")
