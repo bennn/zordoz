@@ -176,7 +176,7 @@
      (match (parameterize ([readline-prompt (make-prompt ctx)])
               (read-line))
        [(? eof-object? _)
-        (error 'zo-shell:repl "EOF: you have penetrated me")]
+        (displayln "EOF: you have penetrated me")]
        [str
         ((repl ctx hist pre-hist) (split-cd (map string-trim (string-split str ";"))))])]
     [(cons (? (cmd? ALST) raw) cmd*)
