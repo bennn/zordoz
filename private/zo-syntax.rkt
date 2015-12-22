@@ -24,13 +24,14 @@
 (require compiler/zo-parse
          compiler/zo-marshal
          compiler/decompile
+         syntax/toplevel
          (only-in racket/port with-input-from-bytes port->bytes))
 
 ;; =============================================================================
 
 (define (syntax->zo stx)
   (define-values (in out) (make-pipe))
-  (display (compile-syntax stx) out)
+  (display (compile-syntax (expand-syntax-top-level-with-compile-time-evals stx)) out)
   (close-output-port out)
   (define y (port->bytes in))
   (close-input-port in)
