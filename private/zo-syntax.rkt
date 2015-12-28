@@ -61,6 +61,12 @@
 (module+ test
   (require rackunit)
 
+  ;; -- compiled-expression->zo
+  (let* ([e (compile-syntax #'(box 3))]
+         [z (compiled-expression->zo e)])
+    (check-pred compilation-top? z)
+    (check-pred application? (compilation-top-code z)))
+
   ;; -- syntax->zo
   (let* ([stx #'(+ 1 3)]
          [z (syntax->zo stx)])
