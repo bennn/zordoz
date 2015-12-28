@@ -40,6 +40,9 @@
           [syntax->shell (-> syntax? void?)]
           ;; Start a REPL session to explore a syntax object
 
+          [compiled->zo (-> compiled-expression? zo?)]
+          ;; Convert a compiled expression into a zo struct
+
           [syntax->zo (-> syntax? zo?)]
           ;; Compile a syntax object to a zo struct
 
