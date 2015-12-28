@@ -1,6 +1,11 @@
 #lang scribble/manual
-@require[racket/include]
-@require[scribble/eval]
+@require[racket/include
+         scribble/eval
+         compiler/zo-parse
+         @for-label[compiler/zo-parse
+                    zordoz
+                    racket/base]]
+
 @(define zordoz-eval
   (make-base-eval
     '(begin (require compiler/zo-structs zordoz racket/string))))
@@ -152,6 +157,19 @@ Tools for compiling syntax fragments rather than entire modules.
   (syntax->decompile #'6)
   (syntax->decompile #'(member 'a '(a b c)))
   (syntax->decompile #'(if #t 'left 'right))
+]
+
+@defproc[(compiled->zo [cmp compiled-expression?]) zo?]{
+  Converts a compiled expression into a zo struct.
+  Differs from @racket[zo-parse] in that the input is expected to be a
+  @racket[compiled-expression?].
+  This function is the inverse of @racket[zo->compiled-expression].
+}
+
+@examples[#:eval zordoz-eval
+  (compiled->zo (compile-syntax #'6))
+  (compiled->zo (compile-syntax #'(member 'a '(a b c))))
+  (compiled->zo (compile-syntax #'(if #t 'left 'right)))
 ]
 
 @defproc[(zo->compiled-expression [z zo?]) compiled-expression?]{

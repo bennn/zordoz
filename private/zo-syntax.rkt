@@ -6,6 +6,11 @@
 ;; https://github.com/LeifAndersen/racket-compiler-goodies
 
 (provide
+
+  compiled->zo
+  ;; (-> Compiled-Expression compilation-top)
+  ;; Turn a compiled expression into a zo struct
+
   syntax->zo
   ;; (-> Syntax zo)
   ;; Parse a syntax object as a zo struct
@@ -29,13 +34,16 @@
 
 ;; =============================================================================
 
-(define (syntax->zo stx)
+(define (compiled->zo compiled)
   (define-values (in out) (make-pipe))
-  (display (compile-syntax (expand-syntax-top-level-with-compile-time-evals stx)) out)
+  (display compiled out)
   (close-output-port out)
   (define y (port->bytes in))
   (close-input-port in)
   (zo-parse (open-input-bytes y)))
+
+(define (syntax->zo stx)
+  (compiled->zo (compile-syntax (expand-syntax-top-level-with-compile-time-evals stx))))
 
 (define (syntax->decompile stx)
   (decompile (syntax->zo stx)))
