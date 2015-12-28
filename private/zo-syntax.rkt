@@ -78,7 +78,7 @@
     (check-true (application? rhs))
     (define rator (application-rator rhs))
     (check-true (primval? rator))
-    (check-equal? (primval-id rator) 129)
+    (check-pred integer? (primval-id rator))
     (check-equal? (application-rands rhs) '(a))
     ;; --- body
     (define body (let-one-body l))
@@ -103,7 +103,8 @@
     (check-equal? (eval c) 666))
 
   (let* ([p (prefix 9 '() '() 'wepa)]
-         [z (compilation-top 0 (hash) p (primval 129))]
+         [box-id (primval-id (compilation-top-code (syntax->zo #'box)))]
+         [z (compilation-top 0 (hash) p (primval box-id))]
          [c (zo->compiled-expression z)])
     (check-equal? (eval c) box))
 )
