@@ -4,7 +4,8 @@
          compiler/zo-parse
          @for-label[compiler/zo-parse
                     zordoz
-                    racket/base]]
+                    racket/base
+                    syntax/toplevel]]
 
 @(define zordoz-eval
   (make-base-eval
@@ -186,3 +187,17 @@ Tools for compiling syntax fragments rather than entire modules.
     (eval e (make-base-namespace)))
 ]
 
+@defproc[(syntax-toplevel->zo [stx syntax?]) (listof zo?)]{
+  Variant of @racket[syntax->zo], except can handle to level syntax
+  expressions.
+  Uses @racket[eval-compile-time-part-of-top-level/compile] to compile syntax
+  rather than just @racket[compile].
+  As such, this function returns a list of @racket[zo] structs rather than just
+  one.
+}
+
+@examples[#:eval zordoz-eval
+  (syntax-toplevel->zo #'(begin
+                           (define x 5)
+                           x))
+]

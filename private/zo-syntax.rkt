@@ -19,6 +19,10 @@
   ;; (-> Syntax Any)
   ;; Decompile a syntax object into an S-expression
 
+  syntax-toplevel->zo
+  ;; (-> Syntax (Listof Any))
+  ;; Convert a toplevel expression into a list of zo compilations
+
   zo->compiled-expression
   ;; (-> compilation-top Compiled-Expression)
   ;; Parse a zo struct (output of zo-parse) as an S-expression
@@ -30,7 +34,9 @@
          compiler/zo-marshal
          compiler/decompile
          syntax/toplevel
+         syntax/strip-context
          (only-in racket/port with-input-from-bytes port->bytes))
+
 
 ;; =============================================================================
 
@@ -44,6 +50,13 @@
 
 (define (syntax->zo stx)
   (compiled->zo (compile-syntax (expand-syntax-top-level-with-compile-time-evals stx))))
+
+(define (syntax-toplevel->zo stx)
+  (parameterize ([current-namespace (make-base-namespace)])
+    (namespace-require 'racket/undefined)
+    (map compiled->zo (eval-compile-time-part-of-top-level/compile
+                       (expand-syntax-top-level-with-compile-time-evals
+                        (namespace-syntax-introduce (strip-context stx)))))))
 
 (define (syntax->decompile stx)
   (decompile (syntax->zo stx)))
