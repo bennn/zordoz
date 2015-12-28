@@ -187,8 +187,8 @@ Tools for compiling syntax fragments rather than entire modules.
     (eval e (make-base-namespace)))
 ]
 
-@defproc[(syntax-toplevel->zo [stx syntax?]) (listof zo?)]{
-  Variant of @racket[syntax->zo], except can handle to level syntax
+@defproc[(toplevel-syntax->zo [stx syntax?]) (listof zo?)]{
+  Variant of @racket[syntax->zo], except can handle top level syntax
   expressions.
   Uses @racket[eval-compile-time-part-of-top-level/compile] to compile syntax
   rather than just @racket[compile].
@@ -197,7 +197,7 @@ Tools for compiling syntax fragments rather than entire modules.
 }
 
 @examples[#:eval zordoz-eval
-  (syntax-toplevel->zo #'(begin
+  (toplevel-syntax->zo #'(begin
                            (define x 5)
                            x))
 ]

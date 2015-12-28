@@ -19,8 +19,8 @@
   ;; (-> Syntax Any)
   ;; Decompile a syntax object into an S-expression
 
-  syntax-toplevel->zo
-  ;; (-> Syntax (Listof Any))
+  toplevel-syntax->zo
+  ;; (-> Syntax (Listof zo))
   ;; Convert a toplevel expression into a list of zo compilations
 
   zo->compiled-expression
@@ -51,7 +51,7 @@
 (define (syntax->zo stx)
   (compiled->zo (compile-syntax (expand-syntax-top-level-with-compile-time-evals stx))))
 
-(define (syntax-toplevel->zo stx)
+(define (toplevel-syntax->zo stx)
   (parameterize ([current-namespace (make-base-namespace)])
     (namespace-require 'racket/undefined)
     (map compiled->zo (eval-compile-time-part-of-top-level/compile
