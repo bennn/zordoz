@@ -49,6 +49,9 @@
           [syntax->decompile (-> syntax? any/c)]
           ;; Compile a syntax object, then decompile the result to an S-expression
 
+          [toplevel-syntax->zo (-> syntax? (listof zo?))]
+          ;; Compile a top level syntax object into a list of zo structs
+
           [zo->compiled-expression (-> zo? compiled-expression?)]
           ;; Compile a zo struct
 ))
