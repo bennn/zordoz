@@ -7,7 +7,7 @@
 
 (provide
 
-  compiled->zo
+  compiled-expression->zo
   ;; (-> Compiled-Expression compilation-top)
   ;; Turn a compiled expression into a zo struct
 
@@ -40,7 +40,7 @@
 
 ;; =============================================================================
 
-(define (compiled->zo compiled)
+(define (compiled-expression->zo compiled)
   (define-values (in out) (make-pipe))
   (display compiled out)
   (close-output-port out)
@@ -49,7 +49,7 @@
   (zo-parse (open-input-bytes y)))
 
 (define (syntax->zo stx)
-  (compiled->zo (compile-syntax (expand-syntax-top-level-with-compile-time-evals stx))))
+  (compiled-expression->zo (compile-syntax (expand-syntax-top-level-with-compile-time-evals stx))))
 
 (define (toplevel-syntax->zo stx)
   (parameterize ([current-namespace (make-base-namespace)])
@@ -74,6 +74,12 @@
 (module+ test
   (require rackunit)
 
+  ;; -- compiled-expression->zo
+  (let* ([e (compile-syntax #'(box 3))]
+         [z (compiled-expression->zo e)])
+    (check-pred compilation-top? z)
+    (check-pred application? (compilation-top-code z)))
+
   ;; -- syntax->zo
   (let* ([stx #'(+ 1 3)]
          [z (syntax->zo stx)])
@@ -91,7 +97,7 @@
     (check-true (application? rhs))
     (define rator (application-rator rhs))
     (check-true (primval? rator))
-    (check-equal? (primval-id rator) 129)
+    (check-pred integer? (primval-id rator))
     (check-equal? (application-rands rhs) '(a))
     ;; --- body
     (define body (let-one-body l))
@@ -116,7 +122,8 @@
     (check-equal? (eval c) 666))
 
   (let* ([p (prefix 9 '() '() 'wepa)]
-         [z (compilation-top 0 (hash) p (primval 129))]
+         [box-id (primval-id (compilation-top-code (syntax->zo #'box)))]
+         [z (compilation-top 0 (hash) p (primval box-id))]
          [c (zo->compiled-expression z)])
     (check-equal? (eval c) box))
 )
