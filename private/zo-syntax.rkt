@@ -7,7 +7,7 @@
 
 (provide
 
-  compiled->zo
+  compiled-expression->zo
   ;; (-> Compiled-Expression compilation-top)
   ;; Turn a compiled expression into a zo struct
 
@@ -34,7 +34,7 @@
 
 ;; =============================================================================
 
-(define (compiled->zo compiled)
+(define (compiled-expression->zo compiled)
   (define-values (in out) (make-pipe))
   (display compiled out)
   (close-output-port out)
@@ -43,7 +43,7 @@
   (zo-parse (open-input-bytes y)))
 
 (define (syntax->zo stx)
-  (compiled->zo (compile-syntax (expand-syntax-top-level-with-compile-time-evals stx))))
+  (compiled-expression->zo (compile-syntax (expand-syntax-top-level-with-compile-time-evals stx))))
 
 (define (syntax->decompile stx)
   (decompile (syntax->zo stx)))

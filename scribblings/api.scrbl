@@ -159,7 +159,7 @@ Tools for compiling syntax fragments rather than entire modules.
   (syntax->decompile #'(if #t 'left 'right))
 ]
 
-@defproc[(compiled->zo [cmp compiled-expression?]) zo?]{
+@defproc[(compiled-expression->zo [cmp compiled-expression?]) zo?]{
   Converts a compiled expression into a zo struct.
   Differs from @racket[zo-parse] in that the input is expected to be a
   @racket[compiled-expression?].
@@ -167,9 +167,9 @@ Tools for compiling syntax fragments rather than entire modules.
 }
 
 @examples[#:eval zordoz-eval
-  (compiled->zo (compile-syntax #'6))
-  (compiled->zo (compile-syntax #'(member 'a '(a b c))))
-  (compiled->zo (compile-syntax #'(if #t 'left 'right)))
+  (compiled-expression->zo (compile-syntax #'6))
+  (compiled-expression->zo (compile-syntax #'(member 'a '(a b c))))
+  (compiled-expression->zo (compile-syntax #'(if #t 'left 'right)))
 ]
 
 @defproc[(zo->compiled-expression [z zo?]) compiled-expression?]{
