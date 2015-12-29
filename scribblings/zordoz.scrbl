@@ -1,7 +1,7 @@
 #lang scribble/manual
 @require[racket/include]
 
-@title[#:tag "top"]{@bold{Zordoz}}
+@title[#:tag "top"]{Zordoz}
 @author[@hyperlink["https://github.com/bennn"]{Ben Greenman}
         @hyperlink["https://github.com/LeifAndersen"]{Leif Andersen}]
 
