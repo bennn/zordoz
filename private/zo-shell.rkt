@@ -250,7 +250,6 @@
       ;; Should never happen! REPL controls the context.
       (error 'zo-shell:dive (format "Invalid context '~a'" ctx))]))
   ;; Return pre-hist unchanged
-  (printf "done dive hist = ~a, pre = ~a\n" (length hist) (length pre-hist))
   (values ctx* hist* pre-hist))
 
 ;; Parse the string `arg` to an integer n.
