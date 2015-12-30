@@ -4,12 +4,10 @@
 
 (module+ main
   (require racket/cmdline
-           (prefix-in u: zordoz/private/zo-shell)
-           (prefix-in t: zordoz/typed/private/zo-shell))
+           (prefix-in u: zordoz/private/zo-shell))
   ;; -- parameters
   (define search-limit (make-parameter #f))
   (define start-repl? (make-parameter #t))
-  (define typed? (make-parameter #f))
   (define to-find (make-parameter '()))
   ;; -- helpers
   (define (assert-zo filename)
@@ -33,13 +31,10 @@
     l
     "Maximum depth to search during --find queries"
     (search-limit l)]
-   [("-t" "--typed")
-    "Use Typed Racket (disclaimer: types slow this program down)"
-    (typed? #t)]
    #:args (filename)
    (when (assert-zo filename)
-     (define filename->shell (if (typed?) t:filename->shell u:filename->shell))
-     (define find-all (if (typed?) t:find-all u:find-all))
+     (define filename->shell u:filename->shell)
+     (define find-all u:find-all)
      (if (start-repl?)
          (filename->shell filename)
          (find-all filename (to-find) #:limit (search-limit)))))

@@ -1,5 +1,7 @@
 #lang racket/base
 
+;; Conditional "if windows" compile-time check
+
 (provide if-windows)
 
 (require (for-syntax racket/base syntax/parse))

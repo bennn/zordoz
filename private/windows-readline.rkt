@@ -1,5 +1,7 @@
 #lang racket/base
 
+;; Readline bindings, without the readline
+
 (provide
   readline-prompt
   (rename-out [winread read-line]))

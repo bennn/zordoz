@@ -9,7 +9,8 @@
 (define-type Spec
   (Rec Spec
    (Pair String (Listof (Pair String (-> (U Spec String)))))))
-(provide Spec)
+(define-type Zo zo)
+(provide Spec Zo)
 
 (require/typed/provide compiler/zo-structs
                [#:struct zo ()]

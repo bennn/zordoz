@@ -13,16 +13,28 @@
 ;; http://docs.racket-lang.org/raco/decompile.html
 
 (provide
- ;; (->* (zo?) (#:deep? boolean?) string?)
- ;; Return a string representation of a zo struct
- zo->string
- ;; (->i ([z zo?]) () [res (z) (and/c spec/c (specof z))])
- ;; Return a list-of-strings representation of a zo struct.
- ;; The structure of the list mirrors the structure of the original zo struct.
- zo->spec
- ;; Contracts for conversion functions.
- spec/c
- specof)
+  zo->string
+  ;; (->* (zo?) (#:deep? boolean?) string?)
+  ;; Return a string representation of a zo struct
+
+  zo->spec
+  ;; (->i ([z zo?]) () [res (z) (and/c spec/c (specof z))])
+  ;; Return a list-of-strings representation of a zo struct.
+  ;; The structure of the list mirrors the structure of the original zo struct.
+
+  specof spec/c
+  ;; Contracts for conversion functions.
+)
+
+(require
+  compiler/zo-structs
+  ;zordoz/typed/zo-structs ;; For testing
+  racket/contract
+  racket/match
+  (only-in racket/string string-join)
+  (for-syntax racket/base racket/syntax)
+  (only-in zordoz/private/dispatch-table make-table)
+)
 
 ;; -----------------------------------------------------------------------------
 
@@ -42,14 +54,6 @@
 ;; same number of elements as the struct `z` has fields (+1, for the title).
 (define ((specof z) res)
   (= (length res) (vector-length (struct->vector z))))
-
-(require compiler/zo-structs
-         racket/contract
-         racket/match
-         (only-in racket/list   empty?)
-         (only-in racket/string string-join)
-         (for-syntax racket/base racket/syntax)
-         (only-in zordoz/private/dispatch-table make-table))
 
 ;; =============================================================================
 
@@ -369,7 +373,7 @@
   (match nm
     [(? vector?)
      (any->string nm)]
-    [(? empty?)
+    ['()
      "()"]
     [(? symbol?)
      (symbol->string nm)]))
@@ -706,7 +710,7 @@
   (define field-name-lengths
     (for/list ([fd fields]) (string-length (car fd))))
   (define w ;; width of longest struct field name
-    (if (empty? fields) 0 (apply max field-name-lengths)))
+    (if (null? fields) 0 (apply max field-name-lengths)))
   (if (not deep?)
       title
       (format-list (cons title
@@ -733,7 +737,7 @@
 ;; `z->spec`.
 (define
   (listof-zo->string z->spec zs)
-  (cond [(empty? zs) "[]"]
+  (cond [(null? zs) "[]"]
         [else        (format "~a[~a]" (format-spec #f (z->spec (car zs))) (length zs))]))
 
 ;; Turn a module-path-index into a string
@@ -795,8 +799,7 @@
 ;; --- testing
 
 (module+ test
-  (require rackunit
-           compiler/zo-structs)
+  (require rackunit compiler/zo-structs)
 
   ; Helper: force lazy tails so we can compare them.
   (define (force-spec sp)
@@ -1073,13 +1076,13 @@
                               (cons "post-submodules" "<zo:mod>[1]")))))
 
   ;; provided->spec
-  (let* ([z (provided 'name #f 'srcname 'nomnom 12 #t)])
+  (let* ([z (provided 'name #f 'srcname #f 12 #t)])
     (check-equal? (force-spec (provided->spec z))
                   (cons "provided"
                         (list (cons "name" "name")
                               (cons "src" "#f")
                               (cons "src-name" "srcname")
-                              (cons "nom-src" "nomnom")
+                              (cons "nom-src" "#f")
                               (cons "src-phase" "12")
                               (cons "protected?" "#t")))))
 
