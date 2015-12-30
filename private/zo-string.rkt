@@ -43,13 +43,14 @@
 (define ((specof z) res)
   (= (length res) (vector-length (struct->vector z))))
 
-(require compiler/zo-structs
-         racket/contract
-         racket/match
-         (only-in racket/list   empty?)
-         (only-in racket/string string-join)
-         (for-syntax racket/base racket/syntax)
-         (only-in zordoz/private/dispatch-table make-table))
+(require
+  compiler/zo-structs
+  ;zordoz/typed/zo-structs ;; For testing
+  racket/contract
+  racket/match
+  (only-in racket/string string-join)
+  (for-syntax racket/base racket/syntax)
+  (only-in zordoz/private/dispatch-table make-table))
 
 ;; =============================================================================
 
@@ -369,7 +370,7 @@
   (match nm
     [(? vector?)
      (any->string nm)]
-    [(? empty?)
+    ['()
      "()"]
     [(? symbol?)
      (symbol->string nm)]))
@@ -706,7 +707,7 @@
   (define field-name-lengths
     (for/list ([fd fields]) (string-length (car fd))))
   (define w ;; width of longest struct field name
-    (if (empty? fields) 0 (apply max field-name-lengths)))
+    (if (null? fields) 0 (apply max field-name-lengths)))
   (if (not deep?)
       title
       (format-list (cons title
@@ -733,7 +734,7 @@
 ;; `z->spec`.
 (define
   (listof-zo->string z->spec zs)
-  (cond [(empty? zs) "[]"]
+  (cond [(null? zs) "[]"]
         [else        (format "~a[~a]" (format-spec #f (z->spec (car zs))) (length zs))]))
 
 ;; Turn a module-path-index into a string
@@ -795,8 +796,7 @@
 ;; --- testing
 
 (module+ test
-  (require rackunit
-           compiler/zo-structs)
+  (require rackunit compiler/zo-structs)
 
   ; Helper: force lazy tails so we can compare them.
   (define (force-spec sp)
@@ -1073,13 +1073,13 @@
                               (cons "post-submodules" "<zo:mod>[1]")))))
 
   ;; provided->spec
-  (let* ([z (provided 'name #f 'srcname 'nomnom 12 #t)])
+  (let* ([z (provided 'name #f 'srcname #f 12 #t)])
     (check-equal? (force-spec (provided->spec z))
                   (cons "provided"
                         (list (cons "name" "name")
                               (cons "src" "#f")
                               (cons "src-name" "srcname")
-                              (cons "nom-src" "nomnom")
+                              (cons "nom-src" "#f")
                               (cons "src-phase" "12")
                               (cons "protected?" "#t")))))
 

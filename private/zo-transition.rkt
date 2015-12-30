@@ -14,10 +14,11 @@
 
 ;; -----------------------------------------------------------------------------
 
-(require compiler/zo-structs
-         racket/match
-         (only-in racket/list empty? empty)
-         (only-in zordoz/private/dispatch-table make-table))
+(require
+  compiler/zo-structs
+  ;zordoz/typed/zo-structs ;; For testing
+  racket/match
+  (only-in zordoz/private/dispatch-table make-table))
 
 ;; =============================================================================
 
@@ -232,13 +233,13 @@
   ;; (-> mod? string? (or/c (listof zo?) zo? #f))
   (define (get-provided pds)
     ;; (-> (listof (list/c (or/c exact-integer? #f) (listof provided?) (listof provided?))) (listof provided?))
-    (cond [(empty? pds) empty]
+    (cond [(null? pds) '()]
           [else (append (cadar pds)
                         (caddar pds)
                         (get-provided (cdr pds)))]))
   (define (get-syntaxes sxs)
     ;; (-> (listof (cons/c exact-positive-integer? (listof (or/c def-syntaxes? seq-for-syntax?)))) (listof (or/c def-syntaxes? seq-for-syntax?)))
-    (cond [(empty? sxs) empty]
+    (cond [(null? sxs) '()]
           [else (append (cdar sxs)
                         (get-syntaxes (cdr sxs)))]))
   (match field-name
@@ -482,10 +483,10 @@
 (define
   (scope-> z field-name)
   (define (get-bindings bs)
-    (cond [(empty? bs) '()]
+    (cond [(null? bs) '()]
           [else (append (cadar bs) (cddar bs) (get-bindings (cdr bs)))]))
   (define (get-bulk-bindings bbs)
-    (cond [(empty? bbs) '()]
+    (cond [(null? bbs) '()]
           [else (append (caar bbs) (cdar bbs) (get-bulk-bindings (cdr bbs)))]))
   (match field-name
     ["bindings"
@@ -537,8 +538,7 @@
 ;; --- testing
 
 (module+ test
-  (require rackunit)
-           ;(only-in syntax/modresolve module-path-index-join))
+  (require rackunit compiler/zo-structs)
 
   ;; compilation-top->
   (let* ([px (prefix 0 '() '() 'x)]
@@ -812,7 +812,7 @@
            (check-equal? (mod-> z "") #f)))
 
   ;; provided->
-  (let* ([z (provided 'name #f 'srcname 'nomnom 12 #t)])
+  (let* ([z (provided 'name #f 'srcname #f 12 #t)])
     (begin (check-equal? (provided-> z "name") #f)
            (check-equal? (provided-> z "src") #f)
            (check-equal? (provided-> z "src-name") #f)
