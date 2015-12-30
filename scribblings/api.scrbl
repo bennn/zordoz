@@ -1,6 +1,7 @@
 #lang scribble/manual
 @require[racket/include
          scribble/eval
+         scriblib/footnote
          compiler/zo-parse
          @for-label[compiler/zo-parse
                     zordoz
@@ -17,7 +18,10 @@
 
 These functions support the REPL, but may be useful in more general settings.
 Import them with `(require zordoz)`.
-Typed variants of the same functions are available with `(require zordoz/typed)`.
+Typed variants of the same functions are available with `(require zordoz/typed)`.@note{Require @racket[zordoz/typed/zo-structs] for a typed version of Racket's @racket[compiler/zo-structs]}
+
+@defmodule[zordoz/typed]
+@defmodule[zordoz/typed/zo-structs]
 
 
 @section{Starting a REPL}

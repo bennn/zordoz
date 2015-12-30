@@ -8,9 +8,12 @@ Zordoz
 
 This is an explorer for Racket .zo files.
 
-Tested to work on Racket `v6.2.900.15`.
+Tested to work on Racket `v6.3`
 For compatibility with older versions, see the [v6.2](https://github.com/bennn/zordoz/tree/v6.2) and [v6.1](https://github.com/bennn/zordoz/tree/v6.1) branches of this repo.
 (Note that installing through `raco` will choose the available version, if any, matching your Racket install.)
+
+Typed Racket users can `(require zordoz/typed)` for type-annotated bindings from `zordoz`.
+Also, `zordoz/typed/zo-structs` is a safe wrapper around Racket's [compiler/zo-structs](http://docs.racket-lang.org/raco/decompile.html#%28mod-path._compiler%2Fzo-structs%29) library.
 
 
 Install

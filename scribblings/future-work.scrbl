@@ -8,6 +8,7 @@ Besides this simple command-line explorer, here are a few ideas for future tools
 
 See also the project's @hyperlink["https://github.com/bennn/zordoz/issues"]{issue tracker}.
 
+
 @section{Checking two files for differences}
 
 Bytecode should be much more amenable to "diffing" than source files.
