@@ -15,9 +15,9 @@ install: raco pkg install --deps search-auto $TRAVIS_BUILD_DIR
 
 script:
   - raco test $TRAVIS_BUILD_DIR
+  - raco setup --check-pkg-deps zordoz
 
 after_success:
-  - raco setup --check-deps zordoz
   - raco pkg install --deps search-auto cover
   - raco pkg install --deps search-auto cover-coveralls
   - raco cover -b -f coveralls -d $TRAVIS_BUILD_DIR/coverage .
