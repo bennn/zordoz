@@ -33,14 +33,15 @@
 
 ;; -----------------------------------------------------------------------------
 
-(require (only-in compiler/zo-parse zo? zo-parse)
-         (only-in racket/string string-split string-join string-trim)
-         (only-in zordoz/private/zo-find zo-find result result? result-zo result-path)
-         (only-in zordoz/private/zo-string zo->string zo->spec)
-         (only-in zordoz/private/zo-transition zo-transition)
-         (only-in zordoz/private/zo-syntax syntax->zo)
-         racket/match
-         zordoz/private/if-windows
+(require
+  (only-in compiler/zo-parse zo? zo-parse)
+  (only-in racket/string string-split string-join string-trim)
+  (only-in zordoz/private/zo-find zo-find result result? result-zo result-path)
+  (only-in zordoz/private/zo-string zo->string zo->spec)
+  (only-in zordoz/private/zo-transition zo-transition)
+  (only-in zordoz/private/zo-syntax syntax->zo)
+  racket/match
+  zordoz/private/if-windows
 )
 
 (if-windows

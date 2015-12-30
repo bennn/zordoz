@@ -30,13 +30,14 @@
 
 ;; -----------------------------------------------------------------------------
 
-(require compiler/zo-parse
-         compiler/zo-marshal
-         compiler/decompile
-         syntax/toplevel
-         syntax/strip-context
-         (only-in racket/port with-input-from-bytes port->bytes))
-
+(require
+  compiler/zo-parse
+  compiler/zo-marshal
+  compiler/decompile
+  syntax/toplevel
+  syntax/strip-context
+  (only-in racket/port with-input-from-bytes port->bytes)
+)
 
 ;; =============================================================================
 

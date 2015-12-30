@@ -1,17 +1,20 @@
 #lang racket/base
 
 ;; Macro abstracting dispatch tables for zo structs.
-;; Given an action and a list of struct names, create a cond
-;; table checking predicates (build from each name) and
-;; applying actions (derived by combining the action and the names)
+;;
+;; Given an action and a list of struct names, create a `cond` table to:
+;; - check predicates  (built from each name)
+;; - apply actions     (derived by combining the action and the names)
 
 (provide
+ make-table
  ;; Create a dispatch table from an action and list of names
- make-table)
+)
 
 ;; --------------------------------------------------------------------------------
 
-(require (for-syntax racket/base syntax/parse racket/syntax))
+(require
+  (for-syntax racket/base syntax/parse racket/syntax))
 
 ;; =============================================================================
 

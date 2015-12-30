@@ -13,16 +13,28 @@
 ;; http://docs.racket-lang.org/raco/decompile.html
 
 (provide
- ;; (->* (zo?) (#:deep? boolean?) string?)
- ;; Return a string representation of a zo struct
- zo->string
- ;; (->i ([z zo?]) () [res (z) (and/c spec/c (specof z))])
- ;; Return a list-of-strings representation of a zo struct.
- ;; The structure of the list mirrors the structure of the original zo struct.
- zo->spec
- ;; Contracts for conversion functions.
- spec/c
- specof)
+  zo->string
+  ;; (->* (zo?) (#:deep? boolean?) string?)
+  ;; Return a string representation of a zo struct
+
+  zo->spec
+  ;; (->i ([z zo?]) () [res (z) (and/c spec/c (specof z))])
+  ;; Return a list-of-strings representation of a zo struct.
+  ;; The structure of the list mirrors the structure of the original zo struct.
+
+  specof spec/c
+  ;; Contracts for conversion functions.
+)
+
+(require
+  compiler/zo-structs
+  ;zordoz/typed/zo-structs ;; For testing
+  racket/contract
+  racket/match
+  (only-in racket/string string-join)
+  (for-syntax racket/base racket/syntax)
+  (only-in zordoz/private/dispatch-table make-table)
+)
 
 ;; -----------------------------------------------------------------------------
 
@@ -42,15 +54,6 @@
 ;; same number of elements as the struct `z` has fields (+1, for the title).
 (define ((specof z) res)
   (= (length res) (vector-length (struct->vector z))))
-
-(require
-  compiler/zo-structs
-  ;zordoz/typed/zo-structs ;; For testing
-  racket/contract
-  racket/match
-  (only-in racket/string string-join)
-  (for-syntax racket/base racket/syntax)
-  (only-in zordoz/private/dispatch-table make-table))
 
 ;; =============================================================================
 

@@ -8,9 +8,10 @@
 ;; for a type of zo struct.
 
 (provide
- ;; (-> zo? string? (values (or/c zo? (listof zo?)) boolean?))
- ;; Access "structName-fieldName myStruct" at runtime.
- zo-transition)
+  zo-transition
+  ;; (-> zo? string? (values (or/c zo? (listof zo?)) boolean?))
+  ;; Access "structName-fieldName myStruct" at runtime.
+)
 
 ;; -----------------------------------------------------------------------------
 
@@ -18,7 +19,8 @@
   compiler/zo-structs
   ;zordoz/typed/zo-structs ;; For testing
   racket/match
-  (only-in zordoz/private/dispatch-table make-table))
+  (only-in zordoz/private/dispatch-table make-table)
+)
 
 ;; =============================================================================
 
