@@ -13,4 +13,4 @@
 (define version "0.6")
 (define pkg-authors '(ben))
 (define raco-commands '(("zordoz" (submod zordoz/zordoz main) "open a REPL for a bytecode file (aka 'zo Explorer')" #f)))
-(define scribblings '(("scribblings/zordoz.scrbl" () ("compiler" tool-library))))
+(define scribblings '(("scribblings/zordoz.scrbl" () ("tool-library/compiler"))))
