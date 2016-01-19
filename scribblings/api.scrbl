@@ -17,11 +17,8 @@
 @local-table-of-contents[]
 
 These functions support the REPL, but may be useful in more general settings.
-Import them with `(require zordoz)`.
-Typed variants of the same functions are available with `(require zordoz/typed)`.@note{Require @racket[zordoz/typed/zo-structs] for a typed version of Racket's @racket[compiler/zo-structs]}
+Import them with @racket[(require zordoz)].
 
-@defmodule[zordoz/typed]
-@defmodule[zordoz/typed/zo-structs]
 
 
 @section{Starting a REPL}
@@ -127,6 +124,11 @@ Literally, @racket[find] is repeated application of @racket[zo->string] and @rac
     (map result-zo (zo-find z "primval")))
 ]
 
+@defproc[(result-zo [result zo-result?]) zo?]{
+Converts a @racket[zo-result?] to the found @racket[zo?] field.
+See @racket[zo-find].
+}
+
 @defstruct*[result ([z zo?] [path (listof zo?)]) #:transparent]{
   A @racket[result] contains a zo struct and a path leading to it from the search root.
   In the context of @racket[find], the path is always from the struct @racket[find] was called with.
@@ -205,3 +207,56 @@ Tools for compiling syntax fragments rather than entire modules.
                            (define x 5)
                            x))
 ]
+
+@section{Compiling C Modules}
+
+Tools for compiling modules implemented in C.
+
+@defproc[(compile-c-module [c-path (or/c path-string? path?)]) void?]{
+Compiles a C module to a form where it can be required later.
+
+@larger{@larger{@larger{WARNING:}}}
+Do not replace the file produced by the functions while still
+inside the Racket VM.
+Doing so will cause undefined and potentially catastrophic behavior.
+As a general rule of thumb, if you modify a C file implementing a module,
+shut down all Racket VMs using that library. This means restarting
+DrRacket (not just reloading the file) whenever the C file is modified.
+
+@racket[c-path] is the path to the C file that implemented the module.
+
+For example:
+
+@racketblock[
+(require zordoz)
+(compile-c-module "c-module.c")
+(dynamic-require "c-module" 0)
+]
+}
+
+@defform[(from-c c-path)
+         #:contracts ([c-path path-string?])]{
+A convenience form to compile a C module and require it directly. Use outside
+of a @racket[require] form is a syntax error.
+
+@racket[c-path] is the path to the C file that implements the module.
+
+For example:
+
+@racketblock[
+(require zordoz
+         (from-c "c-module.c"))
+]
+}
+
+@section{Typed API}
+
+A typed variants of this API is available with @racket[(require zordoz/typed)].
+
+@defmodule[zordoz/typed]{
+Require @racket[zordoz/typed] for a typed version @racket[zordoz].
+}
+
+@defmodule[zordoz/typed/zo-structs]{
+Require @racket[zordoz/typed/zo-structs] for a typed version of Racket's @racket[compiler/zo-structs].
+}
