@@ -215,6 +215,9 @@ Tools for compiling modules implemented in C.
 @defproc[(compile-c-module [c-path (or/c path-string? path?)]) void?]{
 Compiles a C module to a form where it can be required later.
 
+See @other-doc['(lib "scribblings/inside/inside.scrbl")] for more information on how
+to build Racket modules in C.
+
 @bold{@larger{@larger{WARNING:}}}
 Do not replace the file produced by the functions while still
 inside the Racket VM.
@@ -222,6 +225,7 @@ Doing so will cause undefined and potentially catastrophic behavior.
 As a general rule of thumb, if you modify a C file implementing a module,
 shut down all Racket VMs using that library. This means restarting
 DrRacket (not just reloading the file) whenever the C file is modified.
+
 
 @racket[c-path] is the path to the C file that implemented the module.
 
