@@ -6,10 +6,11 @@
          zordoz/private/zo-transition
          zordoz/private/zo-find
          zordoz/private/zo-shell
-         zordoz/private/zo-syntax)
+         zordoz/private/zo-syntax
+         zordoz/private/zo-compile)
 
-(provide result result? result-zo result-path)
-(provide (contract-out
+(provide result result? result-zo result-path from-c
+         (contract-out
           [zo->string (->* (zo?) (#:deep? boolean?) string?)]
           ;; Render a zo struct as a string.
           ;; Optional argument #:deep? determines whether to render the struct's
@@ -54,4 +55,7 @@
 
           [zo->compiled-expression (-> zo? compiled-expression?)]
           ;; Compile a zo struct
-))
+
+          [compile-c-module (-> (or/c path-string? path?) void?)]
+          ;; Compile a C module so it can be required in racket
+          ))
