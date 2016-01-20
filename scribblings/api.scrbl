@@ -215,7 +215,7 @@ Tools for compiling modules implemented in C.
 @defproc[(compile-c-module [c-path (or/c path-string? path?)]) void?]{
 Compiles a C module to a form where it can be required later.
 
-@larger{@larger{@larger{WARNING:}}}
+@bold{@larger{@larger{WARNING:}}}
 Do not replace the file produced by the functions while still
 inside the Racket VM.
 Doing so will cause undefined and potentially catastrophic behavior.
