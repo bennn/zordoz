@@ -41,7 +41,11 @@
 (define-for-syntax-and-runtime (try-load-library in)
   (define extensionless-source (path-replace-suffix in ""))
   (define out (build-path object-target-path (append-extension-suffix extensionless-source)))
-  (make-temporary-file)
+  (with-handlers ([exn:fail?
+                   (raise-user-error
+                    'zordoz
+                    "DrRacket cannot do background check-syntax on modules imported with from-c")])
+    (make-temporary-file)) ; Cludgy hack to see if in sandbox
   (call-as-atomic
    (lambda ()
      (if (scheme_register_process_global (mk-process-global-key (path->string out)) done)
@@ -50,10 +54,14 @@
                       ((file-or-directory-modify-seconds in)
                        . < .
                        (file-or-directory-modify-seconds out)))
-           (raise-user-error 'zordoz "Cannot reload C based module, please restart Racket (or DrRacket)"))
+           (raise-user-error 'zordoz
+                             "Cannot reload C based module, please restart Racket (or DrRacket)"))
          (call-as-nonatomic
           (lambda ()
-            (compile-c-module in)))))))
+            (with-handlers ([exn:fail?
+                             (error 'zordoz
+                                    "Could not compile C file, please restart Racket (or DrRacket)")])
+                (compile-c-module in))))))))
 
 ; Compile C implementation of module. Does not load into program
 ; path -> void?
