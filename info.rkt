@@ -5,8 +5,7 @@
                "zo-lib"
                "typed-racket-lib"
                "typed-racket-more"
-               "readline-lib"
-               "dynext-lib"))
+               "readline-lib"))
 (define build-deps '("rackunit-lib"
                      "scribble-lib"
                      "racket-doc"))
