@@ -57,5 +57,5 @@
           ;; Compile a zo struct
 
           [compile-c-module (-> (or/c path-string? path?) void?)]
-          ;; Compile a C module os it can be required in racket
+          ;; Compile a C module so it can be required in racket
           ))
