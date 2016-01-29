@@ -7,22 +7,58 @@
          dynext/file
          dynext/compile
          dynext/link
+         ffi/unsafe
+         ffi/unsafe/atomic
          (for-syntax racket/base
                      syntax/parse
                      racket/require-transform
                      racket/file
                      dynext/file
                      dynext/compile
-                     dynext/link))
+                     dynext/link
+                     ffi/unsafe
+                     ffi/unsafe/atomic))
 
 (define-syntax-rule (define-for-syntax-and-runtime f ...)
   (begin (define f ...)
          (define-for-syntax f ...)))
 
+; Helpers for creating a tag for the scheme_register_process_global table
+(define-for-syntax-and-runtime zordoz-prefix-string "ZORDOZ-INTERNAL-")
+(define-for-syntax-and-runtime (mk-process-global-key key)
+  (format "~a~a" zordoz-prefix-string key))
+
+(define-for-syntax-and-runtime scheme_register_process_global
+  (and (get-ffi-obj 'scheme_register_process_global #f (_fun _string _pointer -> _pointer))))
+(define-for-syntax-and-runtime done (cast 1 _scheme _pointer))
+
+(define-for-syntax-and-runtime object-target-path
+  (build-path "compiled" "native" (system-library-subpath)))
+
+; Try to compile the library. If already linked, don't relink,
+; if linked and c file has been modified, error.
+; path? -> void?
+(define-for-syntax-and-runtime (try-load-library in)
+  (define extensionless-source (path-replace-suffix in ""))
+  (define out (build-path object-target-path (append-extension-suffix extensionless-source)))
+  (make-temporary-file)
+  (call-as-atomic
+   (lambda ()
+     (if (scheme_register_process_global (mk-process-global-key (path->string out)) done)
+         (unless (and (file-exists? in)
+                      (file-exists? out)
+                      ((file-or-directory-modify-seconds in)
+                       . < .
+                       (file-or-directory-modify-seconds out)))
+           (raise-user-error 'zordoz "Cannot reload C based module, please restart Racket (or DrRacket)"))
+         (call-as-nonatomic
+          (lambda ()
+            (compile-c-module in)))))))
+
+; Compile C implementation of module. Does not load into program
+; path -> void?
 (define-for-syntax-and-runtime (compile-c-module c-source)
   (define extensionless-source (path-replace-suffix c-source ""))
-  (define object-target-path
-    (build-path "compiled" "native" (system-library-subpath)))
   (define object-target
     (build-path object-target-path (append-object-suffix extensionless-source)))
   (define shared-object-target
@@ -31,11 +67,13 @@
   (compile-extension #t c-source object-target '())
   (link-extension #t (list object-target) shared-object-target))
 
+; Compile C module, load into module. Fail if C file changed and module has
+; already been loaded into the VM.
 (define-syntax from-c
   (make-require-transformer
    (lambda (stx)
      (syntax-parse stx
        [(_ c-source:str)
         (define f (syntax-e #'c-source))
-        (compile-c-module f)
+        (try-load-library f)
         (expand-import (datum->syntax stx (path->string (path-replace-suffix f ""))))]))))
