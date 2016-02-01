@@ -3,6 +3,9 @@
          scribble/eval
          scriblib/footnote
          compiler/zo-parse
+         racket/require
+         @for-syntax[racket/base
+                     (only-in racket/list make-list split-at)]
          @for-label[compiler/zo-parse
                     zordoz
                     racket/base
@@ -255,10 +258,36 @@ For example:
 
 @section{Typed API}
 
-A typed variants of this API is available with @racket[(require zordoz/typed)].
+A typed version of this API is available with @racket[(require zordoz/typed)].
+
+@; Collect identifiers from zordoz/typed, render in a table
+@(define-for-syntax zordoz/typed-sym* '())
+@(require
+  (filtered-in
+   (lambda (str)
+     (set! zordoz/typed-sym*
+           (cons #`@racket[#,(string->symbol str)] zordoz/typed-sym*))
+     #f)
+   zordoz/typed))
+@(define-for-syntax (split-at/no-fail n x*)
+  (define N (length x*))
+  (if (< N n)
+    (let ([padded (append x* (make-list (- n N) ""))])
+      (values padded '()))
+    (split-at x* n)))
+@(define-syntax (render-zordoz/typed stx)
+  (with-syntax ([((id* ...) ...)
+    (let loop  ([id* zordoz/typed-sym*])
+      (if (null? id*)
+        '()
+        (let-values ([(row rest) (split-at/no-fail 3 id*)])
+          (cons row (loop rest)))))])
+  #'@tabular[#:sep @hspace[4] (list (list id* ...) ...)]))
 
 @defmodule[zordoz/typed]{
-Require @racket[zordoz/typed] for a typed version @racket[zordoz].
+  Require @racket[zordoz/typed] for a typed version @racket[zordoz].
+  Provided identifiers are:
+  @(render-zordoz/typed)
 }
 
 @defmodule[zordoz/typed/zo-structs]{
