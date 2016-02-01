@@ -3,7 +3,7 @@
          scribble/eval
          scriblib/footnote
          compiler/zo-parse
-         racket/require
+         zordoz/typed ;; To format provided identifiers
          @for-syntax[racket/base
                      (only-in racket/list make-list split-at)]
          @for-label[compiler/zo-parse
@@ -261,14 +261,10 @@ For example:
 A typed version of this API is available with @racket[(require zordoz/typed)].
 
 @; Collect identifiers from zordoz/typed, render in a table
-@(define-for-syntax zordoz/typed-sym* '())
-@(require
-  (filtered-in
-   (lambda (str)
-     (set! zordoz/typed-sym*
-           (cons #`@racket[#,(string->symbol str)] zordoz/typed-sym*))
-     #f)
-   zordoz/typed))
+@(define-for-syntax (parse-provide* x*)
+  (for*/list ([phase+id* (in-list x*)]
+              [id* (in-list (cdr phase+id*))])
+    #`@racket[#,(car id*)] ))
 @(define-for-syntax (split-at/no-fail n x*)
   (define N (length x*))
   (if (< N n)
@@ -276,8 +272,11 @@ A typed version of this API is available with @racket[(require zordoz/typed)].
       (values padded '()))
     (split-at x* n)))
 @(define-syntax (render-zordoz/typed stx)
+  (define flat-id*
+    (let-values (((var* stx*) (module->exports '(lib "zordoz/typed"))))
+      (append (parse-provide* var*) (parse-provide* stx*))))
   (with-syntax ([((id* ...) ...)
-    (let loop  ([id* zordoz/typed-sym*])
+    (let loop  ([id* flat-id*])
       (if (null? id*)
         '()
         (let-values ([(row rest) (split-at/no-fail 3 id*)])
