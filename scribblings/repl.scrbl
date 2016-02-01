@@ -29,7 +29,7 @@ Keeping this stack in mind is useful for understanding the REPL commands.
 
 @section{Commands}
 
-@subsection{@bold{alst}}
+@subsection{alst}
 
 List all command aliases.
 
@@ -38,7 +38,7 @@ But each has a few mnemonic aliases to choose from.
 For example, you can type @tt{ls} instead of @secref{info} and @tt{cd} instead of @secref{dive}.
 
 
-@subsection{@bold{back}}
+@subsection{back}
 
 Move up to the previous context.
 
@@ -49,7 +49,7 @@ The @secref{back} command pops and switches to the most recent element from this
 Note that @secref{back} will fail (and print a warning) at the top of the zo struct hierarchy or the top of a saved subtree.
 
 
-@subsection{@bold{dive}}
+@subsection{dive}
 
 Enter a struct's field.
 
@@ -77,7 +77,7 @@ Extra Notes:
 ]
 
 
-@subsection{@bold{find}}
+@subsection{find}
 
 Search the current struct's children for a certain zo struct.
 
@@ -96,7 +96,7 @@ Note:
 ]
 
 
-@subsection{@bold{help}}
+@subsection{help}
 
 Print command information.
 
@@ -104,7 +104,7 @@ Shows a one-line summary of each command.
 The tabernacle is all-knowing.
 
 
-@subsection{@bold{info}}
+@subsection{info}
 
 Print the current context.
 
@@ -123,7 +123,7 @@ Struct fields are printed as best we can.
 ]
 
 
-@subsection{@bold{jump}}
+@subsection{jump}
 
 Warp back to a previously-saved context.
 
@@ -135,7 +135,7 @@ The interesting thing is that steps forward create a new history, and you can im
 For example, if you call @secref{find} and explore one of the results, you can immediately @secref{jump} back to your search results.
 
 
-@subsection{@bold{save}}
+@subsection{save}
 
 Mark the current context and history as a future target for @secref{jump}.
 This is useful for marking a struct you want to backtrack to.
@@ -143,7 +143,7 @@ This is useful for marking a struct you want to backtrack to.
 Note that, if you manually backtrack past a @secref{save}d struct then its mark disappears and the REPL prints a notice.
 
 
-@subsection{@bold{quit}}
+@subsection{quit}
 
 Exit the REPL.
 
