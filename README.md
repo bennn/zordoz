@@ -2,6 +2,7 @@ Zordoz
 ======
 [![Build Status](https://travis-ci.org/bennn/zordoz.svg)](https://travis-ci.org/bennn/zordoz)
 [![Coverage Status](https://coveralls.io/repos/bennn/zordoz/badge.svg?branch=master&service=github)](https://coveralls.io/github/bennn/zordoz?branch=master)
+[![Scribble](https://img.shields.io/badge/Docs-Scribble-blue.svg)](http://docs.racket-lang.org/zordoz/index.html)
 
 [ZORDOZ](https://www.youtube.com/watch?v=kbGVIdA3dx0) speaks to you! His chosen ones.
 
