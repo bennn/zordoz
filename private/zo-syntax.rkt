@@ -55,6 +55,7 @@
 (define (toplevel-syntax->zo stx)
   (parameterize ([current-namespace (make-base-namespace)])
     (namespace-require 'racket/undefined)
+    (namespace-require 'racket)
     (map compiled-expression->zo
          (eval-compile-time-part-of-top-level/compile
            (expand-syntax-top-level-with-compile-time-evals
