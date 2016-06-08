@@ -22,6 +22,7 @@
   (zo-find (->* [Zo] [#:limit (U Natural #f)] (Listof result))))
 
 (unsafe-require/typed zordoz/private/zo-shell
+  (find-all (->* [Path-String (Listof String)] [#:limit (U Natural #f)] Void))
   (filename->shell (-> Path-String Void))
   (zo->shell (-> Zo Void))
   (syntax->shell (-> Syntax Void)))
@@ -41,6 +42,7 @@
   zo->spec
   zo-transition
   zo-find
+  find-all
   filename->shell
   zo->shell
   syntax->shell
