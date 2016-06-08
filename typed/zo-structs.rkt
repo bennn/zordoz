@@ -195,6 +195,10 @@
                [#:struct (apply-values expr) (
                  [proc : (U expr seq Any)]
                  [args-expr : (U expr seq Any)])]
+               [#:struct (with-immed-mark expr) (
+                 [key : (U expr seq Any)]
+                 [def-val : (U expr seq Any)]
+                 [body : (U expr seq Any)])]
                [#:struct (primval expr) ([id : Exact-Nonnegative-Integer])]
                [#:struct (module-shift zo) (
                  [from : (U #f Module-Path-Index)]

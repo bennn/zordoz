@@ -141,6 +141,7 @@
    varref
    assign
    apply-values
+   with-immed-mark
    primval))
 
 (define binding->spec
@@ -517,6 +518,13 @@
   (list "apply-values"
         (lcons "proc"      (expr-seq-any->string (apply-values-proc z)))
         (lcons "args-expr" (expr-seq-any->string (apply-values-args-expr z)))))
+
+(define
+  (with-immed-mark->spec z)
+  (list "with-immed-mark"
+        (lcons "key" (expr-seq-any->string (with-immed-mark-key z)))
+        (lcons "def-val" (expr-seq-any->string (with-immed-mark-def-val z)))
+        (lcons "body" (expr-seq-any->string (with-immed-mark-body z)))))
 
 (define
   (primval->spec z)
@@ -1252,6 +1260,14 @@
                   (cons "apply-values"
                         (list (cons "proc" "<zo:beg0>")
                               (cons "args-expr" "<zo:topsyntax>")))))
+
+  ;; with-immed-mark->spec
+  (let ([z (with-immed-mark (beg0 '()) (beg0 '()) (topsyntax 1 2 8))])
+    (check-equal? (force-spec (with-immed-mark->spec z))
+                  (cons "with-immed-mark"
+                        (list (cons "key" "<zo:beg0>")
+                              (cons "def-val" "<zo:beg0>")
+                              (cons "body" "<zo:topsyntax>")))))
 
   ;; primval->spec
   (let ([z (primval 420)])

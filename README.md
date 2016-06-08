@@ -9,8 +9,14 @@ Zordoz
 
 This is an explorer for Racket .zo files.
 
-Tested to work on Racket `v6.3`
-For compatibility with older versions, see the [v6.2](https://github.com/bennn/zordoz/tree/v6.2) and [v6.1](https://github.com/bennn/zordoz/tree/v6.1) branches of this repo.
+Tested to work on Racket `v6.5`
+For compatibility with older versions, see the
+  [v6.1](https://github.com/bennn/zordoz/tree/v6.1)
+  and
+  [v6.2](https://github.com/bennn/zordoz/tree/v6.2)
+  and
+  [v6.3](https://github.com/bennn/zordoz/tree/v6.3)
+  branches of this repo.
 (Note that installing through `raco` will choose the available version, if any, matching your Racket install.)
 
 Typed Racket users can `(require zordoz/typed)` for type-annotated bindings from `zordoz`.

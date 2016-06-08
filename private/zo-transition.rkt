@@ -103,6 +103,7 @@
    varref
    assign
    apply-values
+   with-immed-mark
    primval))
 
 (define binding->
@@ -446,6 +447,22 @@
     ["args-expr"
      (match (apply-values-args-expr z)
        [(? expr-or-seq? args-expr) args-expr]
+       [_ #f])]
+    [_ #f]))
+
+(define (with-immed-mark-> z field-name)
+  (match field-name
+    ["key"
+     (match (with-immed-mark-key z)
+       [(? expr-or-seq? proc) proc]
+       [_ #f])]
+    ["def-val"
+     (match (with-immed-mark-def-val z)
+       [(? expr-or-seq? args-expr) args-expr]
+       [_ #f])]
+    ["body"
+     (match (with-immed-mark-body z)
+       [(? expr-or-seq? proc) proc]
        [_ #f])]
     [_ #f]))
 
@@ -1001,6 +1018,17 @@
            (check-equal? (apply-values-> z "") #f)
            (check-equal? (apply-values-> z* "proc") #f)
            (check-equal? (apply-values-> z* "args-expr") #f)))
+
+  ;; with-immed-mark->
+  (let* ([z (with-immed-mark (expr) (expr) (expr))]
+         [z* (with-immed-mark 'x 'y 'z)])
+    (begin (check-equal? (with-immed-mark-> z "key") (expr))
+           (check-equal? (with-immed-mark-> z "def-val") (expr))
+           (check-equal? (with-immed-mark-> z "body") (expr))
+           (check-equal? (with-immed-mark-> z "") #f)
+           (check-equal? (with-immed-mark-> z* "key") #f)
+           (check-equal? (with-immed-mark-> z* "def-val") #f)
+           (check-equal? (with-immed-mark-> z* "body") #f)))
 
   ;; primval->
   (let ([z (primval 420)])
