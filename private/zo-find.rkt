@@ -19,6 +19,7 @@
   (only-in compiler/zo-structs zo?)
   (only-in zordoz/private/zo-transition zo-transition)
   (only-in zordoz/private/zo-string zo->spec spec/c)
+  (only-in racket/list append*)
   racket/match)
 
 ;; =============================================================================
@@ -33,7 +34,7 @@
 (define (zo-find z str #:limit [lim #f])
   ;; (-> zo? string? (listof result?))
   (define-values (_ children) (parse-zo z))
-  (apply append (for/list ([z* children]) (zo-find-aux z* '() str 1 lim '()))))
+  (append* (for/list ([z* children]) (zo-find-aux z* '() str 1 lim))))
 
 ;; --- private functions
 
@@ -47,7 +48,7 @@
 ;; Recursive helper for `zo-find`.
 ;; Add the current struct to the results, if it matches.
 ;; Check struct members for matches unless the search has reached its limit.
-(define (zo-find-aux z hist str i lim seen)
+(define (zo-find-aux z hist str i lim)
   (define-values (title children) (parse-zo z))
   (define zstr (format "~a" z))
   (define results
@@ -55,14 +56,13 @@
      [(and lim (<= lim i))
       '()]
      ;; Terminate search if we're seeing a node for the second time
-     [(and (may-loop? title) (member zstr seen))
+     [(and (may-loop? title) (memq z hist))
       '()]
      [else
       ;; Remember current node if we might see it again.
-      (define seen* (if (may-loop? title) (cons zstr seen) seen))
       (define hist* (cons z hist))
-      (apply append (for/list ([z* children]) (zo-find-aux z* hist* str (add1 i) lim seen*)))]))
-  (if (and (string=? str title) (not (member z seen)))
+      (apply append (for/list ([z* children]) (zo-find-aux z* hist* str (add1 i) lim)))]))
+  (if (and (string=? str title) (not (memq z (map result-zo results))))
       (cons (result z hist) results)
       results))
 
@@ -130,7 +130,7 @@
   ;; Success, search INCLUDES root (empty history)
   (let* ([z (primval 8)]
          [arg "primval"]
-         [res (zo-find-aux z '() arg 1 10 '())])
+         [res (zo-find-aux z '() arg 1 10)])
     (begin (check-equal? (length res) 1)
            (check-equal? (result-zo (car res)) z)
            (check-equal? (result-path (car res)) '())))
@@ -139,7 +139,7 @@
   (let* ([z (primval 8)]
          [arg "primval"]
          [hist '(a b c d)]
-         [res (zo-find-aux z hist arg 1 10 '())])
+         [res (zo-find-aux z hist arg 1 10)])
     (begin (check-equal? (result-zo (car res)) z)
            (check-equal? (result-path (car res)) hist)))
 
@@ -147,14 +147,14 @@
   (let* ([z (branch #t #t (primval 8))]
          [arg "primval"]
          [hist '()]
-         [res (zo-find-aux z hist arg 9 9 '())])
+         [res (zo-find-aux z hist arg 9 9)])
     (check-equal? res '()))
 
   ;; Failure, search past limit
   (let* ([z (branch #t #t (primval 8))]
          [arg "primval"]
          [hist '()]
-         [res (zo-find-aux z hist arg 9 1 '())])
+         [res (zo-find-aux z hist arg 9 1)])
     (check-equal? res '()))
 
   ;; Success, searching a few branches
@@ -164,7 +164,7 @@
                               #f)]
          [arg "inline-variant"]
          [hist '(a b)]
-         [res (zo-find-aux z hist arg 1 10 '())])
+         [res (zo-find-aux z hist arg 1 10)])
     (begin (check-equal? (length res) 1)
            (check-equal? (result-zo (car res)) tgt)
            (check-equal? (result-path (car res)) (cons (with-cont-mark-val z) (cons z hist)))))
@@ -175,7 +175,7 @@
                            (list (primval 3) (primval 4) tgt tgt))]
          [arg "topsyntax"]
          [hist '(a b c)]
-         [res (zo-find-aux z hist arg 1 10 '())])
+         [res (zo-find-aux z hist arg 1 10)])
     (begin (check-equal? (length res) 3)
            (check-equal? (result-zo (car res)) tgt)
            (check-equal? (result-zo (cadr res)) tgt)
@@ -185,24 +185,12 @@
                                                        (cons (application-rator z)
                                                              (cons z hist))))))
 
-  ;; Failure, thing is already seen
-  (let* ([z (closure (lam 'N '() 0 '() #f '#() '() #f 0 #f) 'C)]
-         [arg "lam"]
-         [res (zo-find-aux z '() arg 1 10 (list (format "~a" z)))])
-    (begin (check-equal? (length res) 0)))
-
   ;; Success, it's a closure but we have not seen it
   (let* ([z (closure (lam 'N '() 0 '() #f '#() '() #f 0 #f) 'C)]
          [arg "lam"]
-         [res (zo-find-aux z '() arg 1 10 '())])
+         [res (zo-find-aux z '() arg 1 10)])
     (begin (check-equal? (length res) 1)
            (check-equal? (result-zo (car res)) (closure-code z))))
-
-  ;; Checking that we don't add already-seen things
-  (let* ([z (closure (lam 'N '() 0 '() #f '#() '() #f 0 #f) 'C)]
-         [arg "closure"]
-         [res (zo-find-aux z '() arg 1 10 (list z))])
-    (begin (check-equal? (length res) 0)))
 
   ;; -- parse-zo
   ;; Simple zo, no interesting fields
