@@ -4,6 +4,9 @@
 ;; (Use `raco make` to generate bytecode)
 
 (provide
+ filename->zo
+ ;; (-> String zo)
+
  filename->shell
  ;; (-> String Void)
  ;; Start a repl using the zo file `filename`
@@ -156,12 +159,12 @@
 (define (filename->shell name)
   ;; (-> string? void?)
   (print-info (format "Loading bytecode file '~a'..." name))
-  (call-with-input-file name
-    (lambda (port)
-      (print-info "Parsing bytecode...")
-      (define ctx  (zo-parse port))
-      (print-info "Parsing complete!")
-      (init-repl ctx))))
+  (define ctx (filename->zo name))
+  (print-info "Parsing complete!")
+  (init-repl ctx))
+
+(define (filename->zo name)
+  (call-with-input-file name zo-parse))
 
 (define zo->shell init-repl)
 

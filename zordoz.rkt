@@ -4,10 +4,12 @@
 
 (module+ main
   (require racket/cmdline
+           racket/pretty
            (prefix-in u: zordoz/private/zo-shell))
   ;; -- parameters
   (define search-limit (make-parameter #f))
   (define start-repl? (make-parameter #t))
+  (define just-print? (make-parameter #f))
   (define to-find (make-parameter '()))
   ;; -- helpers
   (define (assert-zo filename)
@@ -31,11 +33,16 @@
     l
     "Maximum depth to search during --find queries"
     (search-limit l)]
+   [("-p" "--print")
+    "Just the the parsed zo to STDOUT, do not open a REPL"
+    (just-print? #t)]
    #:args (filename)
    (when (assert-zo filename)
-     (define filename->shell u:filename->shell)
-     (define find-all u:find-all)
-     (if (start-repl?)
-         (filename->shell filename)
-         (find-all filename (to-find) #:limit (search-limit)))))
+     (cond
+      [(just-print?)
+       (pretty-print (u:filename->zo filename))]
+      [(start-repl?)
+       (u:filename->shell filename)]
+      [else
+       (u:find-all filename (to-find) #:limit (search-limit))])))
 )

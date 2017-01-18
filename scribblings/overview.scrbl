@@ -53,6 +53,16 @@ All done!
 ]
 
 
+@subsection{Just Print the Damn Thing}
+@racketblock[
+$ raco zordoz -p compiled/foo_rkt.zo
+(compilation-top
+ 1
+ '#hash()
+ .... you get the idea ....)
+]
+
+
 @section{Testing}
 
 Each source file contains a @tt{module+ test} with unit tests.
