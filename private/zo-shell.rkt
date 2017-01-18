@@ -86,7 +86,7 @@
                       "Print command aliases"))
 (define BACK (command "back"
                       0
-                      (list "b" "up" "u" ".." "../" "cd .." "cd ../")
+                      (list "b" "up" "u" ".." "../")
                       "Move up to the previous context"))
 (define DIVE (command "dive"
                       1
@@ -122,18 +122,13 @@
 (define ((cmd? c) str)
   ;; (-> command? (-> string? boolean?))
   (define splt (string-split str))
-  (or
-   ;; Special cases
-   (and (string=? "back" (command-name c))
-        (member str (list "cd .." "cd ../")))
-   ;; Everything else
-   (and
-    ;; Has the right number of arguments
-    (= (sub1 (length splt))
-       (command-num-args c))
-    ;; First word matches command name (or an alias)
-    (or (string=? (car splt) (command-name c))
-        (member   (car splt) (command-aliases c))))))
+  (and
+   ;; Has the right number of arguments
+   (= (sub1 (length splt))
+      (command-num-args c))
+   ;; First word matches command name (or an alias)
+   (or (string=? (car splt) (command-name c))
+       (member   (car splt) (command-aliases c)))))
 
 ;; -----------------------------------------------------------------------------
 ;; --- REPL
@@ -238,23 +233,25 @@
 (define (dive raw ctx hist pre-hist)
   ;; (-> string? context? history? (listof history?) (values context? history? (listof history?)))
   (define arg (split-snd raw))
-  (define-values (ctx* hist*)
-    (cond
-     [(not arg)
-      ;; Failed to parse argument,
-      (print-unknown raw)
-      (values ctx hist)]
-     [(list? ctx)
-      ;; Context is a list, try accessing by index
-      (dive-list ctx hist arg)]
-     [(zo?   ctx)
-      ;; Context is a zo, try looking up field
-      (dive-zo   ctx hist arg)]
-     [else
-      ;; Should never happen! REPL controls the context.
-      (error 'zo-shell:dive (format "Invalid context '~a'" ctx))]))
-  ;; Return pre-hist unchanged
-  (values ctx* hist* pre-hist))
+  (if (member arg '(".." "../"))
+    (back raw ctx hist pre-hist)
+    (let-values (((ctx* hist*)
+      (cond
+       [(not arg)
+        ;; Failed to parse argument,
+        (print-unknown raw)
+        (values ctx hist)]
+       [(list? ctx)
+        ;; Context is a list, try accessing by index
+        (dive-list ctx hist arg)]
+       [(zo?   ctx)
+        ;; Context is a zo, try looking up field
+        (dive-zo   ctx hist arg)]
+       [else
+        ;; Should never happen! REPL controls the context.
+        (error 'zo-shell:dive (format "Invalid context '~a'" ctx))])))
+      ;; Return pre-hist unchanged
+      (values ctx* hist* pre-hist))))
 
 ;; Parse the string `arg` to an integer n.
 ;; If n is within the bounds of the list `ctx`,
@@ -526,7 +523,7 @@
   (check-pred (cmd? BACK) "b")
   (check-pred (cmd? BACK) "up")
   (check-pred (cmd? BACK) "../")
-  (check-pred (cmd? BACK) "cd ../")
+  (check-pred (cmd? BACK) "..")
 
   (check-false ((cmd? BACK) "back ARG"))
   (check-false ((cmd? BACK) "BACK"))
