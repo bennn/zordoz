@@ -3,9 +3,6 @@
          scribble/eval
          scriblib/footnote
          compiler/zo-parse
-         zordoz/typed ;; To format provided identifiers
-         @for-syntax[racket/base
-                     (only-in racket/list make-list split-at)]
          @for-label[compiler/zo-parse
                     zordoz
                     racket/base
@@ -16,8 +13,6 @@
     '(begin (require compiler/zo-structs zordoz racket/string))))
 
 @title{API}
-
-@local-table-of-contents[]
 
 These functions support the REPL, but may be useful in more general settings.
 Import them with @racket[(require zordoz)].
@@ -256,39 +251,4 @@ For example:
 ]
 }
 
-@section{Typed API}
-
-A typed version of this API is available with @racket[(require zordoz/typed)].
-
-@; Collect identifiers from zordoz/typed, render in a table
-@(define-for-syntax (parse-provide* x*)
-  (for*/list ([phase+id* (in-list x*)]
-              [id* (in-list (cdr phase+id*))])
-    #`@racket[#,(car id*)] ))
-@(define-for-syntax (split-at/no-fail n x*)
-  (define N (length x*))
-  (if (< N n)
-    (let ([padded (append x* (make-list (- n N) ""))])
-      (values padded '()))
-    (split-at x* n)))
-@(define-syntax (render-zordoz/typed stx)
-  (define flat-id*
-    (let-values (((var* stx*) (module->exports '(lib "zordoz/typed"))))
-      (append (parse-provide* var*) (parse-provide* stx*))))
-  (with-syntax ([((id* ...) ...)
-    (let loop  ([id* flat-id*])
-      (if (null? id*)
-        '()
-        (let-values ([(row rest) (split-at/no-fail 3 id*)])
-          (cons row (loop rest)))))])
-  #'@tabular[#:sep @hspace[4] (list (list id* ...) ...)]))
-
-@defmodule[zordoz/typed]{
-  Require @racket[zordoz/typed] for a typed version @racket[zordoz].
-  Provided identifiers are:
-  @(render-zordoz/typed)
-}
-
-@defmodule[zordoz/typed/zo-structs]{
-Require @racket[zordoz/typed/zo-structs] for a typed version of Racket's @racket[compiler/zo-structs].
-}
+@include-section{typed-api.scrbl}
