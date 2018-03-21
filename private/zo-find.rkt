@@ -86,6 +86,7 @@
      (define-values (r success?) (zo-transition z hd))
      (cond [(not success?) (get-children z tl)]
            [(list? r)      (append (filter zo? r) (get-children z tl))]
+           [(hash? r)      (append (filter zo? (hash-values r)) (get-children z tl))]
            [(zo?   r)      (cons r (get-children z tl))])]))
 
 ;; =============================================================================
@@ -97,162 +98,178 @@
            compiler/zo-structs)
 
   ;; --- API
-  ;; Success, one search path
-  (let* ([z   (branch #t #t (branch #t #t (branch #t #t (branch #t #t #t))))]
-         [arg "branch"]
-         [res (zo-find z arg)])
-    (begin (check-equal? (length res) 3)
-           (check-equal? (result-zo (car res))   (branch-else z))
-           (check-equal? (result-path (car res)) '())))
+  (test-case "Success, one search path"
+    (let* ([z   (branch #t #t (branch #t #t (branch #t #t (branch #t #t #t))))]
+           [arg "branch"]
+           [res (zo-find z arg)])
+      (begin (check-equal? (length res) 3)
+             (check-equal? (result-zo (car res))   (branch-else z))
+             (check-equal? (result-path (car res)) '()))))
 
-  ;; Success, #:limit-ed results
-  (let* ([z   (branch #t #t (branch #t #t (branch #t #t (branch #t #t #t))))]
-         [arg "branch"]
-         [res (zo-find z arg #:limit 2)])
-    (begin (check-equal? (length res) 2)
-           (check-equal? (result-zo (cadr res)) (branch-else (branch-else z)))
-           (check-equal? (result-path (cadr res)) (list (branch-else z)))))
+  (test-case "Success, #:limit-ed results"
+    (let* ([z   (branch #t #t (branch #t #t (branch #t #t (branch #t #t #t))))]
+           [arg "branch"]
+           [res (zo-find z arg #:limit 2)])
+      (begin (check-equal? (length res) 2)
+             (check-equal? (result-zo (cadr res)) (branch-else (branch-else z)))
+             (check-equal? (result-path (cadr res)) (list (branch-else z))))))
 
-  ;; Fail, no results
-  (let* ([z (primval 8)]
-         [arg "apply-values"]
-         [res (zo-find z arg)])
-    (check-equal? res '()))
+  (test-case "Fail, no results"
+    (let* ([z (primval 8)]
+           [arg "apply-values"]
+           [res (zo-find z arg)])
+      (check-equal? res '())))
 
-  ;; Fail, search excludes root
-  (let* ([z (primval 8)]
-         [arg "primval"]
-         [res (zo-find z arg)])
-    (check-equal? res '()))
+  (test-case "Fail, search excludes root"
+    (let* ([z (primval 8)]
+           [arg "primval"]
+           [res (zo-find z arg)])
+      (check-equal? res '())))
 
   ;; --- private
-  ;; -- find-aux
-  ;; Success, search INCLUDES root (empty history)
-  (let* ([z (primval 8)]
-         [arg "primval"]
-         [res (zo-find-aux z '() arg 1 10)])
-    (begin (check-equal? (length res) 1)
-           (check-equal? (result-zo (car res)) z)
-           (check-equal? (result-path (car res)) '())))
+  (test-case "-- find-aux"
+    ;; Success, search INCLUDES root (empty history)
+    (let* ([z (primval 8)]
+           [arg "primval"]
+           [res (zo-find-aux z '() arg 1 10)])
+      (begin (check-equal? (length res) 1)
+             (check-equal? (result-zo (car res)) z)
+             (check-equal? (result-path (car res)) '()))))
 
-  ;; Success, search INCLUDES root (make sure history is passed in result)
-  (let* ([z (primval 8)]
-         [arg "primval"]
-         [hist '(a b c d)]
-         [res (zo-find-aux z hist arg 1 10)])
-    (begin (check-equal? (result-zo (car res)) z)
-           (check-equal? (result-path (car res)) hist)))
+  (test-case "Success, search INCLUDES root (make sure history is passed in result)"
+    (let* ([z (primval 8)]
+           [arg "primval"]
+           [hist '(a b c d)]
+           [res (zo-find-aux z hist arg 1 10)])
+      (begin (check-equal? (result-zo (car res)) z)
+             (check-equal? (result-path (car res)) hist))))
 
-  ;; Failure, search at limit (remember, find-aux searches the head)
-  (let* ([z (branch #t #t (primval 8))]
-         [arg "primval"]
-         [hist '()]
-         [res (zo-find-aux z hist arg 9 9)])
-    (check-equal? res '()))
+  (test-case "Failure, search at limit (remember, find-aux searches the head)"
+    (let* ([z (branch #t #t (primval 8))]
+           [arg "primval"]
+           [hist '()]
+           [res (zo-find-aux z hist arg 9 9)])
+      (check-equal? res '())))
 
-  ;; Failure, search past limit
-  (let* ([z (branch #t #t (primval 8))]
-         [arg "primval"]
-         [hist '()]
-         [res (zo-find-aux z hist arg 9 1)])
-    (check-equal? res '()))
+  (test-case "Failure, search past limit"
+    (let* ([z (branch #t #t (primval 8))]
+           [arg "primval"]
+           [hist '()]
+           [res (zo-find-aux z hist arg 9 1)])
+      (check-equal? res '())))
 
-  ;; Success, searching a few branches
-  (let* ([tgt (inline-variant (branch #f #f #f) (branch #f #f #f))]
-         [z   (with-cont-mark (let-one (boxenv 7 #f) (localref #t 1 #t #t #f) #f #t)
-                              (seq (list tgt))
-                              #f)]
-         [arg "inline-variant"]
-         [hist '(a b)]
-         [res (zo-find-aux z hist arg 1 10)])
-    (begin (check-equal? (length res) 1)
-           (check-equal? (result-zo (car res)) tgt)
-           (check-equal? (result-path (car res)) (cons (with-cont-mark-val z) (cons z hist)))))
+  (test-case "find nothing, malformed zo"
+    (let* ([tgt (inline-variant (branch #f #f #f) (branch #f #f #f))]
+           [z   (with-cont-mark (let-one (boxenv 7 #f) (localref #t 1 #t #t #f) #f #t)
+                                (seq (list tgt))
+                                #f)]
+           [arg "inline-variant"]
+           [hist '(a b)]
+           [res (zo-find-aux z hist arg 1 10)])
+      (check-equal? (length res) 0)))
 
-  ;; Success, find multiple results
-  (let* ([tgt (topsyntax 1 2 3)]
-         [z   (application (beg0 (list (beg0 (list tgt))))
-                           (list (primval 3) (primval 4) tgt tgt))]
-         [arg "topsyntax"]
-         [hist '(a b c)]
-         [res (zo-find-aux z hist arg 1 10)])
-    (begin (check-equal? (length res) 3)
-           (check-equal? (result-zo (car res)) tgt)
-           (check-equal? (result-zo (cadr res)) tgt)
-           (check-equal? (result-zo (caddr res)) tgt)
-           ;; Verify one history
-           (check-equal? (result-path (car res)) (cons (car (beg0-seq (application-rator z)))
-                                                       (cons (application-rator z)
-                                                             (cons z hist))))))
+  (test-case "Success, searching a few branches"
+    (let* ([tgt (branch #f #f #f)]
+           [z   (with-cont-mark (let-one (boxenv 7 #f) (localref #t 1 #t #t #f) #f #t)
+                                (seq (list tgt))
+                                #f)]
+           [arg "branch"]
+           [hist '(a b)]
+           [res (zo-find-aux z hist arg 1 10)])
+      (begin (check-equal? (length res) 1)
+             (check-equal? (result-zo (car res)) tgt)
+             (check-equal? (result-path (car res)) (cons (with-cont-mark-val z) (cons z hist))))))
 
-  ;; Success, it's a closure but we have not seen it
-  (let* ([z (closure (lam 'N '() 0 '() #f '#() '() #f 0 #f) 'C)]
-         [arg "lam"]
-         [res (zo-find-aux z '() arg 1 10)])
-    (begin (check-equal? (length res) 1)
-           (check-equal? (result-zo (car res)) (closure-code z))))
+  (test-case "Success, find multiple results"
+    (let* ([tgt (toplevel 1 2 #t #f)]
+           [z   (application (beg0 (list (beg0 (list tgt))))
+                             (list (primval 3) (primval 4) tgt tgt))]
+           [arg "toplevel"]
+           [hist '(a b c)]
+           [res (zo-find-aux z hist arg 1 10)])
+      (begin (check-equal? (length res) 3)
+             (check-equal? (result-zo (car res)) tgt)
+             (check-equal? (result-zo (cadr res)) tgt)
+             (check-equal? (result-zo (caddr res)) tgt)
+             ;; Verify one history
+             (check-equal? (result-path (car res)) (cons (car (beg0-seq (application-rator z)))
+                                                         (cons (application-rator z)
+                                                               (cons z hist)))))))
 
-  ;; -- parse-zo
-  ;; Simple zo, no interesting fields
-  (let ([z (topsyntax 1 2 3)])
-    (let-values ([(title children) (parse-zo z)])
-      (begin (check-equal? title "topsyntax")
-             (check-equal? (length children) 0))))
+  (test-case "Success, it's a closure but we have not seen it"
+    (let* ([z (closure (lam 'N '() 0 '() #f '#() '() #f 0 #f) 'C)]
+           [arg "lam"]
+           [res (zo-find-aux z '() arg 1 10)])
+      (begin (check-equal? (length res) 1)
+             (check-equal? (result-zo (car res)) (closure-code z)))))
 
-  ;; Three interesting fields
-  (let ([z (branch (branch #t #t #t) (branch #t #t #f) (branch #t #f #f))])
-    (let-values ([(title children) (parse-zo z)])
-      (begin (check-equal? title             "branch")
-             (check-equal? (length children) 3)
-             (check-equal? (car children)    (branch #t #t #t)))))
+  (test-case "-- parse-zo"
+    ;; Simple zo, no interesting fields
+    (let ([z (toplevel 1 2 #t #t)])
+      (let-values ([(title children) (parse-zo z)])
+        (begin (check-equal? title "toplevel")
+               (check-equal? (length children) 0)))))
 
-  ;; 2 of 3 fields are interesting
-  (let ([z (branch #f (branch #t #t #f) (branch #t #f #f))])
-    (let-values ([(title children) (parse-zo z)])
-      (begin (check-equal? title             "branch")
-             (check-equal? (length children) 2)
-             (check-equal? (car children)    (branch #t #t #f)))))
+  (test-case "Three interesting fields"
+    (let ([z (branch (branch #t #t #t) (branch #t #t #f) (branch #t #f #f))])
+      (let-values ([(title children) (parse-zo z)])
+        (begin (check-equal? title             "branch")
+               (check-equal? (length children) 3)
+               (check-equal? (car children)    (branch #t #t #t))))))
 
-  ;; Nested children are not returned
-  (let* ([tgt (beg0 (list (beg0 '())))]
-         [z (apply-values tgt
-                          (assign (toplevel 1 1 #t #t) #f #f))])
-    (let-values ([(title children) (parse-zo z)])
-      (begin (check-equal? title            "apply-values")
-             (check-equal? (length children) 2)
-             (check-equal? (car children)    tgt))))
+  (test-case "2 of 3 fields are interesting"
+    (let ([z (branch #f (branch #t #t #f) (branch #t #f #f))])
+      (let-values ([(title children) (parse-zo z)])
+        (begin (check-equal? title             "branch")
+               (check-equal? (length children) 2)
+               (check-equal? (car children)    (branch #t #t #f))))))
 
-  ;; -- get-children
-  ;; Two valid fields, only 1 result
-  (let* ([tgt  (toplevel 1 1 #t #f)]
-         [z    (def-values (list 'A 'B 'C tgt) #f)]
-         [args (list "ids" "rhs")]
-         [res  (get-children z args)])
-    (begin (check-equal? (length res) 1)
-           (check-equal? (car res) tgt)))
+  (test-case "Nested children are not returned"
+    (let* ([tgt (beg0 (list (beg0 '())))]
+           [z (apply-values tgt
+                            (assign (toplevel 1 1 #t #t) #f #f))])
+      (let-values ([(title children) (parse-zo z)])
+        (begin (check-equal? title            "apply-values")
+               (check-equal? (length children) 2)
+               (check-equal? (car children)    tgt)))))
 
-  ;; Two fields, 2 results
-  (let* ([tgt  (lam 'name '() 0 '() #f '#() '() #f 0 #f)]
-         [z    (inline-variant tgt (let-rec '() #f))]
-         [args (list "inline" "direct")]
-         [res  (get-children z args)])
-    (begin (check-equal? (length res) 2)
-           (check-pred (lambda (x) (memq tgt res)) '())))
+  (test-case "-- get-children"
+    ;; Two valid fields, only 1 result
+    (let* ([tgt  (toplevel 1 1 #t #f)]
+           [z    (def-values (list 'A 'B 'C tgt) #f)]
+           [args (list "ids" "rhs")]
+           [res  (get-children z args)])
+      (begin (check-equal? (length res) 1)
+             (check-equal? (car res) tgt)))
+    (let* ([tgt  (toplevel 1 1 #t #f)]
+           [z    (linkl-bundle (make-hash (list (cons 0 tgt) (cons 1 2))))]
+           [args (list "table")]
+           [res  (get-children z args)])
+      (begin (check-equal? (length res) 1)
+             (check-equal? (car res) tgt))))
 
-  ;; Only search 1 of 2 possible fields
-  (let* ([tgt  (lam 'name '() 0 '() #f '#() '() #f 0 #f)]
-         [z    (inline-variant tgt (let-rec '() #f))]
-         [args (list "direct")]
-         [res  (get-children z args)])
-    (begin (check-equal? (length res) 1)
-           (check-equal? (car res) tgt)))
+  (test-case "Two fields, 2 results"
+    (let* ([tgt  (lam 'name '() 0 '() #f '#() '() #f 0 #f)]
+           [z    (inline-variant tgt (let-rec '() #f))]
+           [args (list "inline" "direct")]
+           [res  (get-children z args)])
+      (begin (check-equal? (length res) 2)
+             (check-pred (lambda (x) (memq tgt res)) '()))))
 
-  ;; Failure, search no valid fields
-  (let* ([tgt  (lam 'name '() 0 '() #f '#() '() #f 0 #f)]
-         [z    (inline-variant tgt (let-rec '() #f))]
-         [args '()]
-         [res  (get-children z args)])
-    (check-equal? (length res) 0))
+  (test-case "Only search 1 of 2 possible fields"
+    (let* ([tgt  (lam 'name '() 0 '() #f '#() '() #f 0 #f)]
+           [z    (inline-variant tgt (let-rec '() #f))]
+           [args (list "direct")]
+           [res  (get-children z args)])
+      (begin (check-equal? (length res) 1)
+             (check-equal? (car res) tgt))))
+
+  (test-case "Failure, search no valid fields"
+    (let* ([tgt  (lam 'name '() 0 '() #f '#() '() #f 0 #f)]
+           [z    (inline-variant tgt (let-rec '() #f))]
+           [args '()]
+           [res  (get-children z args)])
+      (check-equal? (length res) 0)))
 
   (let* ([tgt  (lam 'name '() 0 '() #f '#() '() #f 0 #f)]
          [z    (inline-variant tgt (let-rec '() #f))]
@@ -260,9 +277,9 @@
          [res  (get-children z args)])
     (check-equal? (length res) 0))
 
-  ;; Failure, no fields are zo
-  (let* ([z    (let-void 777 #f 'NOTHING)]
-         [args (list "count" "boxes?" "body" "something" "anything" "zo")]
-         [res  (get-children z args)])
-    (check-equal? (length res) 0))
+  (test-case "Failure, no fields are zo"
+    (let* ([z    (let-void 777 #f 'NOTHING)]
+           [args (list "count" "boxes?" "body" "something" "anything" "zo")]
+           [res  (get-children z args)])
+      (check-equal? (length res) 0)))
 )
