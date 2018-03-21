@@ -107,26 +107,8 @@
 
 (define (linkl-> ll field-name)
   (match field-name
-    ["name"
-     (linkl-name ll)]
-    ["importss"
-     (linkl-importss ll)]
-    ["import-shapess"
-     (linkl-import-shapess ll)]
-    ["exports"
-     (linkl-exports ll)]
-    ["internals"
-     (linkl-internals ll)]
-    ["lifts"
-     (linkl-lifts ll)]
-    ["source-names"
-     (linkl-source-names ll)]
     ["body"
      (linkl-body ll)]
-    ["max-let-depth"
-     (linkl-max-let-depth ll)]
-    ["need-instance-access?"
-     (linkl-need-instance-access? ll)]
     [_ #f]))
 
 ;; --- form
@@ -366,8 +348,35 @@
 (module+ test
   (require rackunit compiler/zo-structs)
 
-  ;(test-case "linkl->"
-  ;  )
+  (test-case "linkl-directory->"
+    (let* ([lb (linkl-bundle (make-hash (list (cons 'B #true))))]
+           [t (make-hash (list (cons '(A) lb)))]
+           [z (linkl-directory t)])
+      (check-equal? (linkl-directory-> z "table") t)
+      (check-equal? (linkl-directory-> z "") #f)))
+
+  (test-case "linkl-bundle->"
+    (let* ([ll (linkl 'dummy '() '() '() '() '() (make-hash) '() 0 #false)]
+           [t (make-hash (list (cons 'A #true) (cons 44 ll)))]
+           [z (linkl-bundle t)])
+      (check-equal? (linkl-bundle-> z "table") t)
+      (check-equal? (linkl-bundle-> z "") #false)))
+
+  (test-case "linkl->"
+    (let* ([z (linkl 'name '((import)) '((constant) (#false)) '(exp)
+                     '(internals #f) '(lifts) (make-hash '((src . names)))
+                     '(body) 8 #t)])
+      (check-equal? (linkl-> z "name") #false)
+      (check-equal? (linkl-> z "importss") #false)
+      (check-equal? (linkl-> z "import-shapess") #false)
+      (check-equal? (linkl-> z "import-shapess") #false)
+      (check-equal? (linkl-> z "exports") #false)
+      (check-equal? (linkl-> z "internals") #false)
+      (check-equal? (linkl-> z "lifts") #false)
+      (check-equal? (linkl-> z "source-names") #false)
+      (check-equal? (linkl-> z "body") '(body))
+      (check-equal? (linkl-> z "max-let-depth") #false)
+      (check-equal? (linkl-> z "need-instance-access?") #false)))
 
   (test-case "form->"
     ;; (this is better tested by the specific tests for 'def-values->', 'req->', ...)

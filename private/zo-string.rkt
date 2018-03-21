@@ -1,7 +1,5 @@
 #lang racket/base
 
-;; TODO unit tests for all functions (i.e. the new ones)
-
 ;; Convert a zo struct to a more readable string representation.
 
 ;; Uses predicates to guess which struct we have, then convert the known
@@ -183,7 +181,7 @@
   (list "linkl"
         (lcons "name" (symbol->spec (linkl-name l)))
         (lcons "importss" (any->string (linkl-importss l)))
-        (lcons "import-shapess" (map import-shapes->spec (linkl-import-shapess l)))
+        (lcons "import-shapess" (list->string import-shapes->spec (linkl-import-shapess l)))
         (lcons "exports" (any->string (linkl-exports l)))
         (lcons "internals" (any->string (linkl-internals l)))
         (lcons "lifts" (any->string (linkl-lifts l)))
@@ -523,7 +521,7 @@
   (format "{~a}"
     (string-join
       (for/list ([(k v) (in-hash h)])
-        (list (k->str k) (v->str v)))
+        (format "~a ~a" (k->str k) (v->str v)))
       "~n ")))
 
 ;; Turn a module-path-index into a string
@@ -611,8 +609,40 @@
     (check-equal? (zo->string #:deep? #f (toplevel 1 1 #t #t)) "<zo:toplevel>"))
 
   ;; --- private
-  ;(test-case "linkl-directory->spec"
-  ;  TODO)
+  (test-case "linkl-directory->spec"
+    (let* ([lb (linkl-bundle (make-hash (list (cons 'B #true))))]
+           [z (linkl-directory (make-hash (list (cons '(A) lb))))])
+      (check-equal? (force-spec (linkl-directory->spec z))
+                    '("linkl-directory" ("table" . "{(A) <zo:linkl-bundle>}")))))
+
+  (test-case "linkl-bundle->spec"
+    (let* ([ll (linkl 'dummy '() '() '() '() '() (make-hash) '() 0 #false)]
+           [z0 (linkl-bundle (make-hash (list (cons 'A #true))))]
+           [z1 (linkl-bundle (make-hash (list (cons 44 ll))))])
+      (check-equal? (force-spec (linkl-bundle->spec z0))
+                    '("linkl-bundle" ("table" . "{A #t}")))
+      (check-equal? (force-spec (linkl-bundle->spec z1))
+                    '("linkl-bundle" ("table" . "{44 <zo:linkl>}")))))
+
+  (test-case "linkl-or-any->string"
+    (check-equal? (linkl-or-any->string 44)
+                  "44"))
+
+  (test-case "linkl->spec"
+    (let* ([z (linkl 'name '((import)) '((constant) (#false)) '(exp)
+                     '(internals #f) '(lifts) (make-hash '((src . names)))
+                     '(body) 8 #t)])
+      (check-equal? (force-spec (linkl->spec z))
+                    '("linkl" ("name" . "name")
+                              ("importss" . "((import))")
+                              ("import-shapess" . "[[constant] [#f]]")
+                              ("exports" . "(exp)")
+                              ("internals" . "(internals #f)")
+                              ("lifts" . "(lifts)")
+                              ("source-names" . "#hash((src . names))")
+                              ("body" . "[body]")
+                              ("max-let-depth" . "8")
+                              ("need-instance-access?" . "#t")))))
 
   (test-case "form->spec"
     (let* ([z (form)])
