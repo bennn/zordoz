@@ -45,6 +45,14 @@
      (match (filter zo? nxt)
        ['() (values z #f)]
        [zs  (values zs #t)])]
+    [(? hash? nxt)
+     (define zh
+       (for/hash (((k v) (in-hash nxt))
+                  #:when (zo? v))
+         (values k v)))
+     (if (hash-empty? zh)
+       (values z #false)
+       (values zh #true))]
     [_
      (values z #f)]))
 
@@ -57,6 +65,7 @@
    linkl-bundle
    linkl
    form
+   inline-variant
    expr))
 
 (define form->
@@ -64,7 +73,6 @@
    #:action ->
    def-values
    seq
-   inline-variant
    expr))
 
 (define expr->
@@ -129,7 +137,7 @@
   ;; (-> seq? string? (or/c (listof zo?) zo? #f))
   (match field-name
     ["forms"
-     (filter form? (seq-forms z))]
+     (filter expr? (seq-forms z))]
     [_ #f]))
 
 (define (inline-variant-> z field-name)
@@ -396,15 +404,21 @@
              (check-equal? (def-values-> z "") #f))))
 
   (test-case "seq->"
-    (let* ([fms (list (form) (form) (form))]
+    (let* ([fms (list (expr) (expr) (expr))]
            [z   (seq fms)]
            [z*  (seq '(N O T F O R M S))])
-      (begin (check-equal? (seq-> z "forms") fms)
-             (check-equal? (seq-> z "") #f)
-             (check-equal? (seq-> z* "forms") '())
-             (let-values ([(ctx* pass?) (zo-transition z* "forms")])
-               (begin (check-equal? ctx* z*)
-                      (check-false pass?))))))
+      (check-equal? (seq-> z "forms") fms)
+      (check-equal? (seq-> z "") #f)
+      (check-equal? (seq-> z* "forms") '())
+      (let-values ([(ctx* pass?) (zo-transition z* "forms")])
+        (begin (check-equal? ctx* z*)
+               (check-false pass?))))
+    (let* ([tgt (inline-variant (branch #f #f #f) (branch #f #f #f))]
+           [sq  (seq (list tgt))]
+           [z   (with-cont-mark (let-one (boxenv 7 #f) (localref #t 1 #t #t #f) #f #t)
+                                sq
+                                #f)])
+      (check-equal? (seq-> sq "forms") '())))
 
   (test-case "inline-variant->"
     (let* ([dr (expr)]
@@ -412,7 +426,12 @@
            [z  (inline-variant dr il)])
       (begin (check-equal? (inline-variant-> z "direct") dr)
              (check-equal? (inline-variant-> z "inline") il)
-             (check-equal? (inline-variant-> z "") #f))))
+             (check-equal? (inline-variant-> z "") #f)))
+    (let* ([tgt  (lam 'name '() 0 '() #f '#() '() #f 0 #f)]
+           [other (let-rec '() #f)]
+           [z    (inline-variant tgt other)])
+      (check-equal? (inline-variant-> z "direct") tgt)
+      (check-equal? (inline-variant-> z "inline") other)))
 
   (test-case "lam->"
     (let* ([bd (expr)]
