@@ -95,6 +95,7 @@
    linkl-bundle
    linkl
    form
+   inline-variant
    expr))
 
 (define form->spec
@@ -102,7 +103,6 @@
    #:action ->spec
    def-values
    seq
-   inline-variant
    expr))
 
 (define expr->spec
