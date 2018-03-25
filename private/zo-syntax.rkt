@@ -75,58 +75,75 @@
 ;; =============================================================================
 
 (module+ test
-  (require rackunit)
+  (require rackunit compiler/compile-file racket/runtime-path
+           (only-in racket/port with-input-from-string)
+           (only-in syntax/modread with-module-reading-parameterization))
 
-  ;; -- compiled-expression->zo
-  (let* ([e (compile-syntax #'(box 3))]
-         [z (compiled-expression->zo e)])
-    (check-pred compilation-top? z)
-    (check-pred application? (compilation-top-code z)))
+  (define-runtime-path test-rkt "test/file.rkt")
+  (define-runtime-path test-zo "test/file.zo")
 
-  ;; -- syntax->zo
-  (let* ([stx #'(+ 1 3)]
-         [z (syntax->zo stx)])
-   (check-true (compilation-top? z))
-   (check-equal? (compilation-top-code z) 4))
+  (define (linkl-directory->code z)
+    (linkl-body
+      (hash-ref
+        (linkl-bundle-table
+          (hash-ref
+            (linkl-directory-table z) '())) 0)))
 
-  (let* ([stx #'(let ([a (box 'a)])
-                  (if (unbox a) (set-box! a 'b) (set-box! a 'c)) (unbox a))]
-         [z (syntax->zo stx)])
-    (check-true (compilation-top? z))
-    (define l (compilation-top-code z))
-    (check-true (let-one? l))
-    ;; --- rhs
-    (define rhs (let-one-rhs l))
-    (check-true (application? rhs))
-    (define rator (application-rator rhs))
-    (check-true (primval? rator))
-    (check-pred integer? (primval-id rator))
-    (check-equal? (application-rands rhs) '(a))
-    ;; --- body
-    (define body (let-one-body l))
-    (check-true (seq? body))
-    (check-true (branch? (car (seq-forms body))))
-    (check-true (application? (cadr (seq-forms body)))))
+  (test-case "-- compiled-expression->zo"
+    (let* ([e (compile-syntax #'(box 3))]
+           [z (compiled-expression->zo e)])
+      (check-pred linkl-directory? z)
+      (check-pred application? (car (linkl-directory->code z)))))
 
-  ;; -- syntax->decompile
-  (let* ([stx #'(string-append "hello" "world")]
-         [d (syntax->decompile stx)])
-    (check-eq? (car d) 'begin)
-    (check-equal? (cadr (cadr (caddr d))) "hello"))
+  (test-case "-- syntax->zo"
+    (let* ([stx #'(+ 1 3)]
+           [z (syntax->zo stx)])
+     (check-pred linkl-directory? z)
+     (check-equal? 4 (car (linkl-directory->code z)))))
 
-  (let* ([stx #'(displayln "hello world")]
-         [d (syntax->decompile stx)])
-    (check-equal? (cadr (caddr d)) '(quote "hello world")))
+  (test-case "syntax->zo 2"
+    (let* ([stx #'(let ([a (box 'a)])
+                    (if (unbox a) (set-box! a 'b) (set-box! a 'c)) (unbox a))]
+           [z (syntax->zo stx)])
+      (check-pred linkl-directory? z)
+      (define l (car (linkl-directory->code z)))
+      (check-true (let-one? l))
+      ;; --- rhs
+      (define rhs (let-one-rhs l))
+      (check-true (application? rhs))
+      (define rator (application-rator rhs))
+      (check-true (primval? rator))
+      (check-pred integer? (primval-id rator))
+      (check-equal? (application-rands rhs) '(a))
+      ;; --- body
+      (define body (let-one-body l))
+      (check-true (seq? body))
+      (check-true (branch? (car (seq-forms body))))
+      (check-true (application? (cadr (seq-forms body))))))
 
-  ;; -- zo->compiled-expression
-  (let* ([p (prefix 0 '() '() 'a)]
-         [z (compilation-top 0 (hash) p 666)]
-         [c (zo->compiled-expression z)])
-    (check-equal? (eval c) 666))
+  (test-case "-- syntax->decompile"
+    (let* ([stx #'(string-append "hello" "world")]
+           [d (syntax->decompile stx)])
+      (check-eq? (car d) 'string-append)
+      (check-equal? (car (cdr (car (cdr d)))) "hello"))
 
-  (let* ([p (prefix 9 '() '() 'wepa)]
-         [box-id (primval-id (compilation-top-code (syntax->zo #'box)))]
-         [z (compilation-top 0 (hash) p (primval box-id))]
-         [c (zo->compiled-expression z)])
-    (check-equal? (eval c) box))
+    (let* ([stx #'(displayln "hello world")]
+           [d (syntax->decompile stx)])
+      (check-equal? (car (cdr d)) '(quote "hello world"))))
+
+  #;(test-case "-- zo->compiled-expression"
+    (let* (;[expr '(+ 600 60 6)]
+           [_ (with-output-to-file test-rkt #:exists 'replace
+                (lambda () (displayln "#lang racket/base") (displayln expr)))]
+           [_ (parameterize ([current-namespace (make-base-namespace)])
+                (with-module-reading-parameterization (lambda () (compile-file test-rkt test-zo))))]
+           [z (with-input-from-file test-zo zo-parse)]
+           [c (zo->compiled-expression z)])
+      (check-equal? (eval c (make-base-namespace)) 666))
+
+    (let* ([p (prefix 9 '() '() 'wepa)]
+           [box-id (primval-id (compilation-top-code (syntax->zo #'box)))]
+           [z (compilation-top 0 (hash) p (primval box-id))]
+           [c (zo->compiled-expression z)])
+      (check-equal? (eval c) box)))
 )

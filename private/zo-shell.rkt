@@ -37,6 +37,7 @@
 ;; -----------------------------------------------------------------------------
 
 (require
+  (only-in racket/port with-input-from-string)
   (only-in compiler/zo-parse zo? zo-parse)
   (only-in racket/string string-split string-join string-trim)
   (only-in zordoz/private/zo-find zo-find result result? result-zo result-path)
@@ -46,6 +47,9 @@
   racket/match
   zordoz/private/if-windows
 )
+
+(struct unsupplied-arg ())
+(define the-unsupplied-arg (unsupplied-arg))
 
 (if-windows
   (require zordoz/private/windows-readline)
@@ -244,6 +248,8 @@
        [(list? ctx)
         ;; Context is a list, try accessing by index
         (dive-list ctx hist arg)]
+       [(hash? ctx)
+        (dive-hash ctx hist arg)]
        [(zo?   ctx)
         ;; Context is a zo, try looking up field
         (dive-zo   ctx hist arg)]
@@ -271,6 +277,22 @@
          (if (result? res)
              (values (result-zo res) (result-path res))
              (values res             (push hist ctx)))]))
+
+(define (dive-hash ctx hist arg)
+  (define k (read-from-string arg))
+  (define res (if (unsupplied-arg? k) k (hash-ref ctx k the-unsupplied-arg)))
+  (cond
+    [(or (unsupplied-arg? k) (unsupplied-arg? res))
+     (print-unknown (format "dive ~a" arg))
+     (values ctx hist)]
+    [else
+      (if (result? res)
+        (values (result-zo res) (result-path res))
+        (values res (push hist ctx)))]))
+
+(define (read-from-string str)
+  (with-handlers ((exn:fail:read? (lambda (exn) the-unsupplied-arg)))
+    (with-input-from-string str read)))
 
 ;; Use the string `field` to access a field in the zo struct `ctx`.
 ;; If the field exists and denotes another zo struct, return that
@@ -381,9 +403,16 @@
      (displayln "'()")]
     [(cons x _)
      (define z (if (result? x) (result-zo x) x))
-     (printf "~a[~a]\n"
+     (printf "~a[~a]~n"
              (zo->string z #:deep? #f)
              (length ctx))]
+    [(? hash?)
+     (format "{~a~n}~n"
+       (string-join
+         (for/list ([kv (in-list (sort (hash->list ctx) string<? #:key (lambda (x) (format "~a" (car x)))))])
+           (define z (if (result? (cdr kv)) (result-zo (cdr kv)) (cdr kv)))
+           (format "~a : ~a" (car kv) (zo->string z #:deep? #f)))
+         "\n "))]
     [_
      (error 'zo-shell:info (format "Unknown context '~a'"  ctx))]))
 
@@ -406,6 +435,7 @@
 (define (make-prompt ctx)
   ;; (-> void?)
   (define tag (cond [(list? ctx) (format "[~a]" (length ctx))]
+                    [(hash? ctx) (format "(hash keys: ~a)" (hash-keys ctx))]
                     [(zo? ctx)   (format "(~a)" (car (zo->spec ctx)))]
                     [else ""]))
   (string->bytes/locale
@@ -505,14 +535,14 @@
 
   ;; --- API
   ;; -- invalid args for init. read-line makes sure some message was printed.
-  ;; -- TODO more init tests
-  (check-equal? (init '#())                 (void))
+  (test-case "-- TODO more init tests"
+    (check-equal? (init '#()) (void)))
 
-  ;; --- command predicates
-  (check-pred (cmd? ALST) "alst")
-  (check-pred (cmd? ALST) "a")
-  (check-pred (cmd? ALST) "alias")
-  (check-pred (cmd? ALST) "aliases")
+  (test-case "--- command predicates"
+    (check-pred (cmd? ALST) "alst")
+    (check-pred (cmd? ALST) "a")
+    (check-pred (cmd? ALST) "alias")
+    (check-pred (cmd? ALST) "aliases"))
 
   (check-false ((cmd? ALST) "alias ARG"))
   (check-false ((cmd? ALST) "ALIAS"))
@@ -651,18 +681,18 @@
     (check-equal? pre-hist pre*))
 
   ;; zo, valid field
-  (let* ([z (wrap '() '() '())]
-         [ctx (stx-obj 0 z #f (make-hash) 'armed)]
+  (let* ([z (branch '() '() '())]
+         [ctx (branch z '() '())]
          [hist '()]
          [pre-hist '(7 7 7)]
-         [arg "dive wrap"])
+         [arg "dive test"])
     (define-values (ctx* hist* pre*) (dive arg ctx hist pre-hist))
     (check-equal? ctx*  z)
     (check-equal? hist* (cons ctx hist))
     (check-equal? pre-hist pre*))
 
   ;; zo, invalid field
-  (let ([ctx (stx-obj 0 (wrap '() '() '()) #f (make-hash) 'armed)]
+  (let ([ctx (branch '() '() '())]
         [hist '()]
         [pre-hist '(a b x)]
         [arg "dive datum"])
@@ -671,137 +701,162 @@
     (check-equal? hist* hist)
     (check-equal? pre* pre-hist))
 
-  ;; -- dive list
-  ;; Valid list access
-  (let ([ctx '(a b c)] [hist '(d)] [arg "2"])
-    (let-values ([(ctx* hist*) (dive-list ctx hist arg)])
-      (begin (check-equal? ctx*  (caddr ctx))
-             (check-equal? hist* (cons ctx hist)))))
+  (test-case "dive-list"
+    ;; Valid list access
+    (let ([ctx '(a b c)] [hist '(d)] [arg "2"])
+      (let-values ([(ctx* hist*) (dive-list ctx hist arg)])
+        (begin (check-equal? ctx*  (caddr ctx))
+               (check-equal? hist* (cons ctx hist)))))
 
-  ;; Invalid, index is not an integer
-  (let ([ctx '(a)] [hist '()] [arg "x"])
-    (let-values ([(ctx* hist*) (dive-list ctx hist arg)])
-      (begin (check-equal? ctx*  ctx)
-             (check-equal? hist* hist))))
+    ;; Invalid, index is not an integer
+    (let ([ctx '(a)] [hist '()] [arg "x"])
+      (let-values ([(ctx* hist*) (dive-list ctx hist arg)])
+        (begin (check-equal? ctx*  ctx)
+               (check-equal? hist* hist))))
 
-  ;; Invalid, index is not in bounds
-  (let ([ctx '(a b c)] [hist '(d)] [arg "3"])
-    (let-values ([(ctx* hist*) (dive-list ctx hist arg)])
-      (begin (check-equal? ctx*  ctx)
-             (check-equal? hist* hist))))
+    ;; Invalid, index is not in bounds
+    (let ([ctx '(a b c)] [hist '(d)] [arg "3"])
+      (let-values ([(ctx* hist*) (dive-list ctx hist arg)])
+        (begin (check-equal? ctx*  ctx)
+               (check-equal? hist* hist))))
 
-  ;; Search results, hist overwritten
-  (let ([ctx (list (result (zo) '(a))
-                   (result (expr) '(b))
-                   (result (wrap '() '() '()) '(c))
-                   (result (form) '(d)))]
-        [hist '(e)]
-        [arg "3"])
-    (let-values ([(ctx* hist*) (dive-list ctx hist arg)])
-      (begin (check-equal? ctx*  (result-zo (cadddr ctx)))
-             (check-equal? hist* (result-path (cadddr ctx))))))
+    ;; Search results, hist overwritten
+    (let ([ctx (list (result (zo) '(a))
+                     (result (expr) '(b))
+                     (result (branch '() '() '()) '(c))
+                     (result (form) '(d)))]
+          [hist '(e)]
+          [arg "3"])
+      (let-values ([(ctx* hist*) (dive-list ctx hist arg)])
+        (begin (check-equal? ctx*  (result-zo (cadddr ctx)))
+               (check-equal? hist* (result-path (cadddr ctx)))))))
 
-  ;; -- dive zo (I'm creating these zo structs arbitrarily,
-  ;;             using the contracts in 'zo-lib/compiler/zo-structs.rkt')
-  ;; Valid, field is a zo
-  (let* ([z (localref #f 0 #f #f #f)]
-         [ctx (branch #t z #t)]
-         [hist '()]
-         [arg "then"])
-    (let-values ([(ctx* hist*) (dive-zo ctx hist arg)])
-      (begin (check-equal? ctx*  z)
-             (check-equal? hist* (cons ctx hist)))))
+  (test-case "dive-zo"
+    ;; (I'm creating these zo structs arbitrarily,
+    ;;  using the contracts in 'zo-lib/compiler/zo-structs.rkt')
+    ;; Valid, field is a zo
+    (let* ([z (localref #f 0 #f #f #f)]
+           [ctx (branch #t z #t)]
+           [hist '()]
+           [arg "then"])
+      (let-values ([(ctx* hist*) (dive-zo ctx hist arg)])
+        (begin (check-equal? ctx*  z)
+               (check-equal? hist* (cons ctx hist)))))
 
-  ;; Valid, field is a list of zo
-  (let* ([z (toplevel 999 1 #t #t)]
-         [ctx (def-values (list z z 'arbitrary-symbol) #f)]
-         [hist '(d)]
-         [arg "ids"])
-    (let-values ([(ctx* hist*) (dive-zo ctx hist arg)])
-      (begin (check-equal? ctx*  (list z z))
-             (check-equal? hist* (cons ctx hist)))))
+    ;; Valid, field is a list of zo
+    (let* ([z (toplevel 999 1 #t #t)]
+           [ctx (def-values (list z z 'arbitrary-symbol) #f)]
+           [hist '(d)]
+           [arg "ids"])
+      (let-values ([(ctx* hist*) (dive-zo ctx hist arg)])
+        (begin (check-equal? ctx*  (list z z))
+               (check-equal? hist* (cons ctx hist)))))
 
-  ;; Invalid, field is not a zo
-  (let* ([z (localref #f 0 #f #f #f)]
-         [ctx (branch #t z #t)]
-         [hist '()]
-         [arg "test"])
-    (let-values ([(ctx* hist*) (dive-zo ctx hist arg)])
-      (begin (check-equal? ctx*  ctx)
-             (check-equal? hist* hist))))
+    ;; Invalid, field is not a zo
+    (let* ([z (localref #f 0 #f #f #f)]
+           [ctx (branch #t z #t)]
+           [hist '()]
+           [arg "test"])
+      (let-values ([(ctx* hist*) (dive-zo ctx hist arg)])
+        (begin (check-equal? ctx*  ctx)
+               (check-equal? hist* hist))))
 
-  ;; Invalid, field is a list that does not contain any zo
-  (let* ([z (toplevel 999 1 #t #t)]
-         [ctx (def-values (list z z 'arbitrary-symbol) #f)]
-         [hist '(d)]
-         [arg "rhs"])
-    (let-values ([(ctx* hist*) (dive-zo ctx hist arg)])
-      (begin (check-equal? ctx*  ctx)
-             (check-equal? hist* hist))))
+    ;; Invalid, field is a list that does not contain any zo
+    (let* ([z (toplevel 999 1 #t #t)]
+           [ctx (def-values (list z z 'arbitrary-symbol) #f)]
+           [hist '(d)]
+           [arg "rhs"])
+      (let-values ([(ctx* hist*) (dive-zo ctx hist arg)])
+        (begin (check-equal? ctx*  ctx)
+               (check-equal? hist* hist))))
 
-  ;; Invalid, field does not exist
-  (let* ([z (localref #f 0 #f #f #f)]
-         [ctx (branch #t z #t)]
-         [hist '()]
-         [arg ""])
-    (let-values ([(ctx* hist*) (dive-zo ctx hist arg)])
-      (begin (check-equal? ctx*  ctx)
-             (check-equal? hist* hist))))
+    ;; Invalid, field does not exist
+    (let* ([z (localref #f 0 #f #f #f)]
+           [ctx (branch #t z #t)]
+           [hist '()]
+           [arg ""])
+      (let-values ([(ctx* hist*) (dive-zo ctx hist arg)])
+        (begin (check-equal? ctx*  ctx)
+               (check-equal? hist* hist)))))
 
-  ;; -- find
-  ;; Success, search 1 level down
-  (let* ([z (wrap '() '() '())]
-         [st (stx-obj 0 z #f (make-hash) 'clean)]
-         [ctx (stx st)]
-         [raw "find wrap"]
-         [hist '(A)]
-         [pre-hist '(a b)])
-    (let-values ([(ctx* hist* pre-hist*) (find raw ctx hist pre-hist)])
-      (begin (check-equal? (result-zo (car ctx*)) z)
-             (check-equal? (result-path (car ctx*)) (list st))
-             (check-equal? hist* '())
-             (check-equal? pre-hist* (cons (cons ctx* (cons ctx hist)) pre-hist)))))
+  (test-case "dive-hash"
+    (let ([ctx (make-immutable-hash '((a . 1) (b . 2)))] [hist '(d)] [arg "a"])
+      (let-values ([(ctx* hist*) (dive-hash ctx hist arg)])
+        (begin (check-equal? ctx*  (hash-ref ctx 'a))
+               (check-equal? hist* (cons ctx hist)))))
 
-  ;; Failure, search 1 level down
-  (let* ([z (wrap '() '() '())]
-         [st (stx-obj 0 z #f (make-hash) 'clean)]
-         [ctx (stx st)]
-         [raw "find local-binding"]
-         [hist '(A)]
-         [pre-hist '(a b)])
-    (let-values ([(ctx* hist* pre-hist*) (find raw ctx hist pre-hist)])
-      (begin (check-equal? ctx* ctx)
-             (check-equal? hist* hist)
-             (check-equal? pre-hist* pre-hist))))
+    (let ([ctx (make-immutable-hash '((a . 1) (b . 2)))] [hist '(d)] [arg "400"])
+      (let-values ([(ctx* hist*) (dive-hash ctx hist arg)])
+        (begin (check-equal? ctx*  ctx)
+               (check-equal? hist* hist))))
 
-  ;; Success, deeper search. Note that the top struct is not in the results
-  (let* ([ctx  (branch #t #t (branch #t #t (branch #t #t (branch #t #t #t))))]
-         [raw "find branch"]
-         [hist '(asa)]
-         [pre-hist '(b c s)])
-    (let-values ([(ctx* hist* pre-hist*) (find raw ctx hist pre-hist)])
-      (begin (check-equal? (length ctx*) 3)
-             (check-equal? (result-zo (car ctx*)) (branch-else ctx))
-             (check-equal? (result-path (cadr ctx*)) (list (branch-else ctx)))
-             (check-equal? hist* '())
-             (check-equal? pre-hist* (cons (cons ctx* (cons ctx hist)) pre-hist)))))
+    ;; Search results, hist overwritten
+    (let ([ctx (make-immutable-hash
+                 (list (cons 0 (result (zo) '(a)))
+                       (cons 1 (result (expr) '(b)))
+                       (cons 2 (result (branch '() '() '()) '(c)))
+                       (cons 3 (result (form) '(d)))))]
+          [hist '(e)]
+          [arg "3"])
+      (let-values ([(ctx* hist*) (dive-hash ctx hist arg)]
+                   [(real-res) (hash-ref ctx 3)])
+        (begin (check-equal? ctx*  (result-zo real-res))
+               (check-equal? hist* (result-path real-res))))))
 
-  ;; Success, deeper search.
-  (let* ([z (beg0 '())]
-         [ctx  (branch #t #t (branch #t #t (branch #t #t (branch #t z #t))))]
-         [raw "find beg0"]
-         [hist '(asa)]
-         [pre-hist '(b c s)])
-    (let-values ([(ctx* hist* pre-hist*) (find raw ctx hist pre-hist)])
-      (begin (check-equal? (length ctx*) 1)
-             (check-equal? (result-zo (car ctx*))
-                           (branch-then (branch-else (branch-else (branch-else ctx)))))
-             (check-equal? (result-path (car ctx*))
-                           (list (branch-else (branch-else (branch-else ctx)))
-                                 (branch-else (branch-else ctx))
-                                 (branch-else ctx)))
-             (check-equal? hist* '())
-             (check-equal? pre-hist* (cons (cons ctx* (cons ctx hist)) pre-hist)))))
+  (test-case "find"
+    ;; Success, search 1 level down
+    (let* ([z (branch '() '() '())]
+           [st (seq (list z))]
+           [ctx (seq (list st))]
+           [raw "find branch"]
+           [hist '(A)]
+           [pre-hist '(a b)])
+      (let-values ([(ctx* hist* pre-hist*) (find raw ctx hist pre-hist)])
+        (begin (check-equal? (result-zo (car ctx*)) z)
+               (check-equal? (result-path (car ctx*)) (list st))
+               (check-equal? hist* '())
+               (check-equal? pre-hist* (cons (cons ctx* (cons ctx hist)) pre-hist)))))
+
+    ;; Failure, search 1 level down
+    (let* ([z (branch '() '() '())]
+           [st (branch z '() '())]
+           [ctx (seq (list st))]
+           [raw "find local-binding"]
+           [hist '(A)]
+           [pre-hist '(a b)])
+      (let-values ([(ctx* hist* pre-hist*) (find raw ctx hist pre-hist)])
+        (begin (check-equal? ctx* ctx)
+               (check-equal? hist* hist)
+               (check-equal? pre-hist* pre-hist))))
+
+    ;; Success, deeper search. Note that the top struct is not in the results
+    (let* ([ctx  (branch #t #t (branch #t #t (branch #t #t (branch #t #t #t))))]
+           [raw "find branch"]
+           [hist '(asa)]
+           [pre-hist '(b c s)])
+      (let-values ([(ctx* hist* pre-hist*) (find raw ctx hist pre-hist)])
+        (begin (check-equal? (length ctx*) 3)
+               (check-equal? (result-zo (car ctx*)) (branch-else ctx))
+               (check-equal? (result-path (cadr ctx*)) (list (branch-else ctx)))
+               (check-equal? hist* '())
+               (check-equal? pre-hist* (cons (cons ctx* (cons ctx hist)) pre-hist)))))
+
+    ;; Success, deeper search.
+    (let* ([z (beg0 '())]
+           [ctx  (branch #t #t (branch #t #t (branch #t #t (branch #t z #t))))]
+           [raw "find beg0"]
+           [hist '(asa)]
+           [pre-hist '(b c s)])
+      (let-values ([(ctx* hist* pre-hist*) (find raw ctx hist pre-hist)])
+        (begin (check-equal? (length ctx*) 1)
+               (check-equal? (result-zo (car ctx*))
+                             (branch-then (branch-else (branch-else (branch-else ctx)))))
+               (check-equal? (result-path (car ctx*))
+                             (list (branch-else (branch-else (branch-else ctx)))
+                                   (branch-else (branch-else ctx))
+                                   (branch-else ctx)))
+               (check-equal? hist* '())
+               (check-equal? pre-hist* (cons (cons ctx* (cons ctx hist)) pre-hist))))))
 
   ;; -- back
   ;; - Failure, cannot go back
@@ -936,6 +991,8 @@
   (print-context (beg0 '()))
 
   (print-context (list (result (beg0 '()) '())))
+
+  (print-context (make-immutable-hash (list (cons 'A (result (beg0 '()) '())))))
 
   (print-unknown "")
 
