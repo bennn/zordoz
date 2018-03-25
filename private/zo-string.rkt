@@ -518,11 +518,11 @@
 
 (define
   (hash->spec k->str v->str h)
-  (format "{~a}"
+  (format "#hash(~a)"
     (string-join
       (for/list ([(k v) (in-hash h)])
-        (format "~a ~a" (k->str k) (v->str v)))
-      "~n ")))
+        (format "(~a . ~a)" (k->str k) (v->str v)))
+      " ")))
 
 ;; Turn a module-path-index into a string
 ;; TODO I think we can do better than ~a
@@ -613,16 +613,16 @@
     (let* ([lb (linkl-bundle (make-hash (list (cons 'B #true))))]
            [z (linkl-directory (make-hash (list (cons '(A) lb))))])
       (check-equal? (force-spec (linkl-directory->spec z))
-                    '("linkl-directory" ("table" . "{(A) <zo:linkl-bundle>}")))))
+                    '("linkl-directory" ("table" . "#hash(((A) . <zo:linkl-bundle>))")))))
 
   (test-case "linkl-bundle->spec"
     (let* ([ll (linkl 'dummy '() '() '() '() '() (make-hash) '() 0 #false)]
            [z0 (linkl-bundle (make-hash (list (cons 'A #true))))]
            [z1 (linkl-bundle (make-hash (list (cons 44 ll))))])
       (check-equal? (force-spec (linkl-bundle->spec z0))
-                    '("linkl-bundle" ("table" . "{A #t}")))
+                    '("linkl-bundle" ("table" . "#hash((A . #t))")))
       (check-equal? (force-spec (linkl-bundle->spec z1))
-                    '("linkl-bundle" ("table" . "{44 <zo:linkl>}")))))
+                    '("linkl-bundle" ("table" . "#hash((44 . <zo:linkl>))")))))
 
   (test-case "linkl-or-any->string"
     (check-equal? (linkl-or-any->string 44)

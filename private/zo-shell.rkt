@@ -280,12 +280,12 @@
 
 (define (dive-hash ctx hist arg)
   (define k (read-from-string arg))
+  (define res (if (unsupplied-arg? k) k (hash-ref ctx k the-unsupplied-arg)))
   (cond
-    [(unsupplied-arg? k)
+    [(or (unsupplied-arg? k) (unsupplied-arg? res))
      (print-unknown (format "dive ~a" arg))
      (values ctx hist)]
     [else
-      (define res (hash-ref ctx k))
       (if (result? res)
         (values (result-zo res) (result-path res))
         (values res (push hist ctx)))]))
@@ -403,9 +403,16 @@
      (displayln "'()")]
     [(cons x _)
      (define z (if (result? x) (result-zo x) x))
-     (printf "~a[~a]\n"
+     (printf "~a[~a]~n"
              (zo->string z #:deep? #f)
              (length ctx))]
+    [(? hash?)
+     (format "{~a~n}~n"
+       (string-join
+         (for/list ([kv (in-list (sort (hash->list ctx) string<? #:key (lambda (x) (format "~a" (car x)))))])
+           (define z (if (result? (cdr kv)) (result-zo (cdr kv)) (cdr kv)))
+           (format "~a : ~a" (car kv) (zo->string z #:deep? #f)))
+         "\n "))]
     [_
      (error 'zo-shell:info (format "Unknown context '~a'"  ctx))]))
 
@@ -428,7 +435,7 @@
 (define (make-prompt ctx)
   ;; (-> void?)
   (define tag (cond [(list? ctx) (format "[~a]" (length ctx))]
-                    [(hash? ctx) (format "~a" (hash-keys ctx))]
+                    [(hash? ctx) (format "(hash keys: ~a)" (hash-keys ctx))]
                     [(zo? ctx)   (format "(~a)" (car (zo->spec ctx)))]
                     [else ""]))
   (string->bytes/locale
@@ -529,7 +536,7 @@
   ;; --- API
   ;; -- invalid args for init. read-line makes sure some message was printed.
   (test-case "-- TODO more init tests"
-    (check-equal? (init '#())                 (void)))
+    (check-equal? (init '#()) (void)))
 
   (test-case "--- command predicates"
     (check-pred (cmd? ALST) "alst")
@@ -772,6 +779,30 @@
         (begin (check-equal? ctx*  ctx)
                (check-equal? hist* hist)))))
 
+  (test-case "dive-hash"
+    (let ([ctx (make-immutable-hash '((a . 1) (b . 2)))] [hist '(d)] [arg "a"])
+      (let-values ([(ctx* hist*) (dive-hash ctx hist arg)])
+        (begin (check-equal? ctx*  (hash-ref ctx 'a))
+               (check-equal? hist* (cons ctx hist)))))
+
+    (let ([ctx (make-immutable-hash '((a . 1) (b . 2)))] [hist '(d)] [arg "400"])
+      (let-values ([(ctx* hist*) (dive-hash ctx hist arg)])
+        (begin (check-equal? ctx*  ctx)
+               (check-equal? hist* hist))))
+
+    ;; Search results, hist overwritten
+    (let ([ctx (make-immutable-hash
+                 (list (cons 0 (result (zo) '(a)))
+                       (cons 1 (result (expr) '(b)))
+                       (cons 2 (result (branch '() '() '()) '(c)))
+                       (cons 3 (result (form) '(d)))))]
+          [hist '(e)]
+          [arg "3"])
+      (let-values ([(ctx* hist*) (dive-hash ctx hist arg)]
+                   [(real-res) (hash-ref ctx 3)])
+        (begin (check-equal? ctx*  (result-zo real-res))
+               (check-equal? hist* (result-path real-res))))))
+
   (test-case "find"
     ;; Success, search 1 level down
     (let* ([z (branch '() '() '())]
@@ -960,6 +991,8 @@
   (print-context (beg0 '()))
 
   (print-context (list (result (beg0 '()) '())))
+
+  (print-context (make-immutable-hash (list (cons 'A (result (beg0 '()) '())))))
 
   (print-unknown "")
 
