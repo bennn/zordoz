@@ -62,9 +62,9 @@ For example, the struct @racket[assign] has a field @tt{rhs}, which can be acces
 ]
 
 If you know where you are going, you can chain paths together.
-Starting at an average @racket[compilation-top], this command should move to the body of the enclosed module.
+Starting at a @racket[beg0] struct, this command moves to the first @racket[expr] or @racket[seq] in the sequence.
 @racketblock[
-  dive code/body
+  dive seq/0
 ]
 
 Extra Notes:

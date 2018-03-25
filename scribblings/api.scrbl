@@ -144,7 +144,6 @@ Tools for compiling syntax fragments rather than entire modules.
 
 @defproc[(syntax->zo [stx syntax?]) zo?]{
   Compiles a syntax object to a @racket[zo] struct.
-  The result is wrapped in a @racket[compilation-top] struct.
 }
 
 @examples[#:eval zordoz-eval

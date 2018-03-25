@@ -53,13 +53,9 @@ All done!
 ]
 
 
-@subsection{Just Print the Damn Thing}
+@subsection{Just Print the Parsed Bytecode}
 @racketblock[
 $ raco zordoz -p compiled/foo_rkt.zo
-(compilation-top
- 1
- '#hash()
- .... you get the idea ....)
 ]
 
 
