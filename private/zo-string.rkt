@@ -341,7 +341,8 @@
   (list "varref"
         (lcons "toplevel" (match (varref-toplevel z)
                             [(? toplevel? tl) (toplevel->spec tl)]
-                            [#t    "#t"]))
+                            [(? boolean? tl) (boolean->string tl)]
+                            [(? symbol? tl) (symbol->string tl)]))
         (lcons "dummy"    (match (varref-dummy z)
                             [(? toplevel? dm) (toplevel->spec dm)]
                             [#f "#f"]))
@@ -806,10 +807,24 @@
 
   (test-case "varref->spec"
     (let* ([tl (toplevel 1 1 #f #f)]
-           [z  (varref tl #f #f #f)])
+           [z  (varref tl #f #f #f)]
+           [z1  (varref #f #f #f #f)]
+           [z2  (varref 'hi #f #f #f)])
       (check-equal? (force-spec (varref->spec z))
                     (cons "varref"
                           (list (cons "toplevel" "<zo:toplevel>")
+                                (cons "dummy" "#f")
+                                (cons "constant?" "#f")
+                                (cons "from-unsafe?" "#f"))))
+      (check-equal? (force-spec (varref->spec z1))
+                    (cons "varref"
+                          (list (cons "toplevel" "#f")
+                                (cons "dummy" "#f")
+                                (cons "constant?" "#f")
+                                (cons "from-unsafe?" "#f"))))
+      (check-equal? (force-spec (varref->spec z2))
+                    (cons "varref"
+                          (list (cons "toplevel" "hi")
                                 (cons "dummy" "#f")
                                 (cons "constant?" "#f")
                                 (cons "from-unsafe?" "#f"))))))

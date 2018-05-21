@@ -126,7 +126,7 @@
   [#:struct (beg0 expr) (
     [seq : (Listof (U expr seq Any))])]
   [#:struct (varref expr) (
-    [toplevel : (U toplevel #t)]
+    [toplevel : (U toplevel #t #f Symbol)]
     [dummy : (U toplevel #f)]
     [constant? : Boolean]
     [from-unsafe? : Boolean])]
