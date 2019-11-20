@@ -50,7 +50,6 @@
 ;; Check struct members for matches unless the search has reached its limit.
 (define (zo-find-aux z hist str i lim)
   (define-values (title children) (parse-zo z))
-  (define zstr (format "~a" z))
   (define results
     (cond
      [(and lim (<= lim i))
