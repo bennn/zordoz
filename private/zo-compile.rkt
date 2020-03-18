@@ -29,7 +29,7 @@
   (format "~a~a" zordoz-prefix-string key))
 
 (define-for-syntax-and-runtime scheme_register_process_global
-  (and (get-ffi-obj 'scheme_register_process_global #f (_fun _string _pointer -> _pointer))))
+  (get-ffi-obj 'scheme_register_process_global #f (_fun _string _pointer -> _pointer) (lambda () #f)))
 (define-for-syntax-and-runtime done (cast 1 _scheme _pointer))
 
 (define-for-syntax-and-runtime object-target-path
@@ -48,7 +48,7 @@
     (make-temporary-file)) ; Cludgy hack to see if in sandbox
   (call-as-atomic
    (lambda ()
-     (if (scheme_register_process_global (mk-process-global-key (path->string out)) done)
+     (if (and scheme_register_process_global (scheme_register_process_global (mk-process-global-key (path->string out)) done))
          (unless (and (file-exists? in)
                       (file-exists? out)
                       ((file-or-directory-modify-seconds in)
