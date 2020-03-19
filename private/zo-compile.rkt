@@ -9,6 +9,7 @@
          dynext/link
          ffi/unsafe
          ffi/unsafe/atomic
+         (only-in ffi/unsafe/global register-process-global)
          (for-syntax racket/base
                      syntax/parse
                      racket/require-transform
@@ -17,19 +18,18 @@
                      dynext/compile
                      dynext/link
                      ffi/unsafe
-                     ffi/unsafe/atomic))
+                     ffi/unsafe/atomic
+                     (only-in ffi/unsafe/global register-process-global)))
 
 (define-syntax-rule (define-for-syntax-and-runtime f ...)
   (begin (define f ...)
          (define-for-syntax f ...)))
 
-; Helpers for creating a tag for the scheme_register_process_global table
+; Helpers for creating a tag for the global process table
 (define-for-syntax-and-runtime zordoz-prefix-string "ZORDOZ-INTERNAL-")
 (define-for-syntax-and-runtime (mk-process-global-key key)
   (format "~a~a" zordoz-prefix-string key))
 
-(define-for-syntax-and-runtime scheme_register_process_global
-  (get-ffi-obj 'scheme_register_process_global #f (_fun _string _pointer -> _pointer) (lambda () #f)))
 (define-for-syntax-and-runtime done (cast 1 _scheme _pointer))
 
 (define-for-syntax-and-runtime object-target-path
@@ -48,7 +48,7 @@
     (make-temporary-file)) ; Cludgy hack to see if in sandbox
   (call-as-atomic
    (lambda ()
-     (if (and scheme_register_process_global (scheme_register_process_global (mk-process-global-key (path->string out)) done))
+     (if (register-process-global (mk-process-global-key (path->string out)) done)
          (unless (and (file-exists? in)
                       (file-exists? out)
                       ((file-or-directory-modify-seconds in)
