@@ -37,6 +37,7 @@
   syntax/toplevel
   syntax/strip-context
   (only-in racket/port with-input-from-bytes port->bytes)
+  (only-in racket/linklet linklet?)
 )
 
 ;; =============================================================================
@@ -77,10 +78,16 @@
 (module+ test
   (require rackunit compiler/compile-file racket/runtime-path
            (only-in racket/port with-input-from-string)
+           (only-in racket/extflonum extflonum-available?)
            (only-in syntax/modread with-module-reading-parameterization))
 
   (define-runtime-path test-rkt "test/file.rkt")
   (define-runtime-path test-zo "test/file.zo")
+  (define racketcs? (eq? 'chez-scheme (system-type 'vm)))
+
+  (define (machine-code-sexp? x)
+    (and (pair? x)
+         (eq? (car x) '#%machine-code)))
 
   (define (linkl-directory->code z)
     (linkl-body
@@ -124,12 +131,17 @@
   (test-case "-- syntax->decompile"
     (let* ([stx #'(string-append "hello" "world")]
            [d (syntax->decompile stx)])
-      (check-eq? (car d) 'string-append)
-      (check-equal? (car (cdr (car (cdr d)))) "hello"))
+      (if racketcs?
+        (check-pred machine-code-sexp? d)
+        (begin
+          (check-eq? (car d) 'string-append)
+          (check-equal? (car (cdr (car (cdr d)))) "hello"))))
 
     (let* ([stx #'(displayln "hello world")]
            [d (syntax->decompile stx)])
-      (check-equal? (car (cdr d)) '(quote "hello world"))))
+      (if racketcs?
+        (check-pred machine-code-sexp? d)
+        (check-equal? (car (cdr d)) '(quote "hello world")))))
 
   #;(test-case "-- zo->compiled-expression"
     (let* (;[expr '(+ 600 60 6)]
