@@ -97,18 +97,21 @@
             (linkl-directory-table z) '())) 0)))
 
   (test-case "-- compiled-expression->zo"
+   (unless racketcs?
     (let* ([e (compile-syntax #'(box 3))]
            [z (compiled-expression->zo e)])
       (check-pred linkl-directory? z)
-      (check-pred application? (car (linkl-directory->code z)))))
+      (check-pred application? (car (linkl-directory->code z))))))
 
   (test-case "-- syntax->zo"
+   (unless racketcs?
     (let* ([stx #'(+ 1 3)]
            [z (syntax->zo stx)])
      (check-pred linkl-directory? z)
-     (check-equal? 4 (car (linkl-directory->code z)))))
+     (check-equal? 4 (car (linkl-directory->code z))))))
 
   (test-case "syntax->zo 2"
+   (unless racketcs?
     (let* ([stx #'(let ([a (box 'a)])
                     (if (unbox a) (set-box! a 'b) (set-box! a 'c)) (unbox a))]
            [z (syntax->zo stx)])
@@ -126,7 +129,7 @@
       (define body (let-one-body l))
       (check-true (seq? body))
       (check-true (branch? (car (seq-forms body))))
-      (check-true (application? (cadr (seq-forms body))))))
+      (check-true (application? (cadr (seq-forms body)))))))
 
   (test-case "-- syntax->decompile"
     (let* ([stx #'(string-append "hello" "world")]
