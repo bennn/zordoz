@@ -18,4 +18,3 @@ Jump to the bottom of the @secref{REPL} section for example usage.
 @include-section{overview.scrbl}
 @include-section{repl.scrbl}
 @include-section{api.scrbl}
-@include-section{future-work.scrbl}
